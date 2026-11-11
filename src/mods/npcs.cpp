@@ -66,6 +66,8 @@ void MakeMortal(void* n) {
     static int protOff = -1; if (protOff < 0) protOff = FieldOff("C_NPC.PROTECTION", 0x1A4);
     for (int k = 0; k < 8; k++) { int& p = fld<int>(n, protOff + 4 * k); if (p < 0 || p >= 999) p = 50; }   // -1 / 999 = immune
 }
+// every NPC created by the spawner (copies only - originals of story characters are never touched)
+std::vector<std::pair<void*, double>> g_spawnedNpcs;
 void Act_SpawnNpc(int sym, int count, int mode) {
     Sym* s = SymAt(sym); std::string id = s ? zs(s->name) : "?";
     T.Queue("npc:" + id, [=] {
@@ -77,9 +79,16 @@ void Act_SpawnNpc(int sym, int count, int mode) {
         for (int i = 0; i < n; i++) {
             float ang = base + (n > 1 ? ((float)i - (n - 1) / 2.f) * 0.3f : 0.f);
             zVEC3 p = SpawnPointNear(350.f + (i / 8) * 150.f, 450.f + (i / 8) * 150.f, ang);
-            void* npc = SpawnNpc(sym, p);
+            Sym* is = SymAt(sym);
+            int savedOff = is ? is->offset : 0;   // scripts that name e.g. DIEGO must keep the real Diego
+            void* npc = SpawnNpc(sym, p, true);
+            if (is) is->offset = savedOff;
             if (!npc) continue;
             ok++;
+            g_spawnedNpcs.push_back({ npc, T.gameClock });
+            Schedule(0.8, [npc, id] {   // still no model -> the engine disabled it; say so instead of leaving a ghost
+                if (NpcExists(npc) && !VobModel(npc)) { Log("spawn %s: brak modelu po wstawieniu", id.c_str()); T.Toast(id + ": gra nie wczytała modelu postaci"); }
+            });
             MakeMortal(npc);   // script immortality / immune protections (some monsters) - spawned ones can die
             // named npcs get beamed to their daily-routine waypoint on insertion: bring them back
             for (double t : { 0.15, 0.6, 1.5 })
@@ -93,6 +102,37 @@ void Act_SpawnNpc(int sym, int count, int mode) {
     });
 }
 
+void Act_RemoveSpawned(uintptr_t p) {   // 0 = all spawned
+    T.Queue("row:spawnremove", [p] {
+        int c = 0;
+        for (auto it = g_spawnedNpcs.begin(); it != g_spawnedNpcs.end();) {
+            if (p && (uintptr_t)it->first != p) { ++it; continue; }
+            void* n = it->first;
+            if (NpcExists(n) && n != Player() && n != MainHero()) {
+                g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
+                g_savedTargets.erase(std::remove(g_savedTargets.begin(), g_savedTargets.end(), n), g_savedTargets.end());
+                RemoveVob(n); c++;
+            }
+            it = g_spawnedNpcs.erase(it);
+        }
+        T.Toast("Usunięto zrespionych: " + std::to_string(c));
+    });
+}
+void Act_SpawnByName(const std::string& id, int count, int mode) {
+    int sym = SymIndex(id);
+    if (sym < 0) { T.Toast("Nie ma takiej instancji: " + id); return; }
+    Act_SpawnNpc(sym, count, mode);
+}
+void Act_SaveTargetPtr(uintptr_t p) {
+    T.Queue("row:tsave", [p] {
+        void* n = (void*)p;
+        if (!NpcExists(n)) return;
+        auto it = std::find(g_savedTargets.begin(), g_savedTargets.end(), n);
+        if (it == g_savedTargets.end()) { g_savedTargets.push_back(n); it = g_savedTargets.end() - 1; }
+        g_activeSaved = (int)(it - g_savedTargets.begin());
+        T.Toast("Zapisano cel: " + U(NpcName(n)));
+    });
+}
 void Act_MakeAllies(const std::vector<uintptr_t>& v) {
     T.Queue("row:allypick", [v] {
         int c = 0;
@@ -104,6 +144,10 @@ void Act_MakeAllies(const std::vector<uintptr_t>& v) {
 namespace {
 std::vector<NearNpc> g_near; double g_nearAt = -10, g_keepAt = 0;
 std::unordered_map<void*, int> g_pstate;   // 0 follows, 1 waits, 2 back at post
+// build 9 (#16): "wait" = stay exactly here. The script stand states end after a while and the daily routine
+// walks the NPC back to its post, so the spot is remembered and enforced every second.
+struct WaitSpot { zVEC3 pos; float trafo[12]; };
+std::unordered_map<void*, WaitSpot> g_waitAt;
 int StateSym(std::initializer_list<const char*> names) { for (auto n : names) { int i = SymIndex(n); if (i >= 0) return i; } return -1; }
 void Wait(void* n) {
     if (!NpcReady(n)) return;
@@ -199,11 +243,17 @@ void Act_PartyCmd(uintptr_t p, int cmd) {
         void* n = (void*)p;
         if (!NpcExists(n)) return;
         void* h = Player();
+        if (cmd != 1) g_waitAt.erase(n);
         switch (cmd) {
         case 0: g_pstate[n] = 0;
             if (NpcReady(n)) { CallExt("Npc_ClearAIQueue", { Arg::Npc(n) }); CallExt("AI_StandupQuick", { Arg::Npc(n) }); }
             MakeAlly(n); T.Toast(U(NpcName(n)) + " idzie za tobą"); break;
-        case 1: g_pstate[n] = 1; Wait(n); T.Toast(U(NpcName(n)) + " czeka tutaj"); break;
+        case 1: {
+            g_pstate[n] = 1; Wait(n);
+            WaitSpot w; w.pos = Pos(n); const float* t = &fld<float>(n, VOB_TRAFO); std::copy(t, t + 12, w.trafo);
+            g_waitAt[n] = w;
+            T.Toast(U(NpcName(n)) + " czeka tutaj"); break;
+        }
         case 2: g_pstate[n] = 2; SetNpcAivar(n, K.aivParty, 0); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
                 ToRoutine(n); g_allies.push_back(n); T.Toast(U(NpcName(n)) + " wraca do swojej rutyny"); break;
         case 3: SafeSetPos(n, Grounded(InFront(180.f))); g_pstate[n] = 0; MakeAlly(n); T.Toast("Przywołano: " + U(NpcName(n))); break;
@@ -229,12 +279,30 @@ void Arena_PlayerDown() {
 }
 bool Arena_IsEnemy(void* n) { return n && std::find(g_arena.begin(), g_arena.end(), n) != g_arena.end(); }
 
-void Npcs_World() { g_lost = false; g_rewarded = true; g_arena.clear(); g_frozenSpawn.clear(); g_wave = 0; g_next = 0; g_near.clear(); g_nearAt = -10; g_pstate.clear(); }
+void Npcs_World() { g_spawnedNpcs.clear(); g_waitAt.clear(); g_lost = false; g_rewarded = true; g_arena.clear(); g_frozenSpawn.clear(); g_wave = 0; g_next = 0; g_near.clear(); g_nearAt = -10; g_pstate.clear(); }
 void Npcs_Tick(TickCtx& c) {
     if (T.menuOpen) RefreshNearby(c.hero);
     c.s.nearby = g_near;
     if (T.menuOpen) for (void* n : g_allies) if (NpcExists(n)) c.s.party.push_back(Describe(n, c.hero));
+    g_spawnedNpcs.erase(std::remove_if(g_spawnedNpcs.begin(), g_spawnedNpcs.end(), [](const std::pair<void*, double>& e) { return !NpcExists(e.first); }), g_spawnedNpcs.end());
+    if (T.menuOpen) for (auto& e : g_spawnedNpcs) c.s.spawned.push_back(Describe(e.first, c.hero));
     if (On("allykeep") && !c.paused) Guard("row:allykeep", [] { KeepParty(); });
+    static double waitCheck = 0;
+    if (!c.paused && !g_waitAt.empty() && T.gameClock - waitCheck > 1.0) {
+        waitCheck = T.gameClock;
+        for (auto it = g_waitAt.begin(); it != g_waitAt.end();) {
+            void* n = it->first;
+            if (!NpcAlive(n) || !g_pstate.count(n) || g_pstate[n] != 1) { it = g_waitAt.erase(it); continue; }
+            if (NpcReady(n) && Dist(Pos(n), it->second.pos) > 250.f) {
+                CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
+                SafeSetPos(n, it->second.pos);
+                float* t = &fld<float>(n, VOB_TRAFO);
+                for (int i = 0; i < 12; i++) if (i != 3 && i != 7 && i != 11) t[i] = it->second.trafo[i];
+                Wait(n);
+            }
+            ++it;
+        }
+    }
     for (auto it = g_frozenSpawn.begin(); it != g_frozenSpawn.end();) {
         if (!NpcExists(*it)) { it = g_frozenSpawn.erase(it); continue; }
         if ((fld<uint8_t>(*it, VOB_SLEEPMODE) & 3) != 0) SetSleeping(*it, true);

@@ -232,15 +232,28 @@ void SetAsPlayer(void* npc) { reinterpret_cast<fn_this>(F_NPC_SETASPLAYER)(npc);
 void CreateItems(void* npc, int inst, int amount) {
     reinterpret_cast<fn_this_ii>(F_NPC_CREATEITEMS)(npc, inst, amount);
 }
-void* SpawnNpc(int inst, const zVEC3& pos) {
+void* SpawnNpc(int inst, const zVEC3& pos, bool noRoutine) {
     void* w = GameWorld(); void* g = Game();
     if (!w || !g) return nullptr;
     void* npc = reinterpret_cast<fn_create>(vtbl(w)[VT_WORLD_CREATEVOB])(w, 0x82, inst);
     if (!IsNpc(npc)) return nullptr;
+    if (noRoutine) {
+        // build 9 (#17): a named NPC with a daily routine got beamed to its routine waypoint on insertion; far
+        // from the player the spawn manager disabled it at once (no model). Our teleport back then moved an
+        // invisible, disabled NPC. Without a routine it stays where we put it, like monsters do.
+        static int offRtn = FieldOff("C_NPC.DAILY_ROUTINE", -1);
+        if (offRtn >= 0) fld<int>(npc, offRtn) = 0;
+    }
     void* sm = fld<void*>(g, OG_SPAWNMAN);
     reinterpret_cast<fn_spawn>(F_SPAWN_NPC_POS)(sm, npc, &pos, 0.f);
     Release(npc);  // world holds its own reference
     return npc;
+}
+// put an existing (despawned) npc object back into the world
+void RespawnNpc(void* npc, const zVEC3& pos) {
+    void* g = Game(); if (!g || !npc) return;
+    void* sm = fld<void*>(g, OG_SPAWNMAN);
+    reinterpret_cast<fn_spawn>(F_SPAWN_NPC_POS)(sm, npc, &pos, 0.f);
 }
 void* SpawnItem(int inst, const zVEC3& pos) {
     void* w = GameWorld();

@@ -22,6 +22,9 @@ float g_m[12], g_ext[12], g_camSave[12];
 Job g_cur; bool g_active = false;
 void* g_subj = nullptr; bool g_spawned = false; uint32_t g_flags = 0; bool g_hidden = false; bool g_turned = false;
 int g_settle = 0, g_wait = 0, g_done = 0, g_total = 0; bool g_batch = false;
+// build 9: every job gets its own spot (previous clone may still be in the world for a frame or two),
+// a short pause between jobs, and 2 frames after each change before the shot (renderer can lag a frame)
+int g_slot = 0, g_cool = 0, g_delay = 0;
 zVEC3 g_studio;
 std::set<void*> g_customLook;
 
@@ -91,7 +94,7 @@ void Finish(void* cam) {
     if (g_spawned && g_subj) RemoveVob(g_subj);
     if (g_override) WriteCam(cam, g_camSave);
     g_hidden = false; g_turned = false; g_override = false; g_subj = nullptr; g_spawned = false; g_active = false; g_photoStage = 0;
-    g_done++;
+    g_done++; g_cool = 3;
     if (g_jobs.empty()) { g_batch = false; g_done = g_total = 0; }
 }
 // spawn without stealing the script instance (scripts that reference e.g. DIEGO keep the real one)
@@ -157,6 +160,14 @@ void Act_PhotoBatch(int what) {
                 if (seen.count(k) || PortraitHas(k)) return;
                 seen.insert(k); Photo_Request(n);
             });
+        } else if (what == 2) {   // every character instance in the scripts (also ones the game has not loaded)
+            if (!PortraitHas("PC_HERO") && MainHero()) Photo_Request(MainHero());
+            std::set<std::string> seen;
+            for (auto& e : g_cat.npcs) {
+                if (seen.count(e.id) || PortraitHas(e.id)) continue;
+                seen.insert(e.id);
+                g_jobs.push_back({ 1, nullptr, e.sym, e.id, false }); g_total++;
+            }
         } else {
             for (auto& e : g_cat.items) {
                 std::string key = "I_" + e.id;
@@ -167,6 +178,17 @@ void Act_PhotoBatch(int what) {
         if (g_jobs.empty()) { g_batch = false; T.Toast("Wszystkie obrazki już są"); }
     });
 }
+// regenerate one cached picture by its key (compendium)
+void Act_PhotoKey(const std::string& key) {
+    T.Queue("row:photo", [key] {
+        if (key == "PC_HERO") { if (MainHero()) Photo_Refresh(MainHero()); return; }
+        bool item = key.rfind("I_", 0) == 0;
+        int sym = SymIndex((item ? key.substr(2) : key).c_str());
+        if (sym < 0) { T.Toast("Nie znam instancji " + key); return; }
+        for (auto it = g_jobs.begin(); it != g_jobs.end();) { if (it->key == key) it = g_jobs.erase(it); else ++it; }
+        g_jobs.push_front({ item ? 2 : 1, nullptr, sym, key, true }); g_total++;
+    });
+}
 void Act_PhotoCancel() { T.Queue("row:photocancel", [] { g_jobs.clear(); g_batch = false; T.Toast("Przerwano generowanie obrazków"); }); }
 void Cam_Override(const float* m) { std::copy(m, m + 12, g_ext); g_extThisFrame = true; }
 
@@ -175,8 +197,10 @@ void Photo_Register() {
     T.Add(MkRow("photoauto", "Portrety postaci przy wczytaniu", "przy wczytaniu świata robi portrety postaci, których jeszcze nie ma (raz, potem z pliku)",
                 "Konfiguracja", "Konfiguracja", K_TOGGLE));
     T.rows.back().on = true; St(ST_NEW, "nowe w build 6");
-    T.Add(MkRow("photoall", "Zrób portrety wszystkich postaci", "", "Konfiguracja", "Konfiguracja", K_ACTION, 0, 0, 0, [](Row&) { Act_PhotoBatch(0); }));
-    NoVal(); St(ST_NEW, "nowe w build 6");
+    T.Add(MkRow("photoall", "Zrób portrety postaci w pobliżu", "postacie wczytane przez grę", "Konfiguracja", "Konfiguracja", K_ACTION, 0, 0, 0, [](Row&) { Act_PhotoBatch(0); }));
+    NoVal(); St(ST_NEW, "build 8: postacie nakładały się na siebie; build 9: każda w osobnym miejscu + odczekanie klatek (#3)");
+    T.Add(MkRow("photoeveryone", "Zrób portrety wszystkich postaci z gry", "każda postać i potwór ze skryptów, także niewczytane; kilka minut, Esc przerywa", "Konfiguracja", "Konfiguracja", K_ACTION, 0, 0, 0, [](Row&) { Act_PhotoBatch(2); }));
+    NoVal(); St(ST_NEW, "nowe w build 9");
     T.Add(MkRow("photoitems", "Zrób ikony wszystkich przedmiotów", "około minuty; Esc przerywa", "Konfiguracja", "Konfiguracja", K_ACTION, 0, 0, 0, [](Row&) { Act_PhotoBatch(1); }));
     NoVal(); St(ST_NEW, "nowe w build 6");
 }
@@ -191,13 +215,15 @@ void Photo_World() {
 }
 void Photo_Tick(TickCtx& c) {
     void* cam = fld<void*>(c.game, OG_CAMVOB);
-    if (!g_active) {
+    if (!g_active && g_cool > 0) { g_cool--; }
+    else if (!g_active) {
         while (!g_jobs.empty() && !g_active) {
             Job j = g_jobs.front(); g_jobs.pop_front();
             if (!j.force && PortraitHas(j.key)) { g_done++; continue; }
             if (T.Crashed("photo:" + j.key)) { g_done++; continue; }   // this one crashed the game before
             zVEC3 hp = Pos(c.hero);
-            g_studio = { hp.x, hp.y + 2600.f, hp.z };
+            g_slot = (g_slot + 1) % 8;
+            g_studio = { hp.x + (g_slot % 4) * 900.f - 1350.f, hp.y + 2600.f + (g_slot / 4) * 700.f, hp.z + 4000.f };
             g_cur = j; g_spawned = false; g_subj = nullptr;
             if (j.kind == 0) { if (!NpcExists(j.npc) || !NpcReady(j.npc)) { g_done++; continue; } g_subj = j.npc; g_settle = 0; }
             else {
@@ -230,21 +256,24 @@ void Photo_Tick(TickCtx& c) {
             g_settle--;
             if (g_settle == 0) {
                 if (!Frame()) { Finish(cam); }
-                else { g_override = true; WriteCam(cam, g_m); g_photoStage = 1; }
+                else { g_override = true; WriteCam(cam, g_m); g_delay = 2; g_photoStage = 0; }
             }
+        } else if (g_delay > 0) {                                // let the renderer catch up before a shot
+            WriteCam(cam, g_m);
+            if (--g_delay == 0) g_photoStage++;                  // even -> odd = capture in Present
         } else if (g_photoStage == 0 && !g_override) {
-            if (!Frame()) Finish(cam); else { g_override = true; WriteCam(cam, g_m); g_photoStage = 1; }
+            if (!Frame()) Finish(cam); else { g_override = true; WriteCam(cam, g_m); g_delay = 2; }
         } else if (g_photoStage == 2 || g_photoStage == 6) {   // background shot: subject hidden
             Show(false); WriteCam(cam, g_m);
-            g_photoStage++;
+            g_delay = 2;
         } else if (g_photoStage == 4) {                          // second pair: subject turned around
             Show(true); Turn(g_subj);
-            if (!Frame()) Finish(cam); else { WriteCam(cam, g_m); g_photoStage = 5; }
+            if (!Frame()) Finish(cam); else { WriteCam(cam, g_m); g_delay = 2; }
         } else if (g_photoStage == 8) {
             Finish(cam);
         } else {
             WriteCam(cam, g_m);
-            if (++g_wait > 60) Finish(cam);
+            if (++g_wait > 90) Finish(cam);
         }
     }
     c.s.photoBusy = g_active || !g_jobs.empty();

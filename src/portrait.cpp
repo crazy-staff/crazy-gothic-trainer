@@ -147,6 +147,22 @@ void* PortraitFor(const std::string& key) {
     g_pics[key].srv = srv;
     return srv;
 }
+std::vector<std::string> PortraitKeys() {
+    std::vector<std::string> v;
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA((Dir() + "*.rgba").c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return v;
+    do { std::string n = fd.cFileName; v.push_back(n.substr(0, n.size() - 5)); } while (FindNextFileA(h, &fd));
+    FindClose(h);
+    std::sort(v.begin(), v.end());
+    return v;
+}
+std::vector<std::string> g_del;   // textures may be in this frame's draw list -> released at the next Present
+void PortraitDelete(const std::string& key) {
+    std::lock_guard<std::recursive_mutex> l(g_mx);
+    DeleteFileA(FileOf(key).c_str());
+    g_del.push_back(key);
+}
 void PortraitClear() {
     std::lock_guard<std::recursive_mutex> l(g_mx);
     for (auto& p : g_pics) if (p.second.srv) p.second.srv->Release();
@@ -154,6 +170,15 @@ void PortraitClear() {
 }
 void PortraitPresent(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc) {
     g_dev = dev;
+    if (!g_del.empty()) {
+        std::lock_guard<std::recursive_mutex> l(g_mx);
+        for (auto& key : g_del) {
+            auto it = g_pics.find(key);
+            if (it != g_pics.end()) { if (it->second.srv) it->second.srv->Release(); g_pics.erase(it); }
+            g_missing.insert(key);
+        }
+        g_del.clear();
+    }
     // 1 A (subject) -> 3 B (hidden) -> 5 A2 (turned) -> 7 B2 (hidden) -> build -> 8
     std::vector<uint32_t>* dst = g_photoStage == 1 ? &g_a : g_photoStage == 3 ? &g_b : g_photoStage == 5 ? &g_a2 : nullptr;
     if (dst) { if (!Grab(dev, ctx, sc, *dst)) { g_photoStage = 8; return; } g_photoStage = g_photoStage + 1; return; }

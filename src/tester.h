@@ -24,6 +24,7 @@ struct Ticket {
     int build = 0; std::string time, nick;
     bool sent = false;          // included in an exported report or opened on GitHub
     bool verdict = false;       // quick checklist verdict (Działa / Częściowo / Nie działa)
+    std::vector<std::string> files;   // attachments (file names in G1CrazyTrainer_raporty\zalaczniki)
 };
 
 struct Known {                  // one known issue (from GitHub) for an option
@@ -57,6 +58,13 @@ std::vector<EventRec> EventsFor(const std::string& target, int max);
 
 // context snapshot for a new ticket (game state, options switched on, recent events)
 std::string BuildContext(const std::string& target);
+
+// attachments: screenshot from the clipboard (Ctrl+V) or files from disk - both run on a worker thread
+std::string AttachDir();
+void PasteImageAsync();
+void PickFilesAsync();
+bool AttachBusy();
+std::vector<std::string> TakeAttachments(std::string* message);   // finished since the last call
 
 // export
 std::string ExportReport(bool onlyUnsent, std::string* outPath);   // writes Raporty\..., returns text

@@ -6,7 +6,7 @@
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 8
+#define TRAINER_BUILD 9
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]
@@ -71,7 +71,7 @@ struct Snapshot {
     std::vector<std::string> savedTargets; int activeSaved = -1;
     std::vector<SavedInfo> saved;
     std::string tInst, tPlace; float tx = 0, ty = 0, tz = 0; uintptr_t tPtr = 0;
-    std::vector<NearNpc> nearby, party;
+    std::vector<NearNpc> nearby, party, spawned;
     std::string subjectName; uintptr_t subjectPtr = 0;
     bool quicksilver = false;
     std::string subjectInst, tInst2, heroInst;
@@ -136,6 +136,8 @@ std::string DataPath(const char* file);
 void Log(const char* fmt, ...);
 void CrashGuardInit();
 void ApplyRow(Row& r);
+extern volatile bool g_stealMouse;
+extern volatile long g_mouseDx, g_mouseDy;
 
 // UI -> game thread actions
 void Act_GiveItem(int sym, int amount);
@@ -159,6 +161,10 @@ void Act_PhotoItem(int sym);                          // item icon request
 void Act_PhotoBatch(int what);                        // 0 all npcs in world, 1 all items
 void Act_PhotoCancel();
 void Act_LookPreview();
+void Act_RemoveSpawned(uintptr_t p);   // 0 = all
+void Act_SpawnByName(const std::string& id, int count, int mode);
+void Act_SaveTargetPtr(uintptr_t p);
+void Act_PhotoKey(const std::string& key);
 void Arena_PlayerDown();
 bool Arena_IsEnemy(void* n);
 void Act_CastOnTarget();

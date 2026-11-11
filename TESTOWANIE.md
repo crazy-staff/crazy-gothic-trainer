@@ -15,6 +15,7 @@ W trybie testera przy każdej opcji w menu pojawia się:
 ## 2. Testuj
 
 Zakładka **Checklista**: przy każdej opcji kliknij **Działa / Częściowo / Nie działa**.
+- **Kropka autora** filtruje po statusie od autora — w buildach alfa testuj głównie **TEST (nowe)** i **BUG**, nie wszystko od nowa.
 - Nic nie jest nadpisywane: każda ocena trafia do historii (z numerem buildu), więc w kolejnych wersjach widać, co się zmieniło.
 - Po „Częściowo” / „Nie działa” otworzy się formularz — opisz, co poszło nie tak (opcjonalnie, ale bardzo pomaga).
 - Kliknij licznik wpisów przy opcji, żeby zobaczyć **wszystko, co już o niej wiadomo**: uwagi autora, znane problemy z GitHuba i wszystkie wcześniejsze zgłoszenia.
@@ -23,6 +24,8 @@ Zakładka **+ Nowe zgłoszenie** — formularz dla błędu, crasha, propozycji a
 - **Czego dotyczy** — wybierz opcję z listy (jest wyszukiwarka) albo „Ogólne”. Pod spodem zobaczysz znane problemy tej opcji: sprawdź, czy twój już tam nie jest.
 - **Kroki** — co robiłeś po kolei. To najważniejsze pole: z dobrych kroków da się błąd powtórzyć i naprawić.
 - **Dołącz stan gry** (zostaw włączone) — trainer sam dopisze świat, pozycję, włączone opcje i ostatnie zdarzenia.
+- **Załączniki**: zrób zrzut (Win+Shift+S albo PrtScr) i naciśnij **Ctrl+V** w formularzu, albo „Dodaj plik z dysku”. Zrzuty trafiają do raportu (.zip).
+- Zgłaszać można też **całą kategorię, podkategorię, kartę albo aspekt** (UI, UX, wydajność…): flaga przy nagłówku karty / podkategorii albo wybór w polu „Czego dotyczy”.
 
 Zakładka **Dziennik** pokazuje, co trainer zanotował w tej sesji (włączenia opcji, akcje, złapane błędy). Dziennik sam dołącza się do zgłoszeń.
 
@@ -35,7 +38,7 @@ Zakładka **Wyślij** — wybierz jeden sposób:
 | Sposób | Jak |
 |---|---|
 | **GitHub** (najlepiej) | „Otwórz niewysłane na GitHubie” — każde zgłoszenie otwiera się w przeglądarce jako wypełniony formularz, klikasz **Submit new issue**. Potrzebne darmowe konto GitHub. Przy crashu dołącz plik raportu (niżej). |
-| **Plik raportu** | „Eksportuj niewysłane” — powstaje jeden plik w `Gothic\system\Autorun\G1CrazyTrainer_raporty\` ze wszystkim: zgłoszenia, oceny, dziennik, błędy z logu, dane o komputerze. Wyślij go autorowi (Discord / mail). |
+| **Plik raportu** | „Eksportuj niewysłane” — powstaje jeden plik (.txt, a z załącznikami .zip) w `Gothic\system\Autorun\G1CrazyTrainer_raporty\` ze wszystkim: zgłoszenia, oceny, dziennik, błędy z logu, dane o komputerze. Wyślij go autorowi (Discord / mail). |
 | **Discord** | „Kopiuj na Discorda” — krótki tekst niewysłanych zgłoszeń do wklejenia na kanał. |
 
 Wysłane zgłoszenia są oznaczane i nie wysyłają się drugi raz.

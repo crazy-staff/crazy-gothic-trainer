@@ -164,14 +164,27 @@ using fnDIState = long(__stdcall*)(void*, unsigned long, void*);
 using fnDIData = long(__stdcall*)(void*, unsigned long, void*, unsigned long*, unsigned long);
 static fnDIState oDIState = nullptr; static fnDIData oDIData = nullptr;
 static volatile bool g_blockInput = false;
+// build 9 (#20): in no-clip the mouse turns the hero (like normal running) instead of orbiting the camera
+volatile bool g_stealMouse = false;
+volatile long g_mouseDx = 0, g_mouseDy = 0;
 static long __stdcall hkDIState(void* self, unsigned long cb, void* data) {
     long r = oDIState(self, cb, data);
     if (g_blockInput && r == 0 && data) memset(data, 0, cb);
+    else if (g_stealMouse && r == 0 && data && self == at<void*>(DI_MOUSE) && cb >= 8) {
+        long* m = (long*)data; g_mouseDx += m[0]; g_mouseDy += m[1]; m[0] = 0; m[1] = 0;
+    }
     return r;
 }
 static long __stdcall hkDIData(void* self, unsigned long cb, void* rg, unsigned long* n, unsigned long fl) {
     long r = oDIData(self, cb, rg, n, fl);
     if (g_blockInput && r == 0 && n) *n = 0;
+    else if (g_stealMouse && r == 0 && n && rg && self == at<void*>(DI_MOUSE) && cb >= 8 && !(fl & 1 /*DIGDD_PEEK*/)) {
+        for (unsigned long i = 0; i < *n; i++) {
+            unsigned long* o = (unsigned long*)((char*)rg + i * cb);   // DIDEVICEOBJECTDATA: dwOfs, dwData, ...
+            if (o[0] == 0) { g_mouseDx += (long)o[1]; o[1] = 0; }       // DIMOFS_X
+            else if (o[0] == 4) { g_mouseDy += (long)o[1]; o[1] = 0; }  // DIMOFS_Y
+        }
+    }
     return r;
 }
 static void HookDirectInput() {

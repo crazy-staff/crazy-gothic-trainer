@@ -7,7 +7,7 @@
 
 Also accepts raw G1CrazyTrainer_zgloszenia.txt files and pasted text with @@TICKET blocks.
 """
-import argparse, json, re, subprocess, sys
+import argparse, json, os, re, subprocess, sys, zipfile
 from collections import defaultdict
 
 REPO = "dawidseipold/gothic1-crazy-trainer"
@@ -69,7 +69,15 @@ def main():
     a = ap.parse_args()
     reports, tickets = {}, {}
     for fn in a.files:
-        text = open(fn, encoding="utf-8", errors="replace").read()
+        if fn.lower().endswith(".zip"):   # report with attachments: raport.txt + zalaczniki/*
+            z = zipfile.ZipFile(fn)
+            text = z.read("raport.txt").decode("utf-8", "replace")
+            outdir = os.path.splitext(fn)[0] + "_zalaczniki"
+            for n in z.namelist():
+                if n.startswith("zalaczniki/") and not n.endswith("/"):
+                    os.makedirs(outdir, exist_ok=True); open(os.path.join(outdir, os.path.basename(n)), "wb").write(z.read(n))
+        else:
+            text = open(fn, encoding="utf-8", errors="replace").read()
         r, ts = parse(text, fn)
         reports.update(r)
         for t in ts: tickets[t.get("uid") or f"{fn}:{len(tickets)}"] = t   # same uid in many files -> one ticket
@@ -90,7 +98,8 @@ def main():
         print(f"## {name} (`{target}`) — " + ", ".join(f"{k}: {v}" for k, v in verd.items()))
         for t in items:
             if t.get("verdict") == "1" and not (t.get("actual") or t.get("steps")): continue
-            print(f"- **{t.get('type')}** b{t.get('build')} {t.get('nick')}: {t.get('title') or ''} — {(t.get('actual') or t.get('steps') or '').replace(chr(10), ' ')[:200]}")
+            att = f" [załączniki: {t['files']}]" if t.get("files") else ""
+            print(f"- **{t.get('type')}** b{t.get('build')} {t.get('nick')}: {t.get('title') or ''} — {(t.get('actual') or t.get('steps') or '').replace(chr(10), ' ')[:200]}{att}")
         print()
     if a.github:
         known = existing_uids()

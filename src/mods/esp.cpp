@@ -139,10 +139,12 @@ void Esp_World() { g_npc.clear(); g_chests.clear(); g_chestInv.clear(); g_lastNp
 void Esp_Tick(TickCtx& c) {
     Snapshot& s = c.s;
     s.espLines = On("espline");
-    bool npcOn = On("espnpc"), itemOn = On("espitems"), chestOn = On("espchest");
+    bool master = On("esp");
+    bool npcOn = master && On("espnpc"), itemOn = master && On("espitems"), chestOn = master && On("espchest");
+    if (!master) s.espLines = false;
     if (!npcOn && !itemOn && !chestOn) return;
     void* h = c.hero; zVEC3 hp = Pos(h);
-    float range = Val("esprange") * 100.f;
+    float range = Val("esprange") * 100.f, irange = Val("espitemrange") * 100.f;
     int filter = (int)Val("espfilter");
     int boxMode = (int)Val("espboxmode");
     double now = NowSec();
@@ -263,7 +265,7 @@ void Esp_Tick(TickCtx& c) {
         ForEachList(fld<void*>(w, W_ITEMLIST), [&](void* it) {
             zVEC3 p = Pos(it);
             float d = Dist(p, hp);
-            if (d > range) return;
+            if (d > irange) return;
             int v = K.offItemValue >= 0 ? fld<int>(it, K.offItemValue) : 0;
             if (v < minVal) return;
             Label L{}; L.type = 1; L.hp = -1;
@@ -283,7 +285,7 @@ void Esp_Tick(TickCtx& c) {
         for (void* v : g_chests) {
             zVEC3 p = Pos(v);
             float d = Dist(p, hp);
-            if (d > range) continue;
+            if (d > irange) continue;
             Label L{}; L.type = 2; L.hp = -1;
             p.y += 60;
             if (!Project(p, L.x, L.y)) continue;
@@ -302,12 +304,14 @@ void Esp_Tick(TickCtx& c) {
 
 void Esp_Register() {
     const char* C = "Wizualia";
-    const char* P = "ESP";
+    const char* P = "ESP postaci";   // build 9 (#15): subcategories + master switch + separate ranges
     auto tog = [&](const char* id, const char* name, const char* sub, bool def, Status st, const char* h) {
         T.Add(MkRow(id, name, "", C, sub, K_TOGGLE)); T.rows.back().on = def; St(st, h);
     };
+    CardTitle("Główny wyłącznik");
+    tog("esp", "ESP włączone", P, true, ST_NEW, "nowe w build 9: wyłącza całe ESP bez odznaczania opcji (#15)"); Icon(ICN_EYE);
     CardTitle("Postacie");
-    tog("espnpc", "Pokaż postacie", P, false, ST_OK, "działa"); Icon(ICN_EYE);
+    tog("espnpc", "Pokaż postacie", P, false, ST_OK, "działa"); Icon(ICN_USERS);
     T.Add(MkRow("esprange", "Maksymalny zasięg", "m", C, P, K_VALUE, 50, 5, 300)); St(ST_OK, "działa");
     T.Add(MkRow("espmaxnpc", "Maks. postaci naraz", "najbliższe; mniej = lżej dla słabszych komputerów", C, P, K_VALUE, 40, 1, 200)); St(ST_NEW, "nowe w build 6");
     T.Add(MkRow("espfilter", "Pokazuj", "", C, P, K_VALUE, 0, 0, 4));
@@ -328,9 +332,10 @@ void Esp_Register() {
     tog("espskel", "Szkielet", P, false, ST_NEW, "nowe w build 4 (do 40 m)");
     tog("espline", "Linie od dołu ekranu", P, false, ST_OK, "działa");
 
-    const char* I = "ESP";
+    const char* I = "ESP przedmiotów";
     CardTitle("Przedmioty na ziemi");
     tog("espitems", "Pokaż przedmioty", I, false, ST_OK, "działa"); Icon(ICN_BAG);
+    T.Add(MkRow("espitemrange", "Maksymalny zasięg", "m (też skrzynie)", C, I, K_VALUE, 50, 5, 300)); St(ST_NEW, "nowe w build 9 - osobny zasięg dla przedmiotów");
     T.Add(MkRow("espitemval", "Min. wartość", "rudy", C, I, K_VALUE, 0, 0, 5000)); St(ST_OK, "działa");
     T.Add(MkRow("espmaxitem", "Maks. przedmiotów naraz", "najbliższe", C, I, K_VALUE, 40, 1, 200)); St(ST_NEW, "nowe w build 6");
     CardTitle("Skrzynie");

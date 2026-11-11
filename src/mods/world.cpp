@@ -19,6 +19,7 @@ void TimeScales(void* hero, bool paused) {
     if (spd && mode == 0) npcScale *= std::max(0.05f, Val("speed"));
     if (On("quicksilver")) npcScale *= std::max(0.02f, Val("qsfactor"));
     float heroScale = On("pspeed") ? Val("pspeed") : 1.f;
+    if (On("noclip") && (int)Val("ncmode") == 2) heroScale *= std::max(1.f, Val("ncspeed") / 3.6f);   // no-clip "run" mode
     if (On("quicksilver")) heroScale *= std::max(1.f, Val("qshero"));
     if (paused) return;
     void* main = MainHero();

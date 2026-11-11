@@ -25,8 +25,9 @@ jobs:
             };
             const labels = [];
             const target = field('Czego dotyczy') || field('Co było włączone / co robiłeś w chwili crasha');
-            const id = (target.match(/\(([A-Za-z0-9_-]+)\)\s*$/) || [])[1];
-            if (id) labels.push('opcja:' + id);
+            // last "(...)" = id from the game: option id, kat:/pod:/karta:/sekcja:/aspekt: targets
+            const id = ((target.match(/\(([^()]+)\)\s*$/) || [])[1] || '').trim();
+            if (id) labels.push(('opcja:' + id).slice(0, 50));
             const build = (field('Build trainera').match(/\d+/) || [])[0];
             if (build) labels.push('build-' + build);
             if (field('ID zgłoszenia \\(z gry\\)')) labels.push('z-gry');

@@ -4,6 +4,7 @@
 // -> transparent background, faded at the bottom. Results are cached as files by key (instance id).
 #include <cstdint>
 #include <string>
+#include <vector>
 struct ID3D11Device; struct ID3D11DeviceContext; struct IDXGISwapChain;
 // odd = capture this frame (1 A, 3 B, 5 A2, 7 B2), even = game thread prepares the next shot, 8 = done
 extern volatile int g_photoStage;
@@ -13,3 +14,5 @@ void PortraitPresent(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain
 void* PortraitFor(const std::string& key);   // ImTextureID or null (loads the cached file on first use)
 bool PortraitHas(const std::string& key);    // in memory or on disk
 void PortraitClear();                        // drop textures (files stay)
+std::vector<std::string> PortraitKeys();     // every cached file (file name = key with odd chars as '_')
+void PortraitDelete(const std::string& key); // file + texture

@@ -16,6 +16,10 @@
 #include <map>
 #include <mutex>
 #include <sstream>
+#include <atomic>
+#include <thread>
+#include <commdlg.h>
+#include <wincodec.h>
 
 namespace tst {
 
@@ -62,6 +66,7 @@ void WriteBlock(std::string& o, const Ticket& t) {
     kv("title", t.title); kv("steps", t.steps); kv("expected", t.expected); kv("actual", t.actual); kv("notes", t.notes);
     kv("build", std::to_string(t.build)); kv("time", t.time); kv("nick", t.nick);
     kv("verdict", t.verdict ? "1" : "0"); kv("sent", t.sent ? "1" : "0");
+    { std::string f; for (auto& x : t.files) { if (!f.empty()) f += '|'; f += x; } kv("files", f); }
     kv("context", t.context);
     o += "@@END\n";
 }
@@ -86,6 +91,7 @@ std::vector<Ticket> ParseBlocks(std::istream& in) {
         else if (k == "actual") cur.actual = v; else if (k == "notes") cur.notes = v; else if (k == "build") cur.build = atoi(v.c_str());
         else if (k == "time") cur.time = v; else if (k == "nick") cur.nick = v; else if (k == "verdict") cur.verdict = v == "1";
         else if (k == "sent") cur.sent = v == "1"; else if (k == "context") cur.context = v;
+        else if (k == "files") { std::stringstream ss(v); std::string x; while (std::getline(ss, x, '|')) if (!x.empty()) cur.files.push_back(x); }
     }
     return out;
 }
@@ -252,6 +258,148 @@ std::vector<EventRec> EventsFor(const std::string& target, int max) {
     return v;
 }
 
+
+// ----------------------------------------------------------------- attachments
+namespace {
+std::mutex g_attMx;
+std::vector<std::string> g_attDone; std::string g_attMsg;
+std::atomic<bool> g_attBusy{ false };
+std::string UniqueName(const char* ext) {
+    static int n = 0;
+    std::string base = (g_nick.empty() ? std::string("anon") : g_nick) + "_" + Stamp(true) + "_" + std::to_string(++n);
+    return base + ext;
+}
+void AttDone(const std::string& name, const std::string& msg) {
+    std::lock_guard<std::mutex> l(g_attMx);
+    if (!name.empty()) g_attDone.push_back(name);
+    if (!msg.empty()) g_attMsg = msg;
+}
+std::wstring Wide(const std::string& s) {
+    int n = MultiByteToWideChar(CP_ACP, 0, s.c_str(), -1, nullptr, 0);
+    std::wstring w(n > 0 ? n - 1 : 0, L'\0'); if (n > 0) MultiByteToWideChar(CP_ACP, 0, s.c_str(), -1, &w[0], n);
+    return w;
+}
+// 32-bit BGRA top-down -> PNG via Windows Imaging Component
+bool SavePng(const std::string& path, const uint32_t* px, int w, int h) {
+    bool ok = false;
+    IWICImagingFactory* f = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&f))) || !f) return false;
+    IWICStream* st = nullptr; IWICBitmapEncoder* enc = nullptr; IWICBitmapFrameEncode* fr = nullptr;
+    if (SUCCEEDED(f->CreateStream(&st)) && SUCCEEDED(st->InitializeFromFilename(Wide(path).c_str(), GENERIC_WRITE)) &&
+        SUCCEEDED(f->CreateEncoder(GUID_ContainerFormatPng, nullptr, &enc)) && SUCCEEDED(enc->Initialize(st, WICBitmapEncoderNoCache)) &&
+        SUCCEEDED(enc->CreateNewFrame(&fr, nullptr)) && SUCCEEDED(fr->Initialize(nullptr)) && SUCCEEDED(fr->SetSize(w, h))) {
+        WICPixelFormatGUID fmt = GUID_WICPixelFormat32bppBGRA;
+        if (SUCCEEDED(fr->SetPixelFormat(&fmt)) && SUCCEEDED(fr->WritePixels(h, w * 4, w * h * 4, (BYTE*)px)) &&
+            SUCCEEDED(fr->Commit()) && SUCCEEDED(enc->Commit())) ok = true;
+    }
+    if (fr) fr->Release(); if (enc) enc->Release(); if (st) st->Release(); f->Release();
+    return ok;
+}
+void PasteWorker() {
+    HRESULT co = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    std::string name, msg;
+    if (!IsClipboardFormatAvailable(CF_DIB)) msg = "W schowku nie ma obrazka (zrób zrzut: Win+Shift+S albo PrtScr)";
+    else if (OpenClipboard(nullptr)) {
+        HANDLE hd = GetClipboardData(CF_DIB);
+        const BITMAPINFOHEADER* bi = hd ? (const BITMAPINFOHEADER*)GlobalLock(hd) : nullptr;
+        if (bi && (bi->biBitCount == 32 || bi->biBitCount == 24) && bi->biWidth > 0 && bi->biWidth < 16384 && bi->biHeight != 0) {
+            int w = bi->biWidth, h = bi->biHeight < 0 ? -bi->biHeight : bi->biHeight;
+            bool bottomUp = bi->biHeight > 0;
+            size_t off = bi->biSize + (bi->biCompression == BI_BITFIELDS && bi->biSize == sizeof(BITMAPINFOHEADER) ? 12 : 0) + bi->biClrUsed * 4;
+            const uint8_t* src = (const uint8_t*)bi + off;
+            int bpp = bi->biBitCount / 8, stride = ((w * bpp + 3) & ~3);
+            std::vector<uint32_t> px(w * h);
+            bool anyAlpha = false;
+            for (int y = 0; y < h; y++) {
+                const uint8_t* row = src + (size_t)(bottomUp ? h - 1 - y : y) * stride;
+                for (int x = 0; x < w; x++) {
+                    const uint8_t* q = row + x * bpp;
+                    uint32_t a = bpp == 4 ? q[3] : 255; if (a) anyAlpha = true;
+                    px[y * w + x] = q[0] | (q[1] << 8) | (q[2] << 16) | (a << 24);
+                }
+            }
+            if (!anyAlpha) for (auto& v : px) v |= 0xFF000000u;   // screenshots often carry alpha = 0
+            GlobalUnlock(hd); CloseClipboard();
+            name = UniqueName(".png");
+            if (!SavePng(AttachDir() + "\\" + name, px.data(), w, h)) { msg = "Nie udało się zapisać obrazka"; name.clear(); }
+            else msg = "Dodano zrzut ekranu " + std::to_string(w) + "x" + std::to_string(h);
+        } else { if (bi) GlobalUnlock(hd); CloseClipboard(); msg = "Nieobsługiwany format obrazka w schowku"; }
+    } else msg = "Schowek jest zajęty, spróbuj jeszcze raz";
+    AttDone(name, msg);
+    if (SUCCEEDED(co)) CoUninitialize();
+    g_attBusy = false;
+}
+void PickWorker() {
+    HRESULT co = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    std::vector<char> buf(32768, 0);
+    OPENFILENAMEA o{}; o.lStructSize = sizeof o; o.hwndOwner = nullptr;
+    o.lpstrFilter = "Obrazy i logi\0*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.txt;*.log;*.mp4\0Wszystkie pliki\0*.*\0";
+    o.lpstrFile = buf.data(); o.nMaxFile = (DWORD)buf.size();
+    o.lpstrTitle = "Dodaj pliki do zgłoszenia";
+    o.Flags = OFN_EXPLORER | OFN_ALLOWMULTISELECT | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+    int added = 0;
+    if (GetOpenFileNameA(&o)) {
+        std::vector<std::string> files;
+        std::string dir = buf.data();
+        const char* p = buf.data() + dir.size() + 1;
+        if (!*p) files.push_back(dir);
+        else for (; *p; p += strlen(p) + 1) files.push_back(dir + "\\" + p);
+        for (auto& f : files) {
+            const char* dot = strrchr(f.c_str(), '.');
+            std::string name = UniqueName(dot ? dot : "");
+            if (CopyFileA(f.c_str(), (AttachDir() + "\\" + name).c_str(), FALSE)) { AttDone(name, ""); added++; }
+        }
+        AttDone("", "Dodano plików: " + std::to_string(added));
+    }
+    if (SUCCEEDED(co)) CoUninitialize();
+    g_attBusy = false;
+}
+// minimal ZIP writer (stored, no compression) - enough to bundle a report with its screenshots
+uint32_t Crc32(const uint8_t* d, size_t n) {
+    static uint32_t t[256]; static bool init = false;
+    if (!init) { for (uint32_t i = 0; i < 256; i++) { uint32_t c = i; for (int k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320u ^ (c >> 1) : c >> 1; t[i] = c; } init = true; }
+    uint32_t c = 0xFFFFFFFFu;
+    for (size_t i = 0; i < n; i++) c = t[(c ^ d[i]) & 0xFF] ^ (c >> 8);
+    return c ^ 0xFFFFFFFFu;
+}
+bool WriteZip(const std::string& path, const std::vector<std::pair<std::string, std::string>>& entries) {
+    FILE* f = fopen(path.c_str(), "wb"); if (!f) return false;
+    auto u16 = [&](uint16_t v) { fwrite(&v, 2, 1, f); }; auto u32 = [&](uint32_t v) { fwrite(&v, 4, 1, f); };
+    struct Cd { std::string name; uint32_t crc, size, off; };
+    std::vector<Cd> cd;
+    for (auto& e : entries) {
+        Cd c{ e.first, Crc32((const uint8_t*)e.second.data(), e.second.size()), (uint32_t)e.second.size(), (uint32_t)ftell(f) };
+        u32(0x04034b50); u16(20); u16(0x0800); u16(0); u16(0); u16(0x21); u32(c.crc); u32(c.size); u32(c.size);
+        u16((uint16_t)c.name.size()); u16(0); fwrite(c.name.data(), 1, c.name.size(), f); fwrite(e.second.data(), 1, e.second.size(), f);
+        cd.push_back(c);
+    }
+    uint32_t cdOff = (uint32_t)ftell(f);
+    for (auto& c : cd) {
+        u32(0x02014b50); u16(20); u16(20); u16(0x0800); u16(0); u16(0); u16(0x21); u32(c.crc); u32(c.size); u32(c.size);
+        u16((uint16_t)c.name.size()); u16(0); u16(0); u16(0); u16(0); u32(0); u32(c.off); fwrite(c.name.data(), 1, c.name.size(), f);
+    }
+    uint32_t cdSize = (uint32_t)ftell(f) - cdOff;
+    u32(0x06054b50); u16(0); u16(0); u16((uint16_t)cd.size()); u16((uint16_t)cd.size()); u32(cdSize); u32(cdOff); u16(0);
+    fclose(f);
+    return true;
+}
+}
+std::string AttachDir() {
+    std::string d = DataPath("G1CrazyTrainer_raporty"); CreateDirectoryA(d.c_str(), nullptr);
+    d += "\\zalaczniki"; CreateDirectoryA(d.c_str(), nullptr);
+    return d;
+}
+void PasteImageAsync() { if (g_attBusy.exchange(true)) return; std::thread(PasteWorker).detach(); }
+void PickFilesAsync() { if (g_attBusy.exchange(true)) return; std::thread(PickWorker).detach(); }
+bool AttachBusy() { return g_attBusy; }
+std::vector<std::string> TakeAttachments(std::string* message) {
+    std::lock_guard<std::mutex> l(g_attMx);
+    std::vector<std::string> v; v.swap(g_attDone);
+    if (message) { *message = g_attMsg; }
+    g_attMsg.clear();
+    return v;
+}
+
 // ----------------------------------------------------------------- context / export
 std::string SystemInfo() {
     std::string o; char b[512];
@@ -331,6 +479,11 @@ std::string GithubUrl(const Ticket& t) {
         f("waga", kSeverityNames[t.severity], 30); f("powtarzalnosc", kReproNames[t.repro], 30);
     }
     f("kontekst", t.context, 1800);
+    if (!t.files.empty()) {
+        std::string a = "Przeciągnij tu pliki z folderu G1CrazyTrainer_raporty\\zalaczniki:";
+        for (auto& x : t.files) a += "\n- " + x;
+        f("zalaczniki", a, 600);
+    }
     return u;
 }
 std::string ExportReport(bool onlyUnsent, std::string* outPath) {
@@ -354,8 +507,15 @@ std::string ExportReport(bool onlyUnsent, std::string* outPath) {
     o += "@@SETTINGS\n" + ReadAll(IniPath()) + "\n@@END-REPORT\n";
     std::string dir = DataPath("G1CrazyTrainer_raporty");
     CreateDirectoryA(dir.c_str(), nullptr);
-    std::string path = dir + "\\raport_" + (g_nick.empty() ? std::string("anon") : g_nick) + "_" + Stamp(true) + ".txt";
-    if (FILE* f = fopen(path.c_str(), "wb")) { fwrite(o.data(), 1, o.size(), f); fclose(f); }
+    std::string base = dir + "\\raport_" + (g_nick.empty() ? std::string("anon") : g_nick) + "_" + Stamp(true);
+    std::vector<std::pair<std::string, std::string>> zipEntries;
+    for (auto& t : g_t) if (!onlyUnsent || !t.sent) for (auto& fn : t.files) {
+        std::string data = ReadAll(AttachDir() + "\\" + fn);
+        if (data != "(brak pliku)") zipEntries.push_back({ "zalaczniki/" + fn, data });
+    }
+    std::string path;
+    if (zipEntries.empty()) { path = base + ".txt"; if (FILE* f = fopen(path.c_str(), "wb")) { fwrite(o.data(), 1, o.size(), f); fclose(f); } }
+    else { path = base + ".zip"; zipEntries.insert(zipEntries.begin(), { "raport.txt", o }); WriteZip(path, zipEntries); }
     if (outPath) *outPath = path;
     bool changed = false;
     for (auto& t : g_t) if (!t.sent) { t.sent = true; changed = true; }

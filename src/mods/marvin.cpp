@@ -39,14 +39,20 @@ void Act_RunScript(const std::string& fn) {
 
 void Marvin_Hooks() {}
 void Marvin_World() {}
+// build 9 (#23): only write the game's flags when our switch changes. Writing them every frame turned off the
+// Marvin mode enabled the original way (typing MARVIN in the status screen) whenever our switch was off.
 void Marvin_Tick(TickCtx& c) {
-    fld<int>(c.game, OG_TESTMODE) = On("marvin") ? 1 : 0;
-    fld<int>(c.game, OG_SHOWWAYNET) = On("waynet") ? 1 : 0;
-    fld<int>(c.game, OG_FRAMEINFO) = On("frameinfo") ? 1 : 0;
+    static int last[3] = { -1, -1, -1 };
+    const char* ids[3] = { "marvin", "waynet", "frameinfo" };
+    const int offs[3] = { OG_TESTMODE, OG_SHOWWAYNET, OG_FRAMEINFO };
+    for (int i = 0; i < 3; i++) {
+        int on = On(ids[i]) ? 1 : 0;
+        if (on != last[i]) { if (last[i] != -1 || on) fld<int>(c.game, offs[i]) = on; last[i] = on; }
+    }
 }
 void Marvin_Register() {
     CardTitle("Tryb debug");
-    T.Add(MkRow("marvin", "Tryb Marvina", "konsola F2, klawisze debug - bez wpisywania MARVIN", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_OK, "działa"); Icon(ICN_TERMINAL);
+    T.Add(MkRow("marvin", "Tryb Marvina", "konsola F2, klawisze debug - bez wpisywania MARVIN", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_NEW, "build 9: nie wyłącza już Marvina włączonego w grze (#23)"); Icon(ICN_TERMINAL);
     T.Add(MkRow("waynet", "Pokaż waynet", "ścieżki NPC", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_OK, "działa");
     T.Add(MkRow("frameinfo", "Info o klatkach", "", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_OK, "działa");
 }

@@ -86,21 +86,40 @@ void Act_RemoveSavedTarget(int idx) {
         if (g_activeSaved >= (int)g_savedTargets.size()) g_activeSaved = (int)g_savedTargets.size() - 1;
     });
 }
+// build 9 (#22): far from the player the game despawns the hero's own body while you control someone else.
+// While swapped we hold an extra reference (the object - inventory, stats, quests - is not deleted) and remember
+// where he stood; returning puts that same object back into the world.
+void* g_heroRef = nullptr; zVEC3 g_heroLastPos{ 0, 0, 0 };
+void HoldHero(void* hero) {
+    if (g_heroRef || !hero) return;
+    g_heroRef = hero; fld<int>(hero, 4)++;   // zCObject::refCtr
+    g_heroLastPos = Pos(hero);
+}
+void DropHeroRef() { if (g_heroRef) { Release(g_heroRef); g_heroRef = nullptr; } }
 void Act_Unswap() {
     T.Queue("row:unswap", [] {
         void* m = MainHero();
+        if (!m && g_heroRef) {   // despawned: bring the same body back where he stood
+            Log("unswap: bohater zniknal ze swiata - wstawiam go z powrotem");
+            RespawnNpc(g_heroRef, { g_heroLastPos.x, g_heroLastPos.y + 50.f, g_heroLastPos.z });
+            RefreshNpcSet();
+            m = NpcExists(g_heroRef) ? g_heroRef : nullptr;
+        }
         if (!m) { T.Toast("Nie znaleziono głównego ciała"); return; }
         if (Player() == m) { T.Toast("Już jesteś w swoim ciele"); return; }
         if (NpcDead(m)) { T.Toast("Twoje główne ciało nie żyje..."); return; }
         SetAsPlayer(m);
+        DropHeroRef();
         T.Toast("Wróciłeś do bezimiennego");
     });
 }
 
 void Target_Hooks() {}
-void Target_World() { g_info.clear(); g_tFrozen.clear(); }
+void Target_World() { g_info.clear(); g_tFrozen.clear(); g_heroRef = nullptr; /* old world's objects are gone */ }
 void Target_Tick(TickCtx& c) {
     Snapshot& s = c.s;
+    if (g_heroRef && NpcExists(g_heroRef)) g_heroLastPos = Pos(g_heroRef);   // last known spot of the real body
+    if (g_heroRef && Player() == g_heroRef) DropHeroRef();
     void* saved = SavedTarget();
     zVEC3 hp = Pos(c.hero);
     if (void* t = Target()) {
@@ -167,6 +186,7 @@ void Target_Register() {
         NeedT([](void* t) {
             if (NpcDead(t)) { T.Toast("Cel nie żyje"); return; }
             if (On("noclip")) { Row* r = T.Get("noclip"); r->on = false; }
+            if (Player() == MainHero() || !MainHero()) HoldHero(Player());
             SetAsPlayer(t);
             T.Toast("Jesteś teraz: " + U(NpcName(t)));
         }))); NoVal(); Icon(ICN_EXCHANGE); Hidden(); St(ST_OK, "działa (też powrót)");

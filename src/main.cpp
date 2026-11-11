@@ -139,6 +139,7 @@ static HRESULT __stdcall hkPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
             ImGui::CreateContext();
             ImGuiIO& io = ImGui::GetIO();
             io.IniFilename = nullptr;
+            io.ConfigErrorRecoveryEnableTooltip = false;   // build 9: never show the red ImGui error popup to players (#5)
             io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
             ImGui_ImplWin32_Init(g_hwnd);
             ImGui_ImplDX11_Init(g_dev, g_ctx);

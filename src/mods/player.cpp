@@ -40,21 +40,26 @@ void SetTalent(const Tal& t, int target) {
 
 // ---- noclip ---------------------------------------------------------------------------------
 const uint32_t NC_MASK = VOBF_PHYSICS | VOBF_COLLSTAT | VOBF_COLLDYN;
+float g_cPitchMouse = -0.28f;
 void NoclipRestore() {
     if (!g_ncNpc) return;
     void* n = g_ncNpc; int mode = g_ncMode;
     g_ncNpc = nullptr; g_ncMode = -1;
+    g_stealMouse = false; g_mouseDx = g_mouseDy = 0;
     if (!NpcExists(n)) return;
+    if (mode == 2) { uint32_t& f = fld<uint32_t>(n, VOB_FLAGS); f = (f & ~NC_MASK) | (g_ncSaved & NC_MASK); return; }
     if (mode == 0) {
         SetSleeping(n, false);
         zVEC3 p = Pos(n);
         TraceHit h1, h2;
-        const int fl = TR_NEAREST | TR_VOB_IGNORE | TR_STAT_POLY | TR_POLY_IGNORE_TRANSP;
-        bool b = TraceRay({ p.x, p.y + 20, p.z }, { 0, -200000, 0 }, fl, h1);
-        bool a = TraceRay({ p.x, p.y + 200000, p.z }, { 0, -199990, 0 }, fl, h2);
+        // build 9 (#21): the first surface right below the hero wins - also see-through ones (grates over the Old Camp
+        // prison were ignored, so the hero landed a floor lower). From above only when nothing is below (under the map).
+        const int down = TR_NEAREST | TR_VOB_IGNORE | TR_STAT_POLY;
+        const int fromTop = TR_NEAREST | TR_VOB_IGNORE | TR_STAT_POLY | TR_POLY_IGNORE_TRANSP;
+        bool b = TraceRay({ p.x, p.y + 20, p.z }, { 0, -200000, 0 }, down, h1);
+        bool a = !b && TraceRay({ p.x, p.y + 200000, p.z }, { 0, -199990, 0 }, fromTop, h2);
         zVEC3 dst = p; bool any = false;
-        if (b && a) { dst = (std::fabs(h1.pos.y - p.y) <= std::fabs(h2.pos.y - p.y)) ? h1.pos : h2.pos; any = true; }
-        else if (b) { dst = h1.pos; any = true; }
+        if (b) { dst = h1.pos; any = true; }
         else if (a) { dst = h2.pos; any = true; }
         if (any) SetPos(n, { dst.x, dst.y + 40.f, dst.z });
         uint32_t& f = fld<uint32_t>(n, VOB_FLAGS);
@@ -74,13 +79,25 @@ void NoclipFrame(float dt) {
         fld<uint32_t>(h, VOB_FLAGS) &= ~NC_MASK;
         if ((fld<uint8_t>(h, VOB_SLEEPMODE) & 3) != 0) SetSleeping(h, true);
     }
-    if (T.menuOpen || !GameFocused()) return;
+    if (mode == 2) {       // run (build 9): the game moves and animates the hero itself; only walls are switched off
+        fld<uint32_t>(h, VOB_FLAGS) &= ~(VOBF_COLLSTAT | VOBF_COLLDYN);
+        g_stealMouse = false;
+        return;
+    }
+    g_stealMouse = On("ncmouse") && !T.menuOpen && GameFocused();
+    if (T.menuOpen || !GameFocused()) { g_mouseDx = g_mouseDy = 0; return; }
     auto k = [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; };
     float* m = &fld<float>(h, VOB_TRAFO);
     float yaw = 0;
     float turn = Val("ncturn") * 0.0174533f;
     if (k('Q') || k(VK_LEFT)) yaw -= turn * dt;
     if (k('E') || k(VK_RIGHT)) yaw += turn * dt;
+    {   // mouse: X turns the hero, Y tilts the camera (build 9, #20)
+        long dx = InterlockedExchange(&g_mouseDx, 0), dy = InterlockedExchange(&g_mouseDy, 0);
+        float sens = Val("ncmsens") * 0.0022f;
+        yaw += dx * sens;
+        g_cPitchMouse = std::max(-1.1f, std::min(0.9f, g_cPitchMouse - dy * sens));
+    }
     if (yaw != 0) {
         float c = std::cos(yaw), s = std::sin(yaw);
         for (int j = 0; j < 3; j++) {
@@ -109,22 +126,16 @@ void NoclipFrame(float dt) {
     }
     SetPos(h, np);
 }
-// chase camera: the point the camera looked at, its distance and pitch are captured when no-clip
-// starts; afterwards the camera always looks exactly at the hero from behind -> hero stays centred
-bool g_camRel = false; float g_cDist = 300, g_cPitch = -0.3f, g_cUp = 90;
+// chase camera (build 9): fixed distance behind the hero like the game's run camera; the hero's yaw (mouse X,
+// Q/E) turns it, mouse Y tilts it. No values are captured from the game camera any more - capturing it mid-
+// transition is what sent the camera sideways in build 7/8.
+bool g_camRel = false; float g_cDist = 330, g_cPitch = -0.28f, g_cUp = 120;
 void NoclipCamera(void* h) {
     void* cv = fld<void*>(Game(), OG_CAMVOB);
-    if (!cv || !On("nccam")) { g_camRel = false; return; }
+    if (!cv || !On("nccam") || (int)Val("ncmode") == 2) { g_camRel = false; return; }
     zVEC3 H = Pos(h);
-    if (!g_camRel) {
-        zVEC3 C = Pos(cv), F = AtVec(cv);
-        zVEC3 body{ H.x, H.y + 90.f, H.z };
-        float t = (body.x - C.x) * F.x + (body.y - C.y) * F.y + (body.z - C.z) * F.z;
-        if (t < 50.f) t = 300.f;
-        g_cDist = t; g_cPitch = std::asin(std::max(-0.95f, std::min(0.95f, F.y)));
-        g_cUp = (C.y + F.y * t) - H.y;
-        g_camRel = true;
-    }
+    if (!g_camRel) { g_cPitchMouse = -0.28f; g_camRel = true; }
+    g_cPitch = g_cPitchMouse;
     zVEC3 a = AtVec(h);
     float l = std::sqrt(a.x * a.x + a.z * a.z); if (l < 1e-3f) return;
     a.x /= l; a.z /= l;
@@ -410,14 +421,18 @@ void Player_Register() {
 
     const char* SR = "Ruch";
     CardTitle("No-clip");
-    T.Add(MkRow("noclip", "No-clip", "WASD, Q/E obrót, Spacja/Ctrl góra/dół, Shift x4; Esc wyłącza (wtedy menu gry i zapis są bezpieczne)", C, SR, K_TOGGLE));
-    St(ST_BUG, "build 3: kamera zostawała w tyle; build 4: kamera przesuwana razem z bohaterem"); Icon(ICN_ROCKET);
-    T.Add(MkRow("ncmode", "Tryb", "", C, SR, K_VALUE, 0, 0, 1));
-    Opts({ { 0, "Latanie (przez ściany)" }, { 1, "Ślizg (po ziemi)" } }); St(ST_OK, "build 3: działa");
-    T.Add(MkRow("ncspeed", "Prędkość", "m/s (Shift x4)", C, SR, K_VALUE, 9, 1, 100)); St(ST_OK, "build 3: działa");
+    T.Add(MkRow("noclip", "No-clip", "WASD, mysz obraca, Spacja/Ctrl góra/dół, Shift x4; Esc wyłącza (wtedy menu gry i zapis są bezpieczne)", C, SR, K_TOGGLE));
+    St(ST_BUG, "build 8: ruch i kamera gorsze niż w build 3; build 9: mysz obraca postać, kamera stale za plecami, lądowanie na kratach, nowy tryb Bieg (#20, #21)"); Icon(ICN_ROCKET);
+    T.Add(MkRow("ncmode", "Tryb", "", C, SR, K_VALUE, 0, 0, 2));
+    Opts({ { 0, "Latanie (przez ściany)" }, { 1, "Ślizg (po ziemi)" }, { 2, "Bieg jak w grze, szybszy (eksperymentalny)" } });
+    St(ST_NEW, "build 9: nowy tryb Bieg - gra sama animuje bieg, wyłączone są tylko ściany");
+    T.Add(MkRow("ncmouse", "Mysz obraca postać", "w trybie Latanie / Ślizg: ruch myszą w bok obraca postać, w górę/dół pochyla kamerę", C, SR, K_TOGGLE));
+    T.rows.back().on = true; St(ST_NEW, "nowe w build 9 (#20)");
+    T.Add(MkRow("ncmsens", "Czułość myszy", "", C, SR, K_VALUE, 1.0f, 0.2f, 4.f, nullptr, true)); St(ST_NEW, "nowe w build 9");
+    T.Add(MkRow("ncspeed", "Prędkość", "m/s (Shift x4); w trybie Bieg: 9 = 2,5x szybciej niż zwykły bieg", C, SR, K_VALUE, 9, 1, 100)); St(ST_OK, "build 3: działa");
     T.Add(MkRow("ncturn", "Obrót Q/E", "stopnie na sekundę", C, SR, K_VALUE, 130, 20, 720)); St(ST_OK, "build 3: działa");
-    T.Add(MkRow("nccam", "Kamera sztywno za postacią", "postać zawsze na środku, także przy szybkim obrocie i chodzeniu w bok", C, SR, K_TOGGLE));
-    T.rows.back().on = true; St(ST_NEW, "build 6: kamera latała na boki; build 7: kamera zawsze patrzy na postać od tyłu (stała odległość i nachylenie)");
+    T.Add(MkRow("nccam", "Kamera za plecami", "jak przy bieganiu: stała odległość za postacią, obraca się razem z nią", C, SR, K_TOGGLE));
+    T.rows.back().on = true; St(ST_NEW, "build 8: kamera latała na boki; build 9: stałe ustawienie jak w grze, bez kopiowania kamery gry (#20)");
     T.Add(MkRow("ncignore", "Wrogowie cię ignorują", "w no-clipie potwory i przeciwnicy cię nie zauważają", C, SR, K_TOGGLE));
     T.rows.back().on = true; St(ST_NEW, "nowe w build 6");
     CardTitle("Bohater");
