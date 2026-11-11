@@ -109,38 +109,46 @@ void NoclipFrame(float dt) {
     }
     SetPos(h, np);
 }
-// rigid camera: the offset/rotation relative to the hero is captured once and then kept exactly,
-// so the hero stays in the middle of the screen however fast it turns or strafes
-bool g_camRel = false; float g_rr[9], g_rp[3];
+// chase camera: the point the camera looked at, its distance and pitch are captured when no-clip
+// starts; afterwards the camera always looks exactly at the hero from behind -> hero stays centred
+bool g_camRel = false; float g_cDist = 300, g_cPitch = -0.3f, g_cUp = 90;
 void NoclipCamera(void* h) {
     void* cv = fld<void*>(Game(), OG_CAMVOB);
     if (!cv || !On("nccam")) { g_camRel = false; return; }
-    const float* H = &fld<float>(h, VOB_TRAFO);
-    const float* C = &fld<float>(cv, VOB_TRAFO);
-    auto R = [](const float* m, int r, int c) { return m[r * 4 + c]; };
+    zVEC3 H = Pos(h);
     if (!g_camRel) {
-        for (int i = 0; i < 3; i++)
-            for (int j = 0; j < 3; j++) { float v = 0; for (int k = 0; k < 3; k++) v += R(H, k, i) * R(C, k, j); g_rr[i * 3 + j] = v; }
-        float d[3] = { C[3] - H[3], C[7] - H[7], C[11] - H[11] };
-        for (int i = 0; i < 3; i++) { g_rp[i] = 0; for (int k = 0; k < 3; k++) g_rp[i] += R(H, k, i) * d[k]; }
+        zVEC3 C = Pos(cv), F = AtVec(cv);
+        zVEC3 body{ H.x, H.y + 90.f, H.z };
+        float t = (body.x - C.x) * F.x + (body.y - C.y) * F.y + (body.z - C.z) * F.z;
+        if (t < 50.f) t = 300.f;
+        g_cDist = t; g_cPitch = std::asin(std::max(-0.95f, std::min(0.95f, F.y)));
+        g_cUp = (C.y + F.y * t) - H.y;
         g_camRel = true;
-        return;
     }
-    float m[12];
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) { float v = 0; for (int k = 0; k < 3; k++) v += R(H, i, k) * g_rr[k * 3 + j]; m[i * 4 + j] = v; }
-        float v = H[i * 4 + 3]; for (int k = 0; k < 3; k++) v += R(H, i, k) * g_rp[k];
-        m[i * 4 + 3] = v;
-    }
+    zVEC3 a = AtVec(h);
+    float l = std::sqrt(a.x * a.x + a.z * a.z); if (l < 1e-3f) return;
+    a.x /= l; a.z /= l;
+    float cp = std::cos(g_cPitch), sp = std::sin(g_cPitch);
+    zVEC3 f{ a.x * cp, sp, a.z * cp };
+    zVEC3 tgt{ H.x, H.y + g_cUp, H.z };
+    zVEC3 c{ tgt.x - f.x * g_cDist, tgt.y - f.y * g_cDist, tgt.z - f.z * g_cDist };
+    zVEC3 r{ f.z, 0, -f.x };
+    float rl = std::sqrt(r.x * r.x + r.z * r.z); r.x /= rl; r.z /= rl;
+    zVEC3 u{ f.y * r.z - f.z * r.y, f.z * r.x - f.x * r.z, f.x * r.y - f.y * r.x };
+    float m[12] = { r.x, u.x, f.x, c.x, r.y, u.y, f.y, c.y, r.z, u.z, f.z, c.z };
     Cam_Override(m);
 }
 
 // ---- hooks ---------------------------------------------------------------------------------
 using fnChangeAttr = void(__fastcall*)(void*, void*, int, int);
 fnChangeAttr oChangeAttr = nullptr;
+bool g_arenaHit = false;
 void __fastcall hkChangeAttr(void* self, void* edx, int attr, int value) {
     void* hero = Player();
     if (value < 0 && hero) {
+        if (g_arenaHit && self == hero && attr == 0 && Attr(hero, 0) + value <= 0) {   // arena: knocked down, never killed
+            value = 1 - Attr(hero, 0); Arena_PlayerDown();
+        }
         if (self == hero && attr == 2 && On("mana")) value = 0;
         if (attr == 0 && On("god") && self == MainHero()) value = 0;   // main body stays immortal while swapped
         if (self != hero && attr == 0) {
@@ -216,6 +224,7 @@ void __fastcall hkDamage(void* self, void* edx, void* desc) {
     if (self && desc && (self == Player() || self == MainHero())) {
         void* att = fld<void*>(desc, 8);                  // oSDamageDescriptor::pNpcAttacker
         if (IsNpc(att) && IsAlly(att)) { Party_AllyHitPlayer(att); return; }   // party never hurts you
+        if (Arena_IsEnemy(att)) { g_arenaHit = true; oDamage(self, edx, desc); g_arenaHit = false; return; }
     }
     oDamage(self, edx, desc);
 }
@@ -238,12 +247,11 @@ void Player_Tick(TickCtx& c) {
     at<int>(GODMODE) = On("god") ? 1 : 0;
     if (On("mana")) SetAttr(h, 2, Attr(h, 3));
     if (void* sb = Subject()) {
-        if (On("str")) SetAttr(sb, 4, (int)Val("str"));
-        if (On("dex")) SetAttr(sb, 5, (int)Val("dex"));
-        if (On("hpmax")) SetAttr(sb, 1, (int)Val("hpmax"));
-        if (On("manamax")) SetAttr(sb, 3, (int)Val("manamax"));
         c.s.subjectName = U(NpcName(sb)); c.s.subjectPtr = (uintptr_t)sb; c.s.subjectInst = InstName(sb);
     }
+    static bool ncWas = false;
+    if (On("noclip") && !ncWas && On("ncignore")) NpcsInRadius(4000.f, [](void* n) { Peace(n); });   // old aggro is dropped too
+    ncWas = On("noclip");
     if (On("noclip")) { NoclipFrame(c.paused ? 0.f : c.dt); NoclipCamera(h); }
     else { g_camRel = false; if (g_ncNpc) NoclipRestore(); }
 
@@ -300,11 +308,17 @@ void Player_Register() {
     Opts({ { 0, "Obecna postać" }, { 1, "Bezimienny" }, { 2, "Cel" } }); St(ST_NEW, "nowe w build 5");
 
     const char* SS = "Statystyki";
-    CardTitle("Atrybuty (włączone = nadpisuje grę)");
-    T.Add(MkRow("str", "Siła", "", C, SS, K_SET, 200, 1, 1000)); St(ST_OK, "działa");
-    T.Add(MkRow("dex", "Zręczność", "", C, SS, K_SET, 200, 1, 1000)); St(ST_OK, "działa");
-    T.Add(MkRow("hpmax", "Max HP", "", C, SS, K_SET, 1000, 1, 10000)); St(ST_OK, "działa");
-    T.Add(MkRow("manamax", "Max mana", "", C, SS, K_SET, 500, 1, 10000)); St(ST_OK, "działa");
+    CardTitle("Atrybuty");
+    auto attr = [&](const char* id, const char* name, int idx, float def, float mx) {
+        T.Add(MkRow(id, name, "ustawia wartość po kliknięciu Ustaw", C, SS, K_ACTION, def, 1, mx, [idx](Row& r) {
+            void* sb = Subject(); SetAttr(sb, idx, (int)r.val);
+            if (idx == 1) SetAttr(sb, 0, std::min(Attr(sb, 0), (int)r.val));
+            if (idx == 3) SetAttr(sb, 2, std::min(Attr(sb, 2), (int)r.val));
+            T.Toast(r.name + " = " + std::to_string((int)r.val)); }));
+        St(ST_OK, "działa; build 7: przycisk Ustaw zamiast stałego nadpisywania");
+    };
+    attr("str", "Siła", 4, 200, 1000); attr("dex", "Zręczność", 5, 200, 1000);
+    attr("hpmax", "Max HP", 1, 1000, 10000); attr("manamax", "Max mana", 3, 500, 10000);
     CardTitle("Doświadczenie");
     T.Add(MkRow("xp", "Dodaj doświadczenie", "przez B_GiveXP (awanse działają) - zawsze sterowana postać", C, SS, K_ACTION, 1000, 1, 1000000, [](Row& r) {
         bool ok; CallScript("B_GiveXP", { Arg::Int((int)r.val) }, &ok);
@@ -332,7 +346,7 @@ void Player_Register() {
         T.Add(MkRow(h.id, h.name, "procent trafienia / opanowania broni", C, SU, K_ACTION, 100, 0, 100, [hp](Row& r) {
             CallExt("Npc_SetTalentValue", { Arg::Npc(Subject()), Arg::Int(ConstInt(hp->konst, 1)), Arg::Int((int)r.val) });
             T.Toast(r.name + ": " + std::to_string((int)r.val) + "%"); }));
-        Icon(ICN_CROSSHAIR); St(ST_OK, "build 5: działa"); Live();
+        Icon(ICN_CROSSHAIR); St(ST_OK, "build 5: działa");
     }
     struct Th { const char* id; const char* name; const char* konst; };
     static const Th kTh[] = { { "hclock", "Otwieranie zamków", "NPC_TALENT_PICKLOCK" }, { "hcpocket", "Kradzież kieszonkowa", "NPC_TALENT_PICKPOCKET" },
@@ -341,7 +355,7 @@ void Player_Register() {
         const Th* hp = &h;
         T.Add(MkRow(h.id, h.name, "procent umiejętności (jak w statystykach postaci)", C, SU, K_ACTION, 100, 0, 100, [hp](Row& r) {
             CallExt("Npc_SetTalentValue", { Arg::Npc(Subject()), Arg::Int(ConstInt(hp->konst, 1)), Arg::Int((int)r.val) }); }));
-        St(ST_NEW, "nowe w build 6 (wymaksowanie ustawiało 50%)"); Live();
+        St(ST_NEW, "nowe w build 6 (wymaksowanie ustawiało 50%)");
     }
     CardTitle("Szybko");
     T.Add(MkRow("alltal", "Wymaksuj wszystko", "wszystkie umiejętności na max, 6. krąg, 100% trafienia", C, SU, K_ACTION, 0, 0, 0, [](Row&) {
@@ -369,10 +383,10 @@ void Player_Register() {
     St(ST_OK, "działa");
     T.Add(MkRow("pscale", "Skala", "1 = normalnie", C, SW, K_ACTION, 1, 0.1f, 5, [](Row& r) {
         CallExt("Mdl_SetModelScale", { Arg::Npc(Subject()), Arg::Flt(r.val), Arg::Flt(r.val), Arg::Flt(r.val) }); }, true));
-    St(ST_OK, "build 3: działa"); Icon(ICN_EXPAND); Live();
+    St(ST_OK, "build 3: działa"); Icon(ICN_EXPAND);
     T.Add(MkRow("pfat", "Grubość", "0 = normalnie", C, SW, K_ACTION, 0, -2, 5, [](Row& r) {
         CallExt("Mdl_SetModelFatness", { Arg::Npc(Subject()), Arg::Flt(r.val) }); }, true));
-    St(ST_OK, "build 5: działa"); Live();
+    St(ST_OK, "build 5: działa");
 
     const char* SV = "Cheaty";
     CardTitle("Ochrona");
@@ -403,7 +417,7 @@ void Player_Register() {
     T.Add(MkRow("ncspeed", "Prędkość", "m/s (Shift x4)", C, SR, K_VALUE, 9, 1, 100)); St(ST_OK, "build 3: działa");
     T.Add(MkRow("ncturn", "Obrót Q/E", "stopnie na sekundę", C, SR, K_VALUE, 130, 20, 720)); St(ST_OK, "build 3: działa");
     T.Add(MkRow("nccam", "Kamera sztywno za postacią", "postać zawsze na środku, także przy szybkim obrocie i chodzeniu w bok", C, SR, K_TOGGLE));
-    T.rows.back().on = true; St(ST_NEW, "build 5: postać uciekała ze środka przy obrocie; build 6: kamera przyczepiona do postaci");
+    T.rows.back().on = true; St(ST_NEW, "build 6: kamera latała na boki; build 7: kamera zawsze patrzy na postać od tyłu (stała odległość i nachylenie)");
     T.Add(MkRow("ncignore", "Wrogowie cię ignorują", "w no-clipie potwory i przeciwnicy cię nie zauważają", C, SR, K_TOGGLE));
     T.rows.back().on = true; St(ST_NEW, "nowe w build 6");
     CardTitle("Bohater");
@@ -411,7 +425,7 @@ void Player_Register() {
     St(ST_OK, "build 3: działa"); Icon(ICN_BOLT);
     T.Add(MkRow("sprint", "Sprint", "overlay biegu z mikstury szybkości", C, SR, K_TOGGLE, 0, 0, 0, [](Row& r) {
         CallExt(r.on ? "Mdl_ApplyOverlayMds" : "Mdl_RemoveOverlayMds", { Arg::Npc(Player()), Arg::Str("HUMANS_SPRINT.MDS") }); }));
-    St(ST_BUG, "build 3: działa, ale się zacina (to samo zacinanie jest w no-clipie - szukam wspólnej przyczyny)");
+    St(ST_BUG, "build 6: dalej się zacina (jak ESP); build 7: usunięte skoki klatek trenera (zapis ustawień, szkielet ESP, lista NPC) - sprawdź ponownie");
 
     CardTitle("Ruda");
     T.Add(MkRow("ore", "Dodaj rudę", "bryłki rudy", "Ekwipunek", "Spawner", K_ACTION, 1000, 1, 100000, [](Row& r) {

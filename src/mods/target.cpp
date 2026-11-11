@@ -177,7 +177,7 @@ void Target_Register() {
     T.Add(MkRow("yeet", "Wystrzel w powietrze", "wysokość z ustawień akcji", C, S, K_ACTION, 0, 0, 0,
         NeedT([](void* t) { zVEC3 p = Pos(t); p.y += Val("yeetv") * 100.f; SafeSetPos(t, p); T.Toast("Lot!"); }))); NoVal(); Icon(ICN_ROCKET); Hidden(); St(ST_OK, "działa");
     T.Add(MkRow("tkill", "Zabij", "działa też na nieśmiertelnych", C, S, K_ACTION, 0, 0, 0,
-        NeedT([](void* t) { Kill(t, Player()); T.Toast("Zabito: " + U(NpcName(t))); }))); NoVal(); Icon(ICN_KILL); Hidden(); St(ST_OK, "działa");
+        NeedT([](void* t) { KillClean(t, Player()); T.Toast("Zabito: " + U(NpcName(t))); }))); NoVal(); Icon(ICN_KILL); Hidden(); St(ST_OK, "działa");
     T.Add(MkRow("trevive", "Ożyw / ulecz", "ożywia tę samą postać w miejscu (ekwipunek i questy zostają)", C, S, K_ACTION, 0, 0, 0,
         NeedT([](void* t) { Revive(t); })));
     NoVal(); Icon(ICN_REFRESH); Hidden(); St(ST_NEW, "build 3: działało jako odrodzenie (nowa postać); build 4: ożywienie w miejscu, odrodzenie tylko awaryjnie");

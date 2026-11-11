@@ -1,6 +1,7 @@
 // Entry point: loaded by Union from System\Autorun. Hooks the GD3D11 swap chain for the
 // menu and oCGame::Render for game-thread work.
 #include <windows.h>
+#include <shellapi.h>
 #include <d3d11.h>
 #include <dxgi.h>
 #include <cstdio>
@@ -62,9 +63,26 @@ static LRESULT CALLBACK LLMouse(int code, WPARAM w, LPARAM l);
 // The hook lives on its own thread with its own message loop (a low-level hook on a thread that does
 // not pump messages lags the mouse for the whole system - that broke Win+Shift+S) and is installed
 // only while the menu is open.
+// Win+Shift+S: the game's DirectInput keyboard swallows the Windows key, so the snipping shortcut
+// never reaches Windows while the game has focus. We watch for it ourselves and open the tool.
+static HHOOK g_kbdHook;
+static LRESULT CALLBACK LLKbd(int code, WPARAM w, LPARAM l) {
+    if (code == HC_ACTION && (w == WM_KEYDOWN || w == WM_SYSKEYDOWN)) {
+        auto* k = (KBDLLHOOKSTRUCT*)l;
+        bool win = (GetAsyncKeyState(VK_LWIN) & 0x8000) || (GetAsyncKeyState(VK_RWIN) & 0x8000);
+        bool shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+        if (k->vkCode == 'S' && win && shift && GetForegroundWindow() == g_gameHwnd) {
+            ClipCursor(nullptr);
+            ShellExecuteA(nullptr, "open", "ms-screenclip:", nullptr, nullptr, SW_SHOWNORMAL);
+            return 1;
+        }
+    }
+    return CallNextHookEx(g_kbdHook, code, w, l);
+}
 static DWORD WINAPI HookThread(LPVOID) {
     MSG m;
     PeekMessageA(&m, nullptr, 0, 0, PM_NOREMOVE);
+    g_kbdHook = SetWindowsHookExA(WH_KEYBOARD_LL, LLKbd, g_self, 0);
     while (GetMessageA(&m, nullptr, 0, 0) > 0) {
         if (m.message == WM_APP + 1 && !g_mouseHook) g_mouseHook = SetWindowsHookExA(WH_MOUSE_LL, LLMouse, g_self, 0);
         if (m.message == WM_APP + 2 && g_mouseHook) { UnhookWindowsHookEx(g_mouseHook); g_mouseHook = nullptr; }

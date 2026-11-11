@@ -13,5 +13,5 @@ for f in $M/src/buffer.c $M/src/hook.c $M/src/trampoline.c $M/src/hde/hde32.c; d
 for f in src/*.cpp src/core/*.cpp src/mods/*.cpp; do
   o=obj/$(echo $f | tr / _ | sed "s/.cpp$//").o; $CXX $FL -std=c++17 -Wall -Wno-unused-function -Wno-sign-compare -c $f -o $o; objs+=($o); done
 $CXX -shared -static -static-libgcc -static-libstdc++ -o out/G1CrazyTrainer.dll "${objs[@]}" \
-  -ld3d11 -ldxgi -ld3dcompiler -ldwmapi -lgdi32 -luser32 -limm32 -Wl,--enable-stdcall-fixup -s
+  -ld3d11 -ldxgi -ld3dcompiler -ldwmapi -lgdi32 -luser32 -limm32 -lshell32 -Wl,--enable-stdcall-fixup -s
 ls -la out/

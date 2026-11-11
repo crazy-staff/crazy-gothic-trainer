@@ -11,14 +11,32 @@ using namespace gx;
 namespace {
 std::vector<void*> g_arena;
 std::set<void*> g_frozenSpawn;
-int g_wave = 0; double g_next = 0;
+int g_wave = 0; double g_next = 0; bool g_rewarded = true; bool g_lost = false;
+
+void ArenaClear() { for (void* n : g_arena) if (NpcExists(n)) RemoveVob(n); g_arena.clear(); }
+// after a cleared wave: ore that grows with the wave + 1-2 random items whose value fits the wave
+void ArenaReward() {
+    void* h = Player(); if (!h) return;
+    int ore = 15 * g_wave + (int)(rng() % (10 * g_wave + 1));
+    if (K.nugget >= 0) CreateItems(h, K.nugget, ore);
+    std::vector<const ItemEntry*> pool;
+    int lo = 20 * g_wave, hi = 150 * g_wave + 100;
+    for (auto& e : g_cat.items) if (e.value >= lo && e.value <= hi && e.sym != K.nugget && !T.Crashed("item:" + e.id)) pool.push_back(&e);
+    std::string got = std::to_string(ore) + " rudy";
+    int n = pool.empty() ? 0 : 1 + (int)(rng() % 2);
+    for (int i = 0; i < n; i++) { const ItemEntry* e = pool[rng() % pool.size()]; CreateItems(h, e->sym, 1); got += ", " + U(e->name); }
+    T.Toast("Nagroda za falę " + std::to_string(g_wave) + ": " + got);
+}
 
 void ArenaFrame() {
     double now = NowSec();
     g_arena.erase(std::remove_if(g_arena.begin(), g_arena.end(), [](void* n) { return !NpcAlive(n); }), g_arena.end());
     static double lastAggro = 0;
     if (now - lastAggro > 3.0) { lastAggro = now; for (void* n : g_arena) CallExt("Npc_SetTarget", { Arg::Npc(n), Arg::Npc(Player()) }); }
-    if (!g_arena.empty() || now < g_next) return;
+    if (!g_arena.empty()) return;
+    if (!g_rewarded && g_wave > 0 && On("arenareward")) { g_rewarded = true; Guard("row:arena:reward", [] { ArenaReward(); }); }
+    g_rewarded = true;
+    if (now < g_next) return;
     if (g_next == 0) { g_next = now + 3; return; }
     g_wave++;
     int cnt = std::min(2 + g_wave, 14);
@@ -37,7 +55,7 @@ void ArenaFrame() {
         Guard("npc:" + e->id, [&] { n = SpawnNpc(e->sym, p); });
         if (n) { MakeMortal(n); Guard("row:arena:aggro", [&] { Aggro(n, Player()); }); g_arena.push_back(n); }
     }
-    g_next = now + 4;
+    g_next = now + 4; g_rewarded = false;
     char b[96]; snprintf(b, sizeof b, "ARENA: fala %d (%d wrogów)", g_wave, cnt);
     T.Toast(b);
 }
@@ -141,6 +159,15 @@ void KeepParty() {
     for (void* n : g_allies) {
         if (g_pstate.count(n) && g_pstate[n] != 0) continue;   // waiting / at post on purpose
         if (!NpcReady(n)) continue;
+        if (void* h = Player()) {   // left far behind (ladder, teleport, routine) -> put it right behind you
+            zVEC3 hp = Pos(h);
+            if (Dist(Pos(n), hp) > Val("allykeepdist") * 100.f) {
+                const float* t = &fld<float>(h, VOB_TRAFO);
+                zVEC3 b = hp; b.x -= t[2] * 250.f; b.z -= t[10] * 250.f;
+                CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
+                SetPos(n, b);
+            }
+        }
         if (IsMonster(n)) {   // summoned-like monsters keep forgetting they are friends
             CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
             continue;
@@ -188,7 +215,21 @@ void Act_PartyCmd(uintptr_t p, int cmd) {
 }
 
 void Npcs_Hooks() {}
-void Npcs_World() { g_arena.clear(); g_frozenSpawn.clear(); g_wave = 0; g_next = 0; g_near.clear(); g_nearAt = -10; g_pstate.clear(); }
+// an arena enemy brought you to 0 HP (the hit was clamped to 1 HP) or you died during the arena
+void Arena_PlayerDown() {
+    if (g_lost || !On("arena")) return;
+    g_lost = true;
+    T.Queue("row:arena", [] {
+        int w = g_wave;
+        ArenaClear();
+        if (Row* r = T.Get("arena")) r->on = false;
+        g_wave = 0; g_next = 0; g_lost = false;
+        T.Toast("ARENA: przegrana na fali " + std::to_string(w) + " - przeciwnicy usunięci");
+    });
+}
+bool Arena_IsEnemy(void* n) { return n && std::find(g_arena.begin(), g_arena.end(), n) != g_arena.end(); }
+
+void Npcs_World() { g_lost = false; g_rewarded = true; g_arena.clear(); g_frozenSpawn.clear(); g_wave = 0; g_next = 0; g_near.clear(); g_nearAt = -10; g_pstate.clear(); }
 void Npcs_Tick(TickCtx& c) {
     if (T.menuOpen) RefreshNearby(c.hero);
     c.s.nearby = g_near;
@@ -199,10 +240,13 @@ void Npcs_Tick(TickCtx& c) {
         if ((fld<uint8_t>(*it, VOB_SLEEPMODE) & 3) != 0) SetSleeping(*it, true);
         ++it;
     }
-    if (On("arena")) { if (g_wave == 0 && g_next == 0) g_wave = std::max(0, (int)Val("arena") - 1); if (!c.paused) ArenaFrame(); }
-    else {
+    if (On("arena")) {
+        if (g_wave == 0 && g_next == 0) g_wave = std::max(0, (int)Val("arena") - 1);
+        if (Player() && NpcDead(Player())) Arena_PlayerDown();
+        else if (!c.paused) ArenaFrame();
+    } else {
         if (!g_arena.empty()) {   // arena switched off: its monsters disappear
-            for (void* n : g_arena) if (NpcExists(n)) RemoveVob(n);
+            ArenaClear();
             T.Toast("Arena zakończona - przeciwnicy usunięci");
         }
         g_wave = 0; g_next = 0; g_arena.clear();
@@ -213,8 +257,9 @@ void Npcs_Tick(TickCtx& c) {
 void Npcs_Register() {
     const char* C = "Postacie";
     CardTitle("Arena");
-    T.Add(MkRow("arena", "Tryb Areny", "fale wrogów 6-10 m od ciebie, na lądzie; liczba = fala startowa", C, "Spawner", K_SLIDER, 1, 1, 20));
-    St(ST_NEW, "build 3: CRASH (atak na postać bez załadowanego modelu); build 4: atak dopiero, gdy wróg jest gotowy"); Icon(ICN_CROSSHAIR);
+    T.Add(MkRow("arena", "Tryb Areny", "fale wrogów 6-10 m od ciebie; wróg cię tylko powala - powalenie = przegrana", C, "Spawner", K_SLIDER, 1, 1, 20));
+    St(ST_NEW, "build 7: powalenie zamiast śmierci, przegrana usuwa wrogów"); Icon(ICN_CROSSHAIR);
+    T.Add(MkRow("arenareward", "Nagrody po fali", "ruda + 1-2 losowe przedmioty", C, "Spawner", K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 7");
     const char* D = "Drużyna";
     CardTitle("Drużyna");
     T.Add(MkRow("allyall", "Wszyscy w promieniu do drużyny", "metry, idą za tobą", C, D, K_ACTION, 10, 1, 100, [](Row& r) {
@@ -229,7 +274,8 @@ void Npcs_Register() {
     CardTitle("Zachowanie drużyny");
     T.Add(MkRow("allynotalk", "Bez zaczepiania", "drużyna nie zaczyna z tobą dialogów (to je wyrywało z drużyny)", C, D, K_TOGGLE));
     T.rows.back().on = true; St(ST_NEW, "nowe w build 4");
-    T.Add(MkRow("allykeep", "Pilnuj drużyny", "co 3 s kto wypadł z podążania, wraca za tobą", C, D, K_TOGGLE));
-    T.rows.back().on = true; St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("allykeep", "Pilnuj drużyny", "co 3 s kto wypadł z podążania wraca za tobą; kto jest za daleko, zostaje przeniesiony", C, D, K_TOGGLE));
+    T.rows.back().on = true; St(ST_NEW, "build 7: przenosi tych, co zostali daleko");
+    T.Add(MkRow("allykeepdist", "Przenieś z odległości", "m", C, D, K_VALUE, 30, 10, 150)); St(ST_NEW, "nowe w build 7");
     T.Add(MkRow("allyradius", "Promień listy wyboru", "m", C, D, K_VALUE, 30, 5, 150)); St(ST_NEW, "nowe w build 4");
 }

@@ -62,8 +62,9 @@ int macroRepeat = 1, allyFilter = 0, editPos = -1; SavedPos editPosV; char editP
 float manX = 0, manY = 0, manZ = 0;
 std::set<uintptr_t> allyPick;
 std::map<std::string, std::pair<double, int>> photoAsked;
-bool testsPage = false;
-int lookSig = 0; double lookAt = 0;
+bool testsPage = false;   // kept false: tests live in their own window since build 7
+bool testsWin = false;
+int lookSig = 0; double lookAt = 0; bool lookDirty = false;
 
 std::string KeyOnly(int vk) {
     UINT sc = MapVirtualKeyA(vk, MAPVK_VK_TO_VSC);
@@ -226,6 +227,21 @@ bool Chip(const char* label, bool active, const char* icon = nullptr) {
     ImGui::SameLine(0, 6 * S);
     return c;
 }
+// "x" inside the right end of the last text field: clears it (shown only when there is text)
+bool ClearX(char* buf) {
+    if (!buf[0]) return false;
+    ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+    float r = 9 * S;
+    ImVec2 c(b.x - r - 6 * S, (a.y + b.y) * 0.5f);
+    // manual hit test: the text field was submitted first and would steal the hover from a button
+    bool hov = ImGui::IsMouseHoveringRect(ImVec2(c.x - r, c.y - r), ImVec2(c.x + r, c.y + r));
+    bool hit = hov && ImGui::IsMouseClicked(0);
+    if (hov) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    DL()->AddCircleFilled(c, r, U32(hov ? C_ACC : C_CARD), 16);
+    IconAt(DL(), c, ICN_TIMES, U32(hov ? ImVec4(1, 1, 1, 1) : C_DIM), 10 * S);
+    if (hit) { buf[0] = 0; ImGui::ClearActiveID(); return true; }
+    return false;
+}
 void InputBox(const char* id, char* buf, size_t n, const char* hint, float w) {
     ImGui::SetNextItemWidth(w);
     ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2);
@@ -233,6 +249,7 @@ void InputBox(const char* id, char* buf, size_t n, const char* hint, float w) {
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, R_BTN());
     ImGui::InputTextWithHint(id, hint, buf, n);
     ImGui::PopStyleVar(2); ImGui::PopStyleColor();
+    ClearX(buf);
 }
 void NumField(const char* id, int* v, int mn, int mx, float w) {
     ImGui::SetNextItemWidth(w);
@@ -754,7 +771,7 @@ void ItemSpawner(float w) {
         for (auto& p : g_istat[i]) if (std::find(stats.begin(), stats.end(), p.first) == stats.end()) stats.push_back(p.first);
     }
     BeginPanel("##ispf", nullptr, w);
-    float fbw = ButtonW("Filtry (00)", fBold), catW = 210 * S, amtW = 90 * S;
+    float fbw = 2 * 34 * S + 8 * S, catW = 210 * S, amtW = 90 * S;
     InputBox("##isearch", search, sizeof search, "Szukaj: nazwa albo ID (np. miecz, ITMW_)...", w - 36 * S - catW - amtW - fbw - 70 * S);
     ImGui::SameLine();
     {   // category dropdown with icons
@@ -778,9 +795,34 @@ void ItemSpawner(float w) {
     ImGui::SameLine(); ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Ilość"); ImGui::SameLine();
     NumField("##amt", &T.itemAmount, 1, 100000, amtW);
     ImGui::SameLine();
-    char fl[32]; snprintf(fl, sizeof fl, g_ifilters.empty() && itemSub.empty() ? "Filtry" : "Filtry (%d)", (int)g_ifilters.size() + (itemSub.empty() ? 0 : 1));
+    // build 7: sort and filters are icon-only buttons (tooltip says what they do)
     ImVec2 fp = ImGui::GetCursorScreenPos();
-    if (Button("##flt", fl, ImVec2(fp.x, fp.y), !(g_ifilters.empty() && itemSub.empty()))) ImGui::OpenPopup("##ifilters");
+    int nf = (int)g_ifilters.size() + (itemSub.empty() ? 0 : 1);
+    float ib = 34 * S, iy = fp.y + (BtnH() - ib) * 0.5f;
+    bool sorted = g_isort != "Nazwa" || g_isortDesc;
+    if (IconButton("##isortb", ICN_SORT, ("Sortowanie: " + g_isort + (g_isortDesc ? " (malejąco)" : " (rosnąco)")).c_str(), ImVec2(fp.x, iy), ib, C_TEXT, sorted))
+        ImGui::OpenPopup("##isortp");
+    char ft[48]; snprintf(ft, sizeof ft, nf ? "Filtry (aktywne: %d)" : "Filtry", nf);
+    if (IconButton("##flt", ICN_FILTER, ft, ImVec2(fp.x + ib + 8 * S, iy), ib, C_TEXT, nf > 0)) ImGui::OpenPopup("##ifilters");
+    if (nf) {   // count badge
+        ImVec2 bc(fp.x + ib * 2 + 8 * S - 3 * S, iy + 4 * S);
+        DL()->AddCircleFilled(bc, 7 * S, U32(C_ACC), 14);
+        char nb[8]; snprintf(nb, sizeof nb, "%d", nf);
+        PF(fSmall); ImVec2 ts = ImGui::CalcTextSize(nb); DL()->AddText(ImVec2(bc.x - ts.x * 0.5f, bc.y - ts.y * 0.5f), IM_COL32_WHITE, nb); ImGui::PopFont();
+    }
+    ImGui::SetCursorScreenPos(ImVec2(fp.x, fp.y + BtnH()));
+    PopupStyle();
+    ImGui::SetNextWindowSize(ImVec2(260 * S, 0));
+    if (ImGui::BeginPopup("##isortp")) {
+        PF(fBold); ImGui::TextColored(C_TEXT, "Sortuj według"); ImGui::PopFont();
+        std::vector<std::string> so = { "Nazwa" }; for (auto& st : stats) so.push_back(st);
+        for (auto& o : so) if (ImGui::Selectable(o.c_str(), g_isort == o)) g_isort = o;
+        ImGui::Separator();
+        if (ImGui::Selectable(ICN_SORT "  Rosnąco", !g_isortDesc, ImGuiSelectableFlags_NoAutoClosePopups)) g_isortDesc = false;
+        if (ImGui::Selectable(ICN_SORT "  Malejąco", g_isortDesc, ImGuiSelectableFlags_NoAutoClosePopups)) g_isortDesc = true;
+        ImGui::EndPopup();
+    }
+    PopupStyleEnd();
     ImGui::SetCursorScreenPos(ImVec2(fp.x, fp.y + BtnH()));
     PopupStyle();
     ImGui::SetNextWindowSize(ImVec2(520 * S, 0));
@@ -815,20 +857,15 @@ void ItemSpawner(float w) {
         ImGui::EndPopup();
     }
     PopupStyleEnd();
-    // active filters + sort
-    ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Sortuj"); ImGui::SameLine();
-    std::vector<std::string> so = { "Nazwa" }; for (auto& st : stats) so.push_back(st);
-    StrCombo("##isort", so, g_isort, 200 * S); ImGui::SameLine();
-    if (IconButton("##sdir", g_isortDesc ? "\xef\x85\xa1" : "\xef\x85\xa0", g_isortDesc ? "Malejąco" : "Rosnąco", ImGui::GetCursorScreenPos(), 32 * S, C_TEXT)) g_isortDesc = !g_isortDesc;
-    ImGui::SameLine(0, 16 * S);
-    if (!itemSub.empty()) { if (Chip((itemSub + "  ×##fs").c_str(), true)) itemSub.clear(); }
+    // active stat filters as removable chips (the subcategory lives only inside the filter popup)
+    if (!g_ifilters.empty()) ImGui::NewLine();
     for (int i = 0; i < (int)g_ifilters.size(); i++) {
         auto& f = g_ifilters[i];
         char b[160]; snprintf(b, sizeof b, f.mx > 0 ? "%s %d–%d  ×##f%d" : "%s ≥ %d  ×##f%d", f.stat.c_str(), f.mn, f.mx, i);
         if (f.mx <= 0) snprintf(b, sizeof b, "%s ≥ %d  ×##f%d", f.stat.c_str(), f.mn, i);
         if (Chip(b, true)) { g_ifilters.erase(g_ifilters.begin() + i); break; }
     }
-    ImGui::NewLine();
+    if (!g_ifilters.empty()) ImGui::NewLine();
     EndPanel();
     std::vector<int> v;
     for (size_t i = 0; i < g_cat.items.size(); i++) {
@@ -1310,16 +1347,18 @@ void TeleportPage(const Snapshot& s, float w) {
     // labels are computed once per world
     static void* builtFor = nullptr; static size_t builtN = 0;
     static std::vector<gx::WpLabel> labels; static std::vector<std::pair<std::string, int>> tags;
+    static std::vector<std::string> regions;
     if (builtN != g_cat.wps.size() || builtFor != (void*)g_cat.wps.data()) {
         builtFor = (void*)g_cat.wps.data(); builtN = g_cat.wps.size();
         labels.clear(); std::map<std::string, int> cnt;
         for (auto& e : g_cat.wps) { labels.push_back(gx::DescribeWp(e.name)); for (auto& t : labels.back().tags) cnt[t]++; }
         tags.assign(cnt.begin(), cnt.end());
         std::sort(tags.begin(), tags.end(), [](auto& a, auto& b) { return a.second > b.second; });
+        std::set<std::string> rs; for (auto& L : labels) if (!L.region.empty()) rs.insert(L.region);
+        regions = { "Wszystkie regiony" };
+        for (auto& t : tags) if (rs.count(t.first)) regions.push_back(t.first);
     }
     static std::string wpRegion; static std::set<std::string> wpTags;
-    std::vector<std::string> regions = { "Wszystkie regiony" };
-    for (auto& t : tags) { bool reg = false; for (auto& L : labels) if (L.region == t.first) { reg = true; break; } if (reg) regions.push_back(t.first); }
     BeginPanel("##wpf", nullptr, w);
     float rw = 220 * S, tw = ButtonW("Rodzaj miejsca (00)");
     InputBox("##wsearch", search, sizeof search, "Szukaj: opis albo nazwa waypointu (OCR_, PSI_...)", w - 36 * S - rw - tw - 16 * S);
@@ -1334,10 +1373,17 @@ void TeleportPage(const Snapshot& s, float w) {
     PopupStyle();
     if (ImGui::BeginPopup("##wtagpop")) {
         PF(fBold); ImGui::TextColored(C_TEXT, "Rodzaj miejsca (dowolny z zaznaczonych)"); ImGui::PopFont();
+        if (!wpRegion.empty()) { PF(fSmall); ImGui::TextColored(C_DIM, "Liczby dla regionu: %s", wpRegion.c_str()); ImGui::PopFont(); }
+        std::map<std::string, int> inReg;   // counts follow the selected region (build 7)
+        for (auto& L : labels) if (wpRegion.empty() || L.region == wpRegion) for (auto& t : L.tags) inReg[t]++;
         int col = 0;
-        for (auto& t : tags) {
-            bool isReg = std::find(regions.begin(), regions.end(), t.first) != regions.end();
+        for (auto& t0 : tags) {
+            bool isReg = std::find(regions.begin(), regions.end(), t0.first) != regions.end();
             if (isReg) continue;
+            auto ci = inReg.find(t0.first);
+            int n = ci == inReg.end() ? 0 : ci->second;
+            if (n == 0 && !wpTags.count(t0.first)) continue;
+            std::pair<std::string, int> t{ t0.first, n };
             ImGui::PushID(t.first.c_str());
             bool on = wpTags.count(t.first) != 0;
             ImVec2 cp = ImGui::GetCursorScreenPos();
@@ -1407,8 +1453,7 @@ float EspColors(float x, float y, float cw, bool draw) {
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5 * S, 5 * S));
         if (ImGui::ColorEdit3("##c", &col.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) g_espColors[i] = ImGui::ColorConvertFloat4ToU32(ImVec4(col.x, col.y, col.z, 1));
         if (ImGui::IsItemDeactivatedAfterEdit()) {
-            char k[16], v[16]; snprintf(k, sizeof k, "c%d", i); snprintf(v, sizeof v, "%u", g_espColors[i]);
-            WritePrivateProfileStringA("espcolors", k, v, IniPath().c_str());
+            T.Save();
         }
         ImGui::PopStyleVar(2);
         ImGui::PopID();
@@ -1635,6 +1680,7 @@ void TestRow(const std::string& id, const std::string& name, const std::string& 
     ImGui::PushStyleColor(ImGuiCol_FrameBg, C_WIN); ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, R_BTN());
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10 * S, 6 * S));
     if (ImGui::InputTextWithHint("##note", "co się dzieje / co zmienić...", e.note, sizeof e.note)) { g_testsDirty = true; g_testsAt = NowSec(); }
+    if (ClearX(e.note)) { g_testsDirty = true; g_testsAt = NowSec(); }
     ImGui::PopStyleVar(2); ImGui::PopStyleColor();
     ImGui::PopID();
     ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 6 * S)); ImGui::Dummy(ImVec2(w, 0));
@@ -1662,6 +1708,31 @@ void TesterPage(float w) {
         TestRow(r.id, r.name, r.sub + " › " + r.group + (r.hist.empty() ? "" : "   ·   " + r.hist), w, i++);
     }
     if (g_testsDirty && NowSec() - g_testsAt > 0.8) SaveTests();
+}
+
+// tester checklist in its own movable window next to the menu (build 7)
+void TestsWindow(float dispW) {
+    float dispH = ImGui::GetIO().DisplaySize.y;
+    ImGui::SetNextWindowSize(ImVec2(720 * S, std::min(dispH * 0.85f, 760 * S)), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(dispW - 740 * S, dispH * 0.07f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(480 * S, 320 * S), ImVec2(dispW, dispH));
+    ImGui::Begin("##g1tests", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollWithMouse);
+    ImVec2 wp = ImGui::GetWindowPos(), ws = ImGui::GetWindowSize();
+    float hcy = wp.y + 30 * S;
+    PF(fTitle); float th = ImGui::CalcTextSize("Ag").y; ImGui::PopFont();
+    IconAt(DL(), ImVec2(wp.x + 30 * S, hcy), ICN_CHECK, U32(C_ACC), 15 * S);
+    TextClip(ImVec2(wp.x + 48 * S, std::floor(hcy - th * 0.5f)), fTitle, C_TEXT, "Testy", ws.x);
+    ImVec2 xc(wp.x + ws.x - 30 * S, hcy);
+    float r = 13 * S;
+    bool hov = ImGui::IsMouseHoveringRect(ImVec2(xc.x - r, xc.y - r), ImVec2(xc.x + r, xc.y + r));
+    if (hov) DL()->AddCircleFilled(xc, r, U32(C_HOVER), 20);
+    IconAt(DL(), xc, ICN_TIMES, U32(hov ? C_TEXT : C_DIM), 13 * S);
+    if (hov && ImGui::IsMouseClicked(0)) testsWin = false;
+    ImGui::SetCursorScreenPos(ImVec2(wp.x + 22 * S, wp.y + 58 * S));
+    ImGui::BeginChild("##testsc", ImVec2(ws.x - 32 * S, ws.y - 58 * S - 14 * S), ImGuiChildFlags_None);
+    TesterPage(ws.x - 50 * S);
+    ImGui::EndChild();
+    ImGui::End();
 }
 
 // ------------------------------------------------------------------ overlays
@@ -1795,8 +1866,8 @@ void Sidebar(const Snapshot& s, ImVec2 p, float w, float h) {
     if (T.testerMode) {
         float ty = by - itemH - 4 * S;
         ImGui::SetCursorScreenPos(ImVec2(ix0, ty));
-        if (ImGui::InvisibleButton("##tests", ImVec2(ix1 - ix0, itemH))) { testsPage = true; cfgPage = false; gsearch[0] = 0; }
-        bool th = ImGui::IsItemHovered();
+        if (ImGui::InvisibleButton("##tests", ImVec2(ix1 - ix0, itemH))) testsWin = !testsWin;   // separate window, no tab switching
+        bool th = ImGui::IsItemHovered(); bool testsPage = testsWin;
         if (testsPage || th) DL()->AddRectFilled(ImVec2(ix0, ty), ImVec2(ix1, ty + itemH), U32(testsPage ? C_ACCD : C_HOVER, 0.6f), R_ITEM());
         IconAt(DL(), ImVec2(ix0 + 20 * S, ty + itemH * 0.5f), ICN_CHECK, U32(testsPage ? C_ACC : C_DIM), 14 * S);
         TextV(ix0 + 40 * S, ty + itemH * 0.5f, testsPage ? fBold : fReg, testsPage || th ? C_TEXT : C_DIM, "Testy");
@@ -1967,6 +2038,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
     ImGui::SetNextItemWidth(sw);
     ImGui::InputTextWithHint("##gq", "Szukaj funkcji...", gsearch, sizeof gsearch);
     ImGui::PopStyleColor(); ImGui::PopStyleVar(2);
+    ClearX(gsearch);
     if (!gsearch[0]) IconAt(DL(), ImVec2(hx + sw - 18 * S, hcy), ICN_SEARCH, U32(C_FAINT), 13 * S);
     if (s.swapped) {
         const char* lbl = ICN_HOME "  Wróć do bohatera";
@@ -2001,21 +2073,29 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         if (cat == "Postać" && (sub == "Statystyki" || sub == "Umiejętności" || sub == "Wygląd")) {
             SubjectBar(s, w);
             if (sub == "Wygląd") {
-                // live preview: look values changed -> apply after a short pause and refresh the portrait
+                // preview on a stand-in: look values changed -> photograph a dummy after a short pause; nothing is applied until "Zastosuj"
                 int sig = (int)gx::Val("vhead") * 1000000 + (int)gx::Val("vface") * 100 + (int)gx::Val("vbody") * 10 + (int)gx::Val("vskin");
                 if (lookSig == 0) lookSig = sig;
-                if (sig != lookSig) { lookSig = sig; lookAt = NowSec() + 0.5; }
-                if (lookAt > 0 && NowSec() > lookAt && !ImGui::IsMouseDown(0)) { lookAt = 0; Act_ApplyLook(); }
-                CardSpec pv{ "Podgląd", {}, nullptr, 236 * S, false };
-                std::string key = s.subjectInst; uintptr_t sp = s.subjectPtr;
+                if (sig != lookSig) { lookSig = sig; lookAt = NowSec() + 0.6; lookDirty = true; }
+                if (lookAt > 0 && NowSec() > lookAt && !ImGui::IsMouseDown(0)) { lookAt = 0; Act_LookPreview(); }
+                CardSpec pv{ "Podgląd", {}, nullptr, 262 * S, false };
+                std::string key = lookDirty ? std::string("LOOKPREVIEW") : s.subjectInst; uintptr_t sp = s.subjectPtr;
                 pv.custom = [key, sp](float x, float y, float cw2) -> float {
                     float sz = 190 * S;
                     ImVec2 c(x + cw2 * 0.5f, y + 8 * S + sz * 0.5f);
                     if (void* tex = PortraitFor(key)) DL()->AddImage((ImTextureID)(intptr_t)tex, ImVec2(c.x - sz * 0.5f, c.y - sz * 0.5f), ImVec2(c.x + sz * 0.5f, c.y + sz * 0.5f));
-                    else { IconAt(DL(), c, ICN_USER, U32(C_FAINT), 40 * S); AskPhoto(sp, key); }
-                    float bw = ButtonW("Odśwież portret");
-                    if (Button("##photo", "Odśwież portret", ImVec2(x + (cw2 - bw) * 0.5f, y + sz + 14 * S), false)) Act_Photo(0, true);
-                    return 236 * S;
+                    else { IconAt(DL(), c, ICN_USER, U32(C_FAINT), 40 * S); if (key != "LOOKPREVIEW") AskPhoto(sp, key); }
+                    float by = y + sz + 18 * S;
+                    if (lookDirty) {
+                        float b1 = ButtonW("Zastosuj wygląd"), b2 = ButtonW("Cofnij");
+                        float bx = x + (cw2 - b1 - b2 - 8 * S) * 0.5f;
+                        if (Button("##lookok", "Zastosuj wygląd", ImVec2(bx, by), true)) { Act_ApplyLook(); lookDirty = false; }
+                        if (Button("##lookno", "Cofnij", ImVec2(bx + b1 + 8 * S, by), false)) { lookDirty = false; lookAt = 0; lookSig = 0; }
+                    } else {
+                        float bw = ButtonW("Odśwież portret");
+                        if (Button("##photo", "Odśwież portret", ImVec2(x + (cw2 - bw) * 0.5f, by), false)) Act_Photo(0, true);
+                    }
+                    return 262 * S;
                 };
                 CardSpec nm{ "Imię", {}, nullptr, 0, false };
                 nm.customH = 60 * S;
@@ -2071,4 +2151,5 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         for (int k = 1; k <= 3; k++) DL()->AddLine(ImVec2(br.x - k * 5 * S, br.y), ImVec2(br.x, br.y - k * 5 * S), gc, 1.4f * S);
     }
     ImGui::End();
+    if (testsWin && T.testerMode) TestsWindow(dispW);
 }

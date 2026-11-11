@@ -14,9 +14,10 @@ unsigned g_espColors[7] = { 0xFF6E6EFF, 0xFF8CF28C, 0xFF7AD8FF, 0xFF55AAFF, 0xFF
 // 0 enemy 1 ally 2 neutral 3 monster 4 dead 5 item 6 chest
 
 namespace {
-struct NpcInfo { std::string name, guild; unsigned color; bool hostile, monster, ally; std::vector<std::string> eq; double eqAt = 0; };
+struct NpcInfo { std::string name, guild; unsigned color; bool hostile, monster, ally; std::vector<std::string> eq; double eqAt = 0, attAt = 0; };
 std::unordered_map<void*, NpcInfo> g_npc;
 std::vector<void*> g_chests;
+std::unordered_map<void*, std::pair<double, std::vector<std::string>>> g_chestInv;
 double g_lastNpc = 0, g_lastChest = 0;
 
 // ---- skeleton from the model node hierarchy (zCModel nodeList, local trafos composed to world)
@@ -133,7 +134,7 @@ void Cap(std::vector<std::pair<float, Label>>& v, int maxN, Snapshot& s) {   // 
     for (auto& e : v) s.labels.push_back(std::move(e.second));
 }
 void Esp_Hooks() {}
-void Esp_World() { g_npc.clear(); g_chests.clear(); g_lastNpc = g_lastChest = 0; }
+void Esp_World() { g_npc.clear(); g_chests.clear(); g_chestInv.clear(); g_lastNpc = g_lastChest = 0; }
 
 void Esp_Tick(TickCtx& c) {
     Snapshot& s = c.s;
@@ -148,7 +149,7 @@ void Esp_Tick(TickCtx& c) {
 
     std::vector<std::pair<float, Label>> npcL, itemL, chestL;
     if (npcOn) {
-        bool refresh = now - g_lastNpc > 0.25;
+        bool refresh = now - g_lastNpc > 0.4;
         if (refresh) {
             g_lastNpc = now;
             std::unordered_map<void*, NpcInfo> next;
@@ -156,11 +157,15 @@ void Esp_Tick(TickCtx& c) {
                 if (n == h || Dist(Pos(n), hp) > range * 1.2f) return;
                 NpcInfo inf;
                 auto old = g_npc.find(n);
-                if (old != g_npc.end()) { inf.eq = old->second.eq; inf.eqAt = old->second.eqAt; }
+                bool have = old != g_npc.end();
+                if (have) { inf = old->second; }
+                else { inf.guild = GuildName(fld<int>(n, K.offGuild)); inf.monster = IsMonster(n); }
                 inf.name = U(NpcName(n));
-                inf.guild = GuildName(fld<int>(n, K.offGuild));
-                inf.monster = IsMonster(n); inf.ally = IsAlly(n);
-                inf.hostile = !NpcDead(n) && CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(h) }) == K.attHostile;
+                inf.ally = IsAlly(n);
+                if (!have || now - inf.attAt > 1.0) {   // script call - keep it rare
+                    inf.attAt = now;
+                    inf.hostile = !NpcDead(n) && CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(h) }) == K.attHostile;
+                }
                 inf.color = NpcDead(n) ? g_espColors[4] : inf.ally ? g_espColors[1] : inf.hostile ? g_espColors[0] : inf.monster ? g_espColors[3] : g_espColors[2];
                 if (On("espeq") && Dist(Pos(n), hp) < 1500.f && now - inf.eqAt > 2.0) { inf.eq = NpcEquipment(n); inf.eqAt = now; }
                 next[n] = std::move(inf);
@@ -271,7 +276,7 @@ void Esp_Tick(TickCtx& c) {
         Cap(itemL, (int)Val("espmaxitem"), s);
     }
     if (chestOn) {
-        if (now - g_lastChest > 3.0 || g_chests.empty()) {
+        if (g_lastChest == 0 || now - g_lastChest > 30.0) {   // chests never move: scan the big vob list rarely
             g_lastChest = now; g_chests.clear();
             ForEachList(fld<void*>(w, W_VOBLIST), [&](void* v) { if (*reinterpret_cast<uintptr_t*>(v) == VTBL_OCMOBCONTAINER) g_chests.push_back(v); });
         }
@@ -283,7 +288,11 @@ void Esp_Tick(TickCtx& c) {
             p.y += 60;
             if (!Project(p, L.x, L.y)) continue;
             L.text = "Skrzynia"; char b[24]; snprintf(b, sizeof b, "%.0fm", d / 100.f); L.sub = b;
-            if (On("espchestinv") && d < 2500.f) L.lines = ChestContents(v);
+            if (On("espchestinv") && d < 2500.f) {
+                auto& cc = g_chestInv[v];
+                if (now - cc.first > 1.5) { cc.first = now; cc.second = ChestContents(v); }
+                L.lines = cc.second;
+            }
             L.color = g_espColors[6];
             chestL.push_back({ d, std::move(L) });
         }

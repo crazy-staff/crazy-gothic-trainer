@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <string>
 struct ID3D11Device; struct ID3D11DeviceContext; struct IDXGISwapChain;
-// 0 idle, 1 frame A rendered -> capture, 2 A captured, 3 frame B rendered -> capture, 4 done
+// odd = capture this frame (1 A, 3 B, 5 A2, 7 B2), even = game thread prepares the next shot, 8 = done
 extern volatile int g_photoStage;
 extern char g_photoKey[128];
 extern volatile int g_photoItem;      // 1 = item (no bottom fade)

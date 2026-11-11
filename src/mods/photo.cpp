@@ -15,12 +15,12 @@ using namespace g1;
 using namespace gx;
 
 namespace {
-struct Job { int kind; void* npc; int sym; std::string key; bool force; };   // kind 0 real npc, 1 clone, 2 item
+struct Job { int kind; void* npc; int sym; std::string key; bool force; int look[4] = { -1, 0, 0, 0 }; };   // kind 0 real npc, 1 clone, 2 item
 std::deque<Job> g_jobs;
 bool g_override = false, g_extThisFrame = false;
 float g_m[12], g_ext[12], g_camSave[12];
 Job g_cur; bool g_active = false;
-void* g_subj = nullptr; bool g_spawned = false; uint32_t g_flags = 0; bool g_hidden = false;
+void* g_subj = nullptr; bool g_spawned = false; uint32_t g_flags = 0; bool g_hidden = false; bool g_turned = false;
 int g_settle = 0, g_wait = 0, g_done = 0, g_total = 0; bool g_batch = false;
 zVEC3 g_studio;
 std::set<void*> g_customLook;
@@ -74,11 +74,23 @@ void Hold() {   // keep the subject floating at the studio spot
     fld<uint32_t>(g_subj, VOB_FLAGS) &= ~VOBF_PHYSICS;
     if (Dist(Pos(g_subj), g_studio) > 1.f) SafeSetPos(g_subj, g_studio);
 }
+void Turn(void* v) {   // 180 degrees around the vertical axis (right and at axes flip)
+    float* t = &fld<float>(v, VOB_TRAFO);
+    for (int i = 0; i < 3; i++) { t[i * 4 + 0] = -t[i * 4 + 0]; t[i * 4 + 2] = -t[i * 4 + 2]; }
+    g_turned = !g_turned;
+}
+void Show(bool on) {
+    if (!g_subj) return;
+    uint32_t& f = fld<uint32_t>(g_subj, VOB_FLAGS);
+    if (on) { f = (f & ~1u) | (g_flags & 1u); g_hidden = false; }
+    else { if (!g_hidden) g_flags = f; f &= ~1u; g_hidden = true; }
+}
 void Finish(void* cam) {
-    if (g_hidden && g_subj) fld<uint32_t>(g_subj, VOB_FLAGS) = (fld<uint32_t>(g_subj, VOB_FLAGS) & ~1u) | (g_flags & 1u);
+    if (g_hidden && g_subj) Show(true);
+    if (g_turned && g_subj && !g_spawned) Turn(g_subj);
     if (g_spawned && g_subj) RemoveVob(g_subj);
     if (g_override) WriteCam(cam, g_camSave);
-    g_hidden = false; g_override = false; g_subj = nullptr; g_spawned = false; g_active = false; g_photoStage = 0;
+    g_hidden = false; g_turned = false; g_override = false; g_subj = nullptr; g_spawned = false; g_active = false; g_photoStage = 0;
     g_done++;
     if (g_jobs.empty()) { g_batch = false; g_done = g_total = 0; }
 }
@@ -110,6 +122,20 @@ void Photo_Refresh(void* npc) {   // look changed: real character, overwrite cac
 }
 void Act_Photo(uintptr_t p, bool force) {
     T.Queue("row:photo", [p, force] { void* n = p ? (void*)p : Subject(); if (force) Photo_Refresh(n); else Photo_Request(n); });
+}
+// preview of a look on a stand-in (same script instance as the edited character, or any human)
+void Act_LookPreview() {
+    T.Queue("row:photo", [] {
+        void* sb = Subject();
+        int sym = -1;
+        if (sb && !IsMonster(sb) && sb != MainHero()) sym = NpcInstance(sb);
+        if (sym < 0) for (auto& e : g_cat.npcs) if (!e.monster && e.group != NG_MAGES) { sym = e.sym; break; }
+        if (sym < 0) return;
+        for (auto it = g_jobs.begin(); it != g_jobs.end();) { if (it->key == "LOOKPREVIEW") it = g_jobs.erase(it); else ++it; }
+        Job j{ 1, nullptr, sym, "LOOKPREVIEW", true };
+        j.look[0] = (int)Val("vhead"); j.look[1] = (int)Val("vface"); j.look[2] = (int)Val("vbody"); j.look[3] = (int)Val("vskin");
+        g_jobs.push_front(j); g_total++;
+    });
 }
 void Act_PhotoItem(int sym) {
     T.Queue("row:photo", [sym] {
@@ -180,6 +206,11 @@ void Photo_Tick(TickCtx& c) {
                 if (!v) { g_done++; continue; }
                 g_subj = v; g_spawned = true; g_settle = j.kind == 1 ? 8 : 3;
                 if (j.kind == 1) fld<int>(v, NPC_FLAGS) |= 2;   // the clone cannot be hurt
+                if (j.look[0] >= 0) {
+                    static const char* heads[] = { "HUM_HEAD_FIGHTER", "HUM_HEAD_BALD", "HUM_HEAD_THIEF", "HUM_HEAD_PONY", "HUM_HEAD_PSIONIC", "HUM_HEAD_FATBALD" };
+                    CallExt("Mdl_SetVisualBody", { Arg::Npc(v), Arg::Str("HUM_BODY_NAKED0"), Arg::Int(j.look[2]), Arg::Int(j.look[3]),
+                                                  Arg::Str(heads[std::max(0, std::min(5, j.look[0]))]), Arg::Int(j.look[1]), Arg::Int(0), Arg::Int(-1) });
+                }
             }
             float* t = &fld<float>(cam, VOB_TRAFO); std::copy(t, t + 12, g_camSave);
             g_active = true; g_wait = 0; g_photoStage = 0;
@@ -203,16 +234,17 @@ void Photo_Tick(TickCtx& c) {
             }
         } else if (g_photoStage == 0 && !g_override) {
             if (!Frame()) Finish(cam); else { g_override = true; WriteCam(cam, g_m); g_photoStage = 1; }
-        } else if (g_photoStage == 2) {
-            g_flags = fld<uint32_t>(g_subj, VOB_FLAGS); g_hidden = true;
-            fld<uint32_t>(g_subj, VOB_FLAGS) &= ~1u;
-            WriteCam(cam, g_m);
-            g_photoStage = 3;
-        } else if (g_photoStage == 4) {
+        } else if (g_photoStage == 2 || g_photoStage == 6) {   // background shot: subject hidden
+            Show(false); WriteCam(cam, g_m);
+            g_photoStage++;
+        } else if (g_photoStage == 4) {                          // second pair: subject turned around
+            Show(true); Turn(g_subj);
+            if (!Frame()) Finish(cam); else { WriteCam(cam, g_m); g_photoStage = 5; }
+        } else if (g_photoStage == 8) {
             Finish(cam);
         } else {
             WriteCam(cam, g_m);
-            if (++g_wait > 30) Finish(cam);
+            if (++g_wait > 60) Finish(cam);
         }
     }
     c.s.photoBusy = g_active || !g_jobs.empty();

@@ -71,7 +71,13 @@ static void Pending(const std::string& key) {
     g_crumbDyn = key;
 }
 static void PendingDone() { DeleteFileA(DataPath("G1CrazyTrainer_pending.txt").c_str()); g_crumbDyn.clear(); }
-void gx::Guard(const std::string& key, const std::function<void()>& f) { Pending(key); Log("> %s", key.c_str()); f(); PendingDone(); }
+void gx::Guard(const std::string& key, const std::function<void()>& f) {
+    // periodic actions (rain, party watch, photos...) only keep the name in memory: writing the pending
+    // file + a log line every few hundred ms caused disk stalls (lag spikes)
+    static const char* quiet[] = { "row:rain", "row:allykeep", "photo:", "row:photo", "ai:", "row:allvsme", "row:tselect" };
+    for (auto q : quiet) if (key.rfind(q, 0) == 0) { std::string prev = g_crumbDyn; g_crumbDyn = key; f(); g_crumbDyn = prev; return; }
+    Pending(key); Log("> %s", key.c_str()); f(); PendingDone();
+}
 
 static LONG CALLBACK Veh(EXCEPTION_POINTERS* e) {
     static int count = 0;
@@ -144,6 +150,32 @@ static void __fastcall hkRender(void* self, void* edx) {
     g_crumb = "render"; oRender(self, edx);
     g_crumb = "idle";
 }
+// DirectInput reads: while the menu is open (or Esc is still held after closing it) the game gets an
+// empty keyboard/mouse state - typing in the menu's text boxes no longer reaches the game
+using fnDIState = long(__stdcall*)(void*, unsigned long, void*);
+using fnDIData = long(__stdcall*)(void*, unsigned long, void*, unsigned long*, unsigned long);
+static fnDIState oDIState = nullptr; static fnDIData oDIData = nullptr;
+static volatile bool g_blockInput = false;
+static long __stdcall hkDIState(void* self, unsigned long cb, void* data) {
+    long r = oDIState(self, cb, data);
+    if (g_blockInput && r == 0 && data) memset(data, 0, cb);
+    return r;
+}
+static long __stdcall hkDIData(void* self, unsigned long cb, void* rg, unsigned long* n, unsigned long fl) {
+    long r = oDIData(self, cb, rg, n, fl);
+    if (g_blockInput && r == 0 && n) *n = 0;
+    return r;
+}
+static void HookDirectInput() {
+    static bool done = false;
+    void* kbd = at<void*>(DI_KBD);
+    if (done || !kbd) return;
+    done = true;
+    void** vt = *reinterpret_cast<void***>(kbd);
+    MH_CreateHook(vt[9], (LPVOID)&hkDIState, (LPVOID*)&oDIState);
+    MH_CreateHook(vt[10], (LPVOID)&hkDIData, (LPVOID*)&oDIData);
+    MH_EnableHook(vt[9]); MH_EnableHook(vt[10]);
+}
 // CGameManager::Menu(int) - the game's own menu (Esc / main menu) runs inside this call
 using fnMenu = void(__fastcall*)(void*, void*, int);
 static fnMenu oMenu = nullptr;
@@ -160,6 +192,7 @@ void Trainer::Tick() {
     { std::lock_guard<std::mutex> l(mtx); q.swap(queue); }
     bool inGame = InGame();
     if (inGame) K.Refresh();
+    if (inGame) RefreshNpcSet();
     for (auto& f : q) Guard(f.first, f.second);
 
     // input ownership: menu owns everything, noclip owns the keyboard
@@ -171,6 +204,8 @@ void Trainer::Tick() {
     if (menuOpen) escHold = true;
     else if (escHold && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000)) escHold = false;
     bool wantK = !menuOpen && !escHold && !(On("noclip") && inGame), wantM = !menuOpen;
+    HookDirectInput();
+    g_blockInput = menuOpen || escHold;
     if (wantK != lastK || wantM != lastM || (menuOpen && NowSec() - lastInput > 0.03) || ((!wantK || !wantM) && NowSec() - lastInput > 0.25)) {
         SetGameInput2(wantK, wantM); lastK = wantK; lastM = wantM; lastInput = NowSec();
     }
@@ -183,6 +218,7 @@ void Trainer::Tick() {
     static void* lastWorld = nullptr;
     static std::vector<DiagLine> diag;
     if (!g_cat.built) g_cat.Build();
+    RefreshNpcSet();
     if (GameWorld() != lastWorld) {
         lastWorld = GameWorld();
         g_cat.BuildWaypoints();
@@ -219,7 +255,7 @@ void Trainer::Tick() {
 void Trainer::Init() {
     rows.clear();
     Player_Register(); Items_Register(); Npcs_Register(); Target_Register(); Chaos_Register(); World_Register();
-    Esp_Register(); Teleport_Register(); Marvin_Register();
+    Esp_Register(); Teleport_Register(); Marvin_Register(); Photo_Register();
     for (auto& r : rows) if (Crashed("row:" + r.id)) { r.status = ST_CRASH; r.hist = "crashowało w poprzedniej sesji (wykryte automatycznie)"; }
 }
 void ApplyRow(Row& r) {
@@ -273,21 +309,26 @@ void Trainer::Load() {
     LoadSets(); LoadMacros();
 }
 void Trainer::Save() { dirty = true; }
+extern unsigned g_espColors[7];
 void Trainer::SaveNow() {
+    // one file write instead of ~600 WritePrivateProfileString calls (each rewrites the whole file -> lag spike)
     dirty = false; lastSave = NowSec();
-    std::string ini = IniPath();
-    for (auto& r : rows) {
-        char b[64];
-        snprintf(b, sizeof b, r.isFloat ? "%.2f" : "%.0f", r.val);
-        WritePrivateProfileStringA("values", r.id.c_str(), b, ini.c_str());
-        snprintf(b, sizeof b, "%d", r.hotkey);
-        WritePrivateProfileStringA("hotkeys", r.id.c_str(), b, ini.c_str());
-        if (r.kind == K_TOGGLE || r.kind == K_SLIDER || r.kind == K_SET)
-            WritePrivateProfileStringA("lastOn", r.id.c_str(), r.on ? "1" : "0", ini.c_str());
+    std::string o;
+    char b[160];
+    o += "[meta]\r\n"; snprintf(b, sizeof b, "crashlistBuild=%d\r\n", TRAINER_BUILD); o += b;
+    o += "[menu]\r\n"; snprintf(b, sizeof b, "accent=%.3f,%.3f,%.3f\r\ntester=%d\r\n", accent[0], accent[1], accent[2], testerMode ? 1 : 0); o += b;
+    o += "[espcolors]\r\n"; for (int i = 0; i < 7; i++) { snprintf(b, sizeof b, "c%d=%u\r\n", i, g_espColors[i]); o += b; }
+    o += "[values]\r\n";
+    for (auto& r : rows) { snprintf(b, sizeof b, r.isFloat ? "%s=%.2f\r\n" : "%s=%.0f\r\n", r.id.c_str(), r.val); o += b; }
+    o += "[hotkeys]\r\n";
+    for (auto& r : rows) { snprintf(b, sizeof b, "%s=%d\r\n", r.id.c_str(), r.hotkey); o += b; }
+    o += "[lastOn]\r\n";
+    for (auto& r : rows) if (r.kind == K_TOGGLE || r.kind == K_SLIDER || r.kind == K_SET) { snprintf(b, sizeof b, "%s=%d\r\n", r.id.c_str(), r.on ? 1 : 0); o += b; }
+    std::string ini = IniPath(), tmp = ini + ".tmp";
+    if (FILE* f = fopen(tmp.c_str(), "wb")) {
+        fwrite(o.data(), 1, o.size(), f); fclose(f);
+        MoveFileExA(tmp.c_str(), ini.c_str(), MOVEFILE_REPLACE_EXISTING);
     }
-    char b[64]; snprintf(b, sizeof b, "%.3f,%.3f,%.3f", accent[0], accent[1], accent[2]);
-    WritePrivateProfileStringA("menu", "accent", b, ini.c_str());
-    WritePrivateProfileStringA("menu", "tester", testerMode ? "1" : "0", ini.c_str());
 }
 void Trainer::RestoreToggles() {
     std::string ini = IniPath();

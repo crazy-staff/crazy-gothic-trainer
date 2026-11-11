@@ -77,8 +77,14 @@ void SpellOn(void* t, const char* fx, int dmg, void* killer) {
 namespace {
 void RainFrame() {
     double now = T.gameClock;
-    if (now - g_lastRain < std::max(0.1f, Val("rainint"))) return;
+    // build 7: the engine crashed when many projectiles hit (and killed) at once -> hard limits:
+    // >= 0.35 s between volleys, <= 6 per volley, <= 12 in flight, one projectile per victim every 2.5 s
+    if (now - g_lastRain < std::max(0.35f, Val("rainint"))) return;
     g_lastRain = now;
+    static std::map<void*, double> recent;
+    for (auto it = recent.begin(); it != recent.end();) { if (now - it->second > 2.5) it = recent.erase(it); else ++it; }
+    int inFlight = (int)recent.size();
+    if (inFlight >= 12) return;
     int mask = (int)Val("rainmask");
     std::vector<int> fx;
     for (int i = 0; i < RAIN_FX_COUNT; i++) if (mask & (1 << i)) fx.push_back(i);
@@ -86,13 +92,14 @@ void RainFrame() {
     std::vector<void*> c;
     int filt = (int)Val("rainfilter");
     NpcsInRadius(Val("rainradius") * 100.f, [&](void* n) {
-        if (!Victim(n) || !PassFilter(n, filt)) return;
+        if (!Victim(n) || !PassFilter(n, filt) || recent.count(n) || !NpcReady(n)) return;
         if (IsImmortal(n)) { if (!On("rainimm")) return; fld<int>(n, NPC_FLAGS) &= ~2; }
         c.push_back(n); });
     if (c.empty()) return;
     std::shuffle(c.begin(), c.end(), rng);
-    int cnt = std::min((int)c.size(), std::max(1, (int)Val("raincount")));
+    int cnt = std::min({ (int)c.size(), std::max(1, (int)Val("raincount")), 6, 12 - inFlight });
     for (int i = 0; i < cnt; i++) {
+        recent[c[i]] = now;
         const char* f = kRainFx[fx[rng() % fx.size()]];
         bool fire = strstr(f, "FIRE") != nullptr;
         Guard(std::string("row:rain:") + f, [&] { Effect(f, Player(), c[i], 2, (int)Val("raindmg"), fire ? K.damFire : K.damMagic, true); });
@@ -227,18 +234,18 @@ void Chaos_Register() {
     const char* M = "Magia";
     CardTitle("Deszcz zaklęć");
     T.Add(MkRow("rain", "Deszcz zaklęć", "zaklęcia spadają na losowe postacie wokół ciebie", C, M, K_TOGGLE));
-    St(ST_NEW, "build 4: zaklęcia pojawiały się na celu i nie dawały PD; build 5: znów lecą z ciebie w cel, zabójstwa dają PD"); Icon(ICN_BOLT);
+    St(ST_NEW, "build 6: CRASH przy wielu zgonach naraz; build 7: limity (max 6 na salwę, 12 w locie, min 0,35 s)"); Icon(ICN_BOLT);
     T.Add(MkRow("raindmg", "Obrażenia", "", C, M, K_VALUE, 80, 0, 2000)); St(ST_NEW, "nowe w build 4");
-    T.Add(MkRow("rainint", "Co ile sekund", "", C, M, K_VALUE, 0.6f, 0.1f, 5, nullptr, true)); St(ST_NEW, "nowe w build 4");
-    T.Add(MkRow("raincount", "Celów naraz", "", C, M, K_VALUE, 1, 1, 10)); St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("rainint", "Co ile sekund", "", C, M, K_VALUE, 0.6f, 0.35f, 5, nullptr, true)); St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("raincount", "Celów naraz", "", C, M, K_VALUE, 1, 1, 6)); St(ST_NEW, "nowe w build 4");
     T.Add(MkRow("rainradius", "Promień", "m", C, M, K_VALUE, 30, 5, 150)); St(ST_NEW, "nowe w build 4");
     T.Add(MkRow("rainfilter", "W kogo", "", C, M, K_VALUE, 0, 0, 3));
     Opts({ { 0, "Wszystkich (bez drużyny)" }, { 1, "Tylko wrogów" }, { 2, "Tylko ludzi" }, { 3, "Tylko potwory" } }); St(ST_NEW, "nowe w build 4");
     T.Add(MkRow("rainimm", "Też nieśmiertelnych", "", C, M, K_TOGGLE)); St(ST_NEW, "nowe w build 6");
     T.Add(MkRow("rainmask", "Zaklęcia", "", C, M, K_VALUE, 2 | 16, 0, 511)); Hidden(); St(ST_NEW, "nowe w build 4");
 
-    const char* I = "Chaos";
-    CardTitle("Przemiany");
+    const char* I = "Walka";   // build 7: each transformation has its own card under Walka
+    CardTitle("Zombie");
     T.Add(MkRow("zombies", "Apokalipsa zombie", "ile zombie wokół ciebie; słabsze i śmiertelne", C, I, K_ACTION, 8, 1, 200, [](Row& r) {
         std::vector<const NpcEntry*> pool;
         for (auto& e : g_cat.npcs) if (e.group == NG_UNDEAD && e.id.find("ZOMBIE") != std::string::npos && !T.Crashed("npc:" + e.id)) pool.push_back(&e);
@@ -262,6 +269,7 @@ void Chaos_Register() {
         }
         T.Toast("Umarli powstają..."); }));
     St(ST_OK, "build 3: działa"); Icon(ICN_USERS);
+    CardTitle("Polimorfia");
     T.Add(MkRow("polymorph", "Polimorf", "ludzie w promieniu (m) zmieniają się w zwierzęta - UWAGA: usuwa NPC (questy!)", C, I, K_ACTION, 10, 1, 100, [](Row& r) {
         std::vector<const NpcEntry*> pool;
         for (auto& e : g_cat.npcs) if (e.group == NG_ANIMALS && e.level > 0 && !T.Crashed("npc:" + e.id)) pool.push_back(&e);

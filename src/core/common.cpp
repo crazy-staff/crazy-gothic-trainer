@@ -1,8 +1,10 @@
+#include <unordered_map>
 #include "common.h"
 #include "catalog.h"
 #include "../trainer.h"
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
 
 extern HWND g_gameHwnd;
 
@@ -30,10 +32,17 @@ void Consts::Refresh() {
 
 std::string U(const std::string& s) { return Cp1250ToUtf8(s); }
 bool IsMonster(void* npc) { return fld<int>(npc, K.offGuild) > K.sepHum; }
+// npc pointers of the current frame: NpcExists used to walk the whole npc list on every call
+// (called per npc in many loops -> O(n^2) spikes)
+static std::unordered_set<void*> g_npcSet; static double g_npcSetAt = -1;
+void RefreshNpcSet() {
+    g_npcSet.clear();
+    ForEachNpc([&](void* x) { g_npcSet.insert(x); });
+    g_npcSetAt = T.gameClock;
+}
 bool NpcExists(void* n) {
-    bool found = false;
-    if (n) ForEachNpc([&](void* x) { if (x == n) found = true; });
-    return found;
+    if (!n) return false;
+    return g_npcSet.count(n) != 0;
 }
 bool NpcAlive(void* n) { return NpcExists(n) && !NpcDead(n); }
 
@@ -165,8 +174,9 @@ void RunSchedule() {
     }
     for (auto& d : due) d.f();
 }
+void ModelCacheClear();
 void ClearWorldState() {
-    g_savedTargets.clear(); g_activeSaved = -1; g_allies.clear(); g_sched.clear(); g_mainHero = nullptr;
+    ModelCacheClear(); g_savedTargets.clear(); g_activeSaved = -1; g_allies.clear(); g_sched.clear(); g_mainHero = nullptr;
 }
 
 void DealDamage(void* npc, int dmg, void* killer) {
@@ -174,7 +184,19 @@ void DealDamage(void* npc, int dmg, void* killer) {
     if (npc == MainHero() && On("god")) return;
     int hp = Attr(npc, 0) - dmg;
     if (hp > 0) { SetAttr(npc, 0, hp); return; }
+    KillClean(npc, killer);
+}
+// Kill that also works on NPCs stuck in a scripted state (Thorus & co. stayed standing and lootable):
+// drop their AI queue first, and if the body is still not lying a moment later, force the death animation.
+void KillClean(void* npc, void* killer) {
+    if (!npc || NpcDead(npc) || !NpcReady(npc)) return;
+    { CallExt("Npc_ClearAIQueue", { Arg::Npc(npc) }); CallExt("AI_StandupQuick", { Arg::Npc(npc) }); }
     Kill(npc, killer);
+    Schedule(0.4, [npc] {
+        if (!NpcExists(npc) || !NpcReady(npc) || !NpcDead(npc)) return;
+        CallExt("Npc_ClearAIQueue", { Arg::Npc(npc) });
+        CallExt("AI_PlayAni", { Arg::Npc(npc), Arg::Str("T_DEAD") });
+    });
 }
 bool Project(const zVEC3& w, float& sx, float& sy) {
     void* cam = at<void*>(ACTIVE_CAM_PTR);
@@ -269,40 +291,68 @@ M34 Mul(const M34& a, const float* b) {
     return r;
 }
 }
+// Skeleton topology (parents, names) never changes for a model, so it is validated once and cached;
+// per frame only the matrices are multiplied. Build 6 re-validated every node with IsBadReadPtr every
+// frame for every NPC on screen, which is what made the ESP stutter.
+namespace {
+struct Topo { void** arr = nullptr; int num = 0; std::vector<int> parent; std::vector<std::string> names; double at = 0; };
+std::unordered_map<void*, Topo> g_topo;
+const Topo* TopoOf(void* model) {
+    void** arr = fld<void**>(model, MODEL_NODELIST);
+    int num = fld<int>(model, MODEL_NODELIST + 8);
+    double now = NowSec();
+    auto it = g_topo.find(model);
+    if (it != g_topo.end() && it->second.arr == arr && it->second.num == num && now - it->second.at < 10.0)
+        return it->second.parent.empty() ? nullptr : &it->second;
+    if (g_topo.size() > 400) g_topo.clear();
+    Topo& t = g_topo[model];
+    t = Topo{}; t.arr = arr; t.num = num; t.at = now;
+    if (!arr || num <= 0 || num > 200 || IsBadReadPtr(arr, num * 4)) return nullptr;
+    std::unordered_map<void*, int> idx;
+    for (int i = 0; i < num; i++) { if (!arr[i] || IsBadReadPtr(arr[i], 0x4C)) return nullptr; idx[arr[i]] = i; }
+    t.parent.assign(num, -1); t.names.assign(num, std::string());
+    for (int i = 0; i < num; i++) {
+        void* p = fld<void*>(arr[i], 0);
+        if (p) { auto f = idx.find(p); t.parent[i] = f == idx.end() ? -1 : f->second; }
+        void* proto = fld<void*>(arr[i], 4);
+        if (proto && !IsBadReadPtr(proto, 0x18)) {
+            const zSTRING& nm = fld<zSTRING>(proto, 4);
+            if (nm.ptr && nm.len > 0 && nm.len < 64 && !IsBadReadPtr(nm.ptr, nm.len)) t.names[i].assign(nm.ptr, nm.len);
+        }
+    }
+    return &t;
+}
+}
+void ModelCacheClear() { g_topo.clear(); }
 bool ModelNodes(void* npc, std::vector<ModelNode>& out) {
     out.clear();
     void* model = VobModel(npc);
     if (!model) return false;
-    void** arr = fld<void**>(model, MODEL_NODELIST);
-    int num = fld<int>(model, MODEL_NODELIST + 8);
-    if (!arr || num <= 0 || num > 200 || IsBadReadPtr(arr, num * 4)) return false;
-    std::vector<std::pair<void*, int>> idx;
-    for (int i = 0; i < num; i++) { if (!arr[i] || IsBadReadPtr(arr[i], 0x4C)) return false; idx.push_back({ arr[i], i }); }
-    auto find = [&](void* p) { for (auto& e : idx) if (e.first == p) return e.second; return -1; };
+    const Topo* t = TopoOf(model);
+    if (!t) return false;
+    int num = t->num;
     std::vector<M34> om(num);
     std::vector<char> done(num, 0);
     out.resize(num);
     M34 world; const float* W = &fld<float>(npc, VOB_TRAFO); for (int k = 0; k < 12; k++) world.m[k] = W[k];
     zVEC3 base = Pos(npc);
     for (int i = 0; i < num; i++) out[i].parent = -1;
-    for (int pass = 0; pass < 4; pass++)
+    for (int pass = 0; pass < 6; pass++) {
+        bool all = true;
         for (int i = 0; i < num; i++) {
             if (done[i]) continue;
-            void* p = fld<void*>(arr[i], 0);
-            const float* local = &fld<float>(arr[i], 0xC);
-            int pi = p ? find(p) : -1;
+            const float* local = &fld<float>(t->arr[i], 0xC);
+            int pi = t->parent[i];
             if (pi < 0) { om[i] = Mul(world, local); done[i] = 1; continue; }
-            if (!done[pi]) continue;
+            if (!done[pi]) { all = false; continue; }
             om[i] = Mul(om[pi], local); out[i].parent = pi; done[i] = 1;
         }
+        if (all) break;
+    }
     for (int i = 0; i < num; i++) {
         out[i].pos = { om[i].m[3], om[i].m[7], om[i].m[11] };
         if (!done[i] || Dist(out[i].pos, base) > 800.f) out[i].parent = -2;
-        void* proto = fld<void*>(arr[i], 4);
-        if (proto && !IsBadReadPtr(proto, 0x18)) {
-            const zSTRING& nm = fld<zSTRING>(proto, 4);
-            if (nm.ptr && nm.len > 0 && nm.len < 64 && !IsBadReadPtr(nm.ptr, nm.len)) out[i].name.assign(nm.ptr, nm.len);
-        }
+        out[i].name = t->names[i];
         if (out[i].name.rfind("ZS_", 0) == 0) out[i].parent = -2;
     }
     return true;

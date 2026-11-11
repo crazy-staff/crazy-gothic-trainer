@@ -27,6 +27,7 @@ extern std::mt19937 rng;
 std::string U(const std::string& cp1250);
 bool IsMonster(void* npc);
 bool NpcExists(void* n);
+void RefreshNpcSet();          // once per frame (and after spawning/removing)
 bool NpcAlive(void* n);
 template <class F> void NpcsInRadius(float r, F f) {
     void* h = Player(); zVEC3 hp = Pos(h);
@@ -64,6 +65,7 @@ void Schedule(double delaySec, std::function<void()> f);
 void RunSchedule();
 void ClearWorldState();   // on world change
 
+void KillClean(void* npc, void* killer);
 void DealDamage(void* npc, int dmg, void* killer);   // direct HP damage (no aggro on the player when killer == null)
 bool Project(const zVEC3& world, float& sx, float& sy);   // -> normalized screen coords
 std::string PlaceName(const zVEC3& p);                     // nearest waypoint -> human location name

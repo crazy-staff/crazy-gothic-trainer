@@ -6,7 +6,7 @@
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 6
+#define TRAINER_BUILD 7
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]
@@ -158,6 +158,9 @@ void Act_Photo(uintptr_t npc, bool force = false);   // portrait request (0 = cu
 void Act_PhotoItem(int sym);                          // item icon request
 void Act_PhotoBatch(int what);                        // 0 all npcs in world, 1 all items
 void Act_PhotoCancel();
+void Act_LookPreview();
+void Arena_PlayerDown();
+bool Arena_IsEnemy(void* n);
 void Act_CastOnTarget();
 void Act_SelectTargetFor(int savedIdx);              // -1 = npc under crosshair
 void Act_SetName(const std::string& utf8);

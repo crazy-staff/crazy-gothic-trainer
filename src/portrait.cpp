@@ -20,7 +20,7 @@ std::unordered_set<std::string> g_missing;
 std::recursive_mutex g_mx;
 ID3D11Device* g_dev = nullptr;
 const int kPicSz = 160;
-std::vector<uint32_t> g_a;
+std::vector<uint32_t> g_a, g_b, g_a2;
 
 std::string Dir() { std::string d = DataPath("G1CrazyTrainer_obrazki"); CreateDirectoryA(d.c_str(), nullptr); return d + "\\"; }
 std::string FileOf(const std::string& key) {
@@ -74,14 +74,22 @@ bool Grab(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc, std::
     stg->Release();
     return true;
 }
-void Build(const std::vector<uint32_t>& a, const std::vector<uint32_t>& b, const std::string& key, bool item) {
+float Diff(uint32_t x, uint32_t y) {
+    int d = 0;
+    for (int ch = 0; ch < 3; ch++) d += std::abs((int)((x >> (ch * 8)) & 0xFF) - (int)((y >> (ch * 8)) & 0xFF));
+    return std::max(0.f, std::min(1.f, (d - 10) / 30.f));
+}
+// a = subject, b = background; a2/b2 = the same shot turned 180 degrees (different background):
+// a pixel that matches the background colour in one shot almost never matches in the other
+void Build(const std::vector<uint32_t>& a, const std::vector<uint32_t>& b, const std::vector<uint32_t>& a2, const std::vector<uint32_t>& b2,
+           const std::string& key, bool item) {
     int n = kPicSz;
     std::vector<float> mask(n * n, 0.f), tmp(n * n);
     int on = 0;
+    bool two = a2.size() == a.size() && b2.size() == a.size();
     for (int i = 0; i < n * n; i++) {
-        int d = 0;
-        for (int ch = 0; ch < 3; ch++) d = std::max(d, std::abs((int)((a[i] >> (ch * 8)) & 0xFF) - (int)((b[i] >> (ch * 8)) & 0xFF)));
-        mask[i] = std::max(0.f, std::min(1.f, (d - 6) / 22.f));
+        mask[i] = Diff(a[i], b[i]);
+        if (two) mask[i] = std::max(mask[i], Diff(a2[i], b2[i]));
         if (mask[i] > 0.5f) on++;
     }
     if (on < n * n / 200) return;   // nothing captured: keep trying later instead of saving garbage
@@ -146,12 +154,12 @@ void PortraitClear() {
 }
 void PortraitPresent(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc) {
     g_dev = dev;
-    if (g_photoStage == 1) {
-        if (!Grab(dev, ctx, sc, g_a)) { g_photoStage = 4; return; }
-        g_photoStage = 2;
-    } else if (g_photoStage == 3) {
-        std::vector<uint32_t> b;
-        if (Grab(dev, ctx, sc, b) && b.size() == g_a.size()) Build(g_a, b, g_photoKey, g_photoItem != 0);
-        g_photoStage = 4;
+    // 1 A (subject) -> 3 B (hidden) -> 5 A2 (turned) -> 7 B2 (hidden) -> build -> 8
+    std::vector<uint32_t>* dst = g_photoStage == 1 ? &g_a : g_photoStage == 3 ? &g_b : g_photoStage == 5 ? &g_a2 : nullptr;
+    if (dst) { if (!Grab(dev, ctx, sc, *dst)) { g_photoStage = 8; return; } g_photoStage = g_photoStage + 1; return; }
+    if (g_photoStage == 7) {
+        std::vector<uint32_t> b2;
+        if (Grab(dev, ctx, sc, b2) && g_b.size() == g_a.size()) Build(g_a, g_b, g_a2, b2, g_photoKey, g_photoItem != 0);
+        g_photoStage = 8;
     }
 }
