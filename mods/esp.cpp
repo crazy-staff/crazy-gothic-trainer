@@ -252,7 +252,7 @@ void Esp_Tick(TickCtx& c) {
 
 void Esp_Register() {
     const char* C = "Wizualia";
-    const char* P = "ESP postaci";
+    const char* P = "ESP";
     auto tog = [&](const char* id, const char* name, const char* sub, bool def, Status st, const char* h) {
         T.Add(MkRow(id, name, "", C, sub, K_TOGGLE)); T.rows.back().on = def; St(st, h);
     };
@@ -276,7 +276,7 @@ void Esp_Register() {
     tog("espskel", "Szkielet", P, false, ST_NEW, "nowe w build 4 (do 40 m)");
     tog("espline", "Linie od dołu ekranu", P, false, ST_OK, "działa");
 
-    const char* I = "ESP przedmiotów";
+    const char* I = "ESP";
     CardTitle("Przedmioty na ziemi");
     tog("espitems", "Pokaż przedmioty", I, false, ST_OK, "działa"); Icon(ICN_BAG);
     T.Add(MkRow("espitemval", "Min. wartość", "rudy", C, I, K_VALUE, 0, 0, 5000)); St(ST_OK, "działa");

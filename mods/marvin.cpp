@@ -46,7 +46,7 @@ void Marvin_Tick(TickCtx& c) {
 }
 void Marvin_Register() {
     CardTitle("Tryb debug");
-    T.Add(MkRow("marvin", "Tryb Marvina", "konsola F2, klawisze debug - bez wpisywania MARVIN", "Narzędzia", "Marvin", K_TOGGLE)); St(ST_OK, "działa"); Icon(ICN_TERMINAL);
-    T.Add(MkRow("waynet", "Pokaż waynet", "ścieżki NPC", "Narzędzia", "Marvin", K_TOGGLE)); St(ST_OK, "działa");
-    T.Add(MkRow("frameinfo", "Info o klatkach", "", "Narzędzia", "Marvin", K_TOGGLE)); St(ST_OK, "działa");
+    T.Add(MkRow("marvin", "Tryb Marvina", "konsola F2, klawisze debug - bez wpisywania MARVIN", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_OK, "działa"); Icon(ICN_TERMINAL);
+    T.Add(MkRow("waynet", "Pokaż waynet", "ścieżki NPC", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_OK, "działa");
+    T.Add(MkRow("frameinfo", "Info o klatkach", "", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_OK, "działa");
 }

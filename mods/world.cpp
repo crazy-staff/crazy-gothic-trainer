@@ -3,6 +3,7 @@
 #include "mods.h"
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 
 using namespace g1;
 using namespace gx;
@@ -11,18 +12,13 @@ namespace {
 bool g_timerTouched = false; float g_frozenTime = -1;
 std::set<void*> g_scaled;
 
-bool Moving() {
-    if (T.menuOpen || !GameFocused()) return false;
-    auto k = [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; };
-    return k('W') || k('A') || k('S') || k('D') || k(VK_UP) || k(VK_DOWN);
-}
+std::unordered_map<void*, float> g_yaw;   // last yaw of slowed npcs (turning is not animation-driven)
 void TimeScales(void* hero, bool paused) {
     bool spd = On("speed"); int mode = (int)Val("speedmode");
     float npcScale = 1.f;
     if (spd && mode == 0) npcScale *= std::max(0.05f, Val("speed"));
     if (On("quicksilver")) npcScale *= std::max(0.02f, Val("qsfactor"));
     float heroScale = On("pspeed") ? Val("pspeed") : 1.f;
-    if (On("sprint") && (int)Val("sprintmode") == 1 && Moving()) heroScale *= 1.6f;
     if (On("quicksilver")) heroScale *= std::max(1.f, Val("qshero"));
     if (spd && mode == 1 && On("speedonlyworld")) heroScale /= std::max(0.05f, Val("speed"));
     if (paused) return;
@@ -34,13 +30,30 @@ void TimeScales(void* hero, bool paused) {
         void* m = VobModel(n);
         if (!m) return;
         fld<float>(m, MODEL_TIMESCALE) = want;
+        // turning speed ignores the animation time scale: limit the yaw change to the same factor
+        float* tm = &fld<float>(n, VOB_TRAFO);
+        float yaw = std::atan2(tm[2], tm[10]);
+        if (want < 0.99f && !NpcDead(n)) {
+            auto it = g_yaw.find(n);
+            if (it != g_yaw.end()) {
+                float d = yaw - it->second;
+                while (d > 3.14159f) d -= 6.28318f;
+                while (d < -3.14159f) d += 6.28318f;
+                if (std::fabs(d) > 1e-4f) {
+                    float ny = it->second + d * want, c = std::cos(ny), s = std::sin(ny);
+                    tm[0] = c; tm[4] = 0; tm[8] = -s; tm[1] = 0; tm[5] = 1; tm[9] = 0; tm[2] = s; tm[6] = 0; tm[10] = c;
+                    yaw = ny;
+                }
+            }
+            g_yaw[n] = yaw;
+        } else g_yaw.erase(n);
         if (want == 1.f) g_scaled.erase(n); else if (!touched) g_scaled.insert(n);
     });
 }
 }
 
 void World_Hooks() {}
-void World_World() { g_frozenTime = -1; g_scaled.clear(); }
+void World_World() { g_frozenTime = -1; g_scaled.clear(); g_yaw.clear(); }
 void World_Tick(TickCtx& c) {
     bool spd = On("speed");
     bool clockMode = spd && (int)Val("speedmode") == 1;
@@ -89,4 +102,8 @@ void World_Register() {
     CardTitle("Menu");
     T.Add(MkRow("pausemenu", "Pauza przy otwartym menu", "świat stoi, gdy menu trainera jest otwarte", "Konfiguracja", "Konfiguracja", K_TOGGLE));
     T.rows.back().on = true; St(ST_OK, "działa"); Icon(ICN_CLOCK);
+    CardTitle("Okno aktywnych modów");
+    T.Add(MkRow("statuswin", "Pokazuj w grze", "małe okno z listą wszystkiego, co jest włączone (i z jakimi ustawieniami)", "Konfiguracja", "Konfiguracja", K_TOGGLE));
+    St(ST_NEW, "nowe w build 5"); Icon(ICN_LIST);
+    T.Add(MkRow("statusalpha", "Przezroczystość tła", "%", "Konfiguracja", "Konfiguracja", K_VALUE, 70, 0, 100)); St(ST_NEW, "nowe w build 5");
 }

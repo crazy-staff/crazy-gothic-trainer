@@ -41,6 +41,7 @@ void TrackMainHero();
 
 // targets
 void* Target();                   // active saved target or focus npc
+void* Subject();                  // whom the Bohater pages edit: controlled body / Bezimienny / target
 void* SavedTarget();
 extern std::vector<void*> g_savedTargets;
 extern int g_activeSaved;
@@ -68,6 +69,8 @@ bool Project(const zVEC3& world, float& sx, float& sy);   // -> normalized scree
 std::string PlaceName(const zVEC3& p);                     // nearest waypoint -> human location name
 std::string RegionOfWp(const std::string& wpName);         // waypoint prefix -> region ("" if unknown)
 std::string InstName(void* npc);                           // script instance id (e.g. GRD_212_TORWACHE)
+struct WpLabel { std::string title, region; std::vector<std::string> tags; };
+WpLabel DescribeWp(const std::string& wpName);              // readable Polish name + tags for a waypoint
 bool GameFocused();
 bool On(const char* id);
 float Val(const char* id);

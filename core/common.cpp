@@ -64,6 +64,12 @@ void* Target() {
     return FocusNpc();
 }
 
+void* Subject() {
+    int s = (int)Val("subject");
+    if (s == 1 && MainHero()) return MainHero();
+    if (s == 2) if (void* t = Target()) return t;
+    return Player();
+}
 bool IsAlly(void* n) { return std::find(g_allies.begin(), g_allies.end(), n) != g_allies.end(); }
 // AI calls on an npc whose animation controller/model is not set up yet (fresh spawn, far away)
 // crash inside the engine (build 3: arena/spawn/peace). Such npcs are retried a bit later.
@@ -211,6 +217,47 @@ std::string RegionOfWp(const std::string& n) {
     };
     for (auto& m : kMap) if (n.rfind(m.pre, 0) == 0) return m.name;
     return "";
+}
+WpLabel DescribeWp(const std::string& n) {
+    static const struct { const char* tok; const char* word; const char* tag; } kTok[] = {
+        { "MAINGATE", "brama główna", "Brama" }, { "SOUTHGATE", "brama południowa", "Brama" }, { "NORTHGATE", "brama północna", "Brama" },
+        { "BACKGATE", "tylna brama", "Brama" }, { "GATE", "brama", "Brama" }, { "TOWER", "wieża", "Wieża" }, { "WALL", "mur", "Mur" },
+        { "HUT", "chata", "Chata" }, { "HOUSE", "dom", "Chata" }, { "TENT", "namiot", "Chata" }, { "ROUND", "pierścień chat", "Chata" },
+        { "CASTLE", "zamek", "Zamek" }, { "BARONS", "baronowie", "Zamek" }, { "GREATHALL", "wielka sala", "Zamek" }, { "THRONE", "sala tronowa", "Zamek" },
+        { "ARENA", "arena", "Arena" }, { "BAR", "karczma", "Karczma" }, { "TAVERN", "karczma", "Karczma" }, { "PUB", "karczma", "Karczma" },
+        { "KITCHEN", "kuchnia", "Karczma" }, { "SMITH", "kuźnia", "Rzemiosło" }, { "ALCHEMY", "alchemik", "Rzemiosło" }, { "MARKET", "targ", "Targ" },
+        { "TEMPLE", "świątynia", "Świątynia" }, { "SHRINE", "kapliczka", "Świątynia" }, { "SLEEPER", "Śniący", "Świątynia" },
+        { "MINE", "kopalnia", "Kopalnia" }, { "SHAFT", "szyb", "Kopalnia" }, { "CAVE", "jaskinia", "Jaskinia" }, { "GROTTO", "grota", "Jaskinia" },
+        { "DUNGEON", "loch", "Jaskinia" }, { "CRYPT", "krypta", "Jaskinia" }, { "LAKE", "jezioro", "Woda" }, { "RIVER", "rzeka", "Woda" },
+        { "SEA", "morze", "Woda" }, { "BEACH", "plaża", "Woda" }, { "SHORE", "brzeg", "Woda" }, { "WATER", "woda", "Woda" },
+        { "BRIDGE", "most", "Most" }, { "FOREST", "las", "Las" }, { "WOOD", "las", "Las" }, { "SWAMP", "bagno", "Bagno" },
+        { "PATH", "ścieżka", "Droga" }, { "ROAD", "droga", "Droga" }, { "WAY", "droga", "Droga" }, { "PLATEAU", "płaskowyż", "Wzgórza" },
+        { "MOUNTAIN", "góra", "Wzgórza" }, { "HILL", "wzgórze", "Wzgórza" }, { "CANYON", "kanion", "Wzgórza" }, { "VALLEY", "dolina", "Wzgórza" },
+        { "ORC", "orkowie", "Orkowie" }, { "TROLL", "troll", "Potwory" }, { "SPAWN", "legowisko", "Potwory" }, { "MONSTER", "potwory", "Potwory" },
+        { "STONEHENGE", "kamienny krąg", "Ruiny" }, { "RUIN", "ruiny", "Ruiny" }, { "FIRE", "ognisko", "Obóz" }, { "CAMP", "obóz", "Obóz" },
+        { "GUARD", "straż", "Straż" }, { "WATCH", "posterunek", "Straż" }, { "TRAIN", "trening", "Trening" }, { "XARDAS", "Xardas", "Wieża" },
+        { "EXCHANGE", "punkt wymiany", "Targ" }, { "LIBRARY", "biblioteka", "Świątynia" }, { "ENTRANCE", "wejście", "" }, { "CENTER", "środek", "" },
+    };
+    WpLabel L;
+    L.region = RegionOfWp(n);
+    std::string up = n;
+    std::vector<std::string> words;
+    for (auto& t : kTok) {
+        if (up.find(t.tok) == std::string::npos) continue;
+        bool dup = false; for (auto& w : words) if (w == t.word) dup = true;
+        if (!dup && words.size() < 3) words.push_back(t.word);
+        if (t.tag[0] && std::find(L.tags.begin(), L.tags.end(), t.tag) == L.tags.end()) L.tags.push_back(t.tag);
+    }
+    std::string num;
+    for (size_t i = n.size(); i > 0 && isdigit((unsigned char)n[i - 1]); i--) num.insert(num.begin(), n[i - 1]);
+    std::string t;
+    for (auto& w : words) { if (!t.empty()) t += ", "; t += w; }
+    if (t.empty()) t = "punkt";
+    t[0] = (char)toupper((unsigned char)t[0]);
+    if (!num.empty()) t += " " + num;
+    L.title = t;
+    if (!L.region.empty()) L.tags.insert(L.tags.begin(), L.region);
+    return L;
 }
 bool GameFocused() { return GetForegroundWindow() == g_gameHwnd; }
 bool On(const char* id) { Row* r = T.Get(id); return r && r->on; }

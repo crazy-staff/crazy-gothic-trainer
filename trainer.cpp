@@ -38,7 +38,7 @@ void Trainer::Toast(const std::string& s) { std::lock_guard<std::mutex> l(mtx); 
 Row MkRow(const char* id, const char* name, const char* note, const char* cat, const char* sub, Kind k, float v, float mn,
           float mx, std::function<void(Row&)> act, bool flt) {
     Row r; r.id = id; r.name = name; r.note = note; r.cat = cat; r.sub = sub; r.kind = k; r.val = v; r.vmin = mn; r.vmax = mx;
-    r.act = std::move(act); r.isFloat = flt; return r;
+    r.act = std::move(act); r.isFloat = flt; r.def = v; return r;
 }
 void St(Status s, const char* h) { T.rows.back().status = s; T.rows.back().hist = h; }
 void NoVal() { T.rows.back().noValue = true; }
@@ -138,13 +138,13 @@ static void SelfTest(Snapshot& s) {
 using fnRender = void(__fastcall*)(void*, void*);
 static fnRender oRender = nullptr;
 static void __fastcall hkRender(void* self, void* edx) {
-    g_crumb = "tick"; T.Tick();
+    g_crumb = "tick"; T.lastTick = NowSec(); T.Tick();
     g_crumb = "render"; oRender(self, edx);
     g_crumb = "idle";
 }
 void InstallGameHooks() {
     MH_CreateHook((LPVOID)F_OCGAME_RENDER, (LPVOID)&hkRender, (LPVOID*)&oRender);
-    Player_Hooks(); Items_Hooks(); Npcs_Hooks(); Target_Hooks(); Chaos_Hooks(); World_Hooks(); Esp_Hooks(); Teleport_Hooks(); Marvin_Hooks();
+    Player_Hooks(); Items_Hooks(); Npcs_Hooks(); Target_Hooks(); Chaos_Hooks(); World_Hooks(); Esp_Hooks(); Teleport_Hooks(); Marvin_Hooks(); Photo_Hooks();
     MH_EnableHook(MH_ALL_HOOKS);
 }
 
@@ -156,9 +156,12 @@ void Trainer::Tick() {
     for (auto& f : q) Guard(f.first, f.second);
 
     // input ownership: menu owns everything, noclip owns the keyboard
-    static bool lastK = true, lastM = true;
+    // re-asserted 4x per second only: doing it every frame (DirectInput unacquire) caused stutter
+    static bool lastK = true, lastM = true; static double lastInput = 0;
     bool wantK = !menuOpen && !(On("noclip") && inGame), wantM = !menuOpen;
-    if (wantK != lastK || wantM != lastM || !wantK || !wantM) { SetGameInput2(wantK, wantM); lastK = wantK; lastM = wantM; }
+    if (wantK != lastK || wantM != lastM || ((!wantK || !wantM) && NowSec() - lastInput > 0.25)) {
+        SetGameInput2(wantK, wantM); lastK = wantK; lastM = wantM; lastInput = NowSec();
+    }
 
     Snapshot s;
     if (!inGame) {
@@ -173,7 +176,7 @@ void Trainer::Tick() {
         g_cat.BuildWaypoints();
         ClearWorldState();
         TrackMainHero();
-        Player_World(); Items_World(); Npcs_World(); Target_World(); Chaos_World(); World_World(); Esp_World(); Teleport_World(); Marvin_World();
+        Player_World(); Items_World(); Npcs_World(); Target_World(); Chaos_World(); World_World(); Esp_World(); Teleport_World(); Marvin_World(); Photo_World();
         LoadPositions(WorldName());
         Snapshot t; SelfTest(t); diag = t.diag;
     }
@@ -186,7 +189,7 @@ void Trainer::Tick() {
     TickCtx c{ h, Game(), std::min(0.1f, at<float>(ZTIMER + 4) / 1000.f), paused, s };
     struct { const char* n; void (*f)(TickCtx&); } mods[] = {
         { "player", Player_Tick }, { "world", World_Tick }, { "chaos", Chaos_Tick }, { "npcs", Npcs_Tick },
-        { "target", Target_Tick }, { "items", Items_Tick }, { "teleport", Teleport_Tick }, { "marvin", Marvin_Tick }, { "esp", Esp_Tick } };
+        { "target", Target_Tick }, { "items", Items_Tick }, { "teleport", Teleport_Tick }, { "marvin", Marvin_Tick }, { "esp", Esp_Tick }, { "photo", Photo_Tick } };
     g_crumb = "schedule"; RunSchedule();
     for (auto& m : mods) { g_crumb = m.n; m.f(c); }
     g_crumb = "tick";
@@ -226,7 +229,11 @@ void ApplyRow(Row& r) {
     }
     T.Save();
 }
-void Trainer::Hotkey(int vk) { for (auto& r : rows) if (r.hotkey == vk && r.kind != K_VALUE) ApplyRow(r); }
+void Trainer::Hotkey(int vk) {
+    if (vk == VK_CONTROL || vk == VK_MENU || vk == VK_SHIFT || vk == VK_LCONTROL || vk == VK_RCONTROL || vk == VK_LSHIFT || vk == VK_RSHIFT) return;
+    int mods = ((GetKeyState(VK_CONTROL) & 0x8000) ? HK_CTRL : 0) | ((GetKeyState(VK_MENU) & 0x8000) ? HK_ALT : 0) | ((GetKeyState(VK_SHIFT) & 0x8000) ? HK_SHIFT : 0);
+    for (auto& r : rows) if (r.hotkey && r.hotkey == (vk | mods) && r.kind != K_VALUE) ApplyRow(r);
+}
 
 // ==============================================================================
 // persistence
@@ -247,7 +254,9 @@ void Trainer::Load() {
     testerMode = GetPrivateProfileIntA("menu", "tester", 0, ini.c_str()) != 0;
     LoadSets(); LoadMacros();
 }
-void Trainer::Save() {
+void Trainer::Save() { dirty = true; }
+void Trainer::SaveNow() {
+    dirty = false; lastSave = NowSec();
     std::string ini = IniPath();
     for (auto& r : rows) {
         char b[64];

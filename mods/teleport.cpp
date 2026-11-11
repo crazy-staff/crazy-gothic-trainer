@@ -24,6 +24,13 @@ void Act_DeletePos(int idx) {
     });
 }
 
+void Act_UpdatePos(int idx, const SavedPos& np) {
+    T.Queue("row:editpos", [idx, np] {
+        { std::lock_guard<std::mutex> l(T.mtx); if (idx >= 0 && idx < (int)T.positions.size()) T.positions[idx] = np; }
+        T.SavePositions(WorldName());
+        T.Toast("Zapisano zmiany: " + np.name);
+    });
+}
 void Teleport_Hooks() {}
 void Teleport_World() {}
 void Teleport_Tick(TickCtx& c) { zVEC3 p = Pos(c.hero); c.s.px = p.x; c.s.py = p.y; c.s.pz = p.z; }

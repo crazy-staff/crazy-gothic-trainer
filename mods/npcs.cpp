@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <unordered_map>
 
 using namespace g1;
 using namespace gx;
@@ -56,12 +57,16 @@ void Act_SpawnNpc(int sym, int count, int mode) {
             void* npc = SpawnNpc(sym, p);
             if (!npc) continue;
             ok++;
+            fld<int>(npc, NPC_FLAGS) &= ~2;   // script immortality (some monsters) - spawned ones can die
+            // named npcs get beamed to their daily-routine waypoint on insertion: bring them back
+            for (double t : { 0.15, 0.6, 1.5 })
+                Schedule(t, [npc, p] { if (NpcExists(npc) && Dist(Pos(npc), p) > 400.f) SafeSetPos(npc, p); });
             if (mode == 0) Guard("spawnmode:wrogi", [&] { Aggro(npc, h); });
             else if (mode == 1) Guard("spawnmode:sojusznik", [&] { MakeAlly(npc); });
             else if (mode == 2) { if (NpcReady(npc)) CallExt("Npc_ClearAIQueue", { Arg::Npc(npc) }); SetSleeping(npc, true); g_frozenSpawn.insert(npc); }
         }
         static const char* mn[] = { "wrogi", "sojusznik", "zamrożony", "neutralny" };
-        T.Toast("Spawn: " + std::to_string(ok) + "x " + id + " (" + mn[mode & 3] + ")");
+        T.Toast(ok ? "Spawn: " + std::to_string(ok) + "x " + id + " (" + mn[mode & 3] + ")" : "Gra odmówiła stworzenia " + id);
     });
 }
 
@@ -75,6 +80,26 @@ void Act_MakeAllies(const std::vector<uintptr_t>& v) {
 
 namespace {
 std::vector<NearNpc> g_near; double g_nearAt = -10, g_keepAt = 0;
+std::unordered_map<void*, int> g_pstate;   // 0 follows, 1 waits, 2 back at post
+int StateSym(std::initializer_list<const char*> names) { for (auto n : names) { int i = SymIndex(n); if (i >= 0) return i; } return -1; }
+void Wait(void* n) {
+    if (!NpcReady(n)) return;
+    SetNpcAivar(n, K.aivParty, 0);
+    CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
+    CallExt("AI_StandupQuick", { Arg::Npc(n) });
+    int st = IsMonster(n) ? StateSym({ "ZS_MM_RTN_REST", "ZS_MM_RTN_ROAM" }) : StateSym({ "ZS_STAND", "ZS_STANDAROUND", "ZS_GUARD" });
+    if (st >= 0) CallExt("AI_StartState", { Arg::Npc(n), Arg::Int(st), Arg::Int(1), Arg::Str("") });
+}
+NearNpc Describe(void* n, void* h) {
+    NearNpc e;
+    e.ptr = (uintptr_t)n; e.name = U(NpcName(n)); e.inst = InstName(n);
+    int g = fld<int>(n, K.offGuild);
+    e.guild = GuildName(g); e.group = NpcGroupOfGuild(g); e.hp = Attr(n, 0); e.hpmax = Attr(n, 1);
+    e.level = fld<int>(n, K.offLevel); e.dist = Dist(Pos(n), Pos(h)) / 100.f; e.ally = IsAlly(n); e.dead = NpcDead(n); e.monster = IsMonster(n);
+    e.hostile = !e.dead && !e.ally && CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(h) }) == K.attHostile;
+    auto it = g_pstate.find(n); e.pstate = it == g_pstate.end() ? 0 : it->second;
+    return e;
+}
 void RefreshNearby(void* h) {
     if (NowSec() - g_nearAt < 0.5) return;
     g_nearAt = NowSec();
@@ -82,16 +107,9 @@ void RefreshNearby(void* h) {
     zVEC3 hp = Pos(h);
     float r = std::max(5.f, Val("allyradius")) * 100.f;
     ForEachNpc([&](void* n) {
-        if (n == h || n == MainHero()) return;
-        float d = Dist(Pos(n), hp);
-        if (d > r) return;
-        NearNpc e;
-        e.ptr = (uintptr_t)n; e.name = U(NpcName(n)); e.inst = InstName(n);
-        int g = fld<int>(n, K.offGuild);
-        e.guild = GuildName(g); e.group = NpcGroupOfGuild(g); e.hp = Attr(n, 0); e.hpmax = Attr(n, 1);
-        e.level = fld<int>(n, K.offLevel); e.dist = d / 100.f; e.ally = IsAlly(n); e.dead = NpcDead(n); e.monster = IsMonster(n);
-        e.hostile = !e.dead && CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(h) }) == K.attHostile;
-        g_near.push_back(std::move(e));
+        if (n == h || n == MainHero() || IsAlly(n)) return;
+        if (Dist(Pos(n), hp) > r) return;
+        g_near.push_back(Describe(n, h));
     });
     std::sort(g_near.begin(), g_near.end(), [](const NearNpc& a, const NearNpc& b) { return a.dist < b.dist; });
 }
@@ -101,7 +119,13 @@ void KeepParty() {
     g_keepAt = T.gameClock;
     g_allies.erase(std::remove_if(g_allies.begin(), g_allies.end(), [](void* n) { return !NpcAlive(n); }), g_allies.end());
     for (void* n : g_allies) {
-        if (IsMonster(n) || !NpcReady(n) || K.stFollow < 0) continue;
+        if (g_pstate.count(n) && g_pstate[n] != 0) continue;   // waiting / at post on purpose
+        if (!NpcReady(n)) continue;
+        if (IsMonster(n)) {   // summoned-like monsters keep forgetting they are friends
+            CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
+            continue;
+        }
+        if (K.stFollow < 0) continue;
         if (CallExt("Npc_IsInState", { Arg::Npc(n), Arg::Int(K.stFollow) })) continue;
         if (K.stAttack >= 0 && CallExt("Npc_IsInState", { Arg::Npc(n), Arg::Int(K.stAttack) })) continue;
         SetNpcAivar(n, K.aivParty, 1);
@@ -110,11 +134,43 @@ void KeepParty() {
 }
 }
 
+void Party_AllyHitPlayer(void* n) {
+    static double last = 0;
+    if (T.gameClock - last < 0.5) return;
+    last = T.gameClock;
+    Schedule(0.0, [n] {
+        if (!NpcAlive(n) || !NpcReady(n)) return;
+        CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
+        CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
+        CallExt("Npc_SetAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
+        auto it = g_pstate.find(n);
+        if (it == g_pstate.end() || it->second == 0) MakeAlly(n); else Wait(n);
+    });
+}
+void Act_PartyCmd(uintptr_t p, int cmd) {
+    T.Queue("row:party", [p, cmd] {
+        void* n = (void*)p;
+        if (!NpcExists(n)) return;
+        void* h = Player();
+        switch (cmd) {
+        case 0: g_pstate[n] = 0; MakeAlly(n); T.Toast(U(NpcName(n)) + " idzie za tobą"); break;
+        case 1: g_pstate[n] = 1; Wait(n); T.Toast(U(NpcName(n)) + " czeka tutaj"); break;
+        case 2: g_pstate[n] = 2; SetNpcAivar(n, K.aivParty, 0); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
+                Peace(n); if (!IsAlly(n)) g_allies.push_back(n); T.Toast(U(NpcName(n)) + " wraca na posterunek"); break;
+        case 3: SafeSetPos(n, Grounded(InFront(180.f))); g_pstate[n] = 0; MakeAlly(n); T.Toast("Przywołano: " + U(NpcName(n))); break;
+        case 4: { zVEC3 q = Pos(n); SafeSetPos(h, { q.x, q.y + 60, q.z }); } break;
+        case 5: g_pstate.erase(n); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
+                SetNpcAivar(n, K.aivParty, 0); Peace(n); T.Toast(U(NpcName(n)) + " opuszcza drużynę"); break;
+        }
+    });
+}
+
 void Npcs_Hooks() {}
-void Npcs_World() { g_arena.clear(); g_frozenSpawn.clear(); g_wave = 0; g_next = 0; g_near.clear(); g_nearAt = -10; }
+void Npcs_World() { g_arena.clear(); g_frozenSpawn.clear(); g_wave = 0; g_next = 0; g_near.clear(); g_nearAt = -10; g_pstate.clear(); }
 void Npcs_Tick(TickCtx& c) {
     if (T.menuOpen) RefreshNearby(c.hero);
     c.s.nearby = g_near;
+    if (T.menuOpen) for (void* n : g_allies) if (NpcExists(n)) c.s.party.push_back(Describe(n, c.hero));
     if (On("allykeep") && !c.paused) Guard("row:allykeep", [] { KeepParty(); });
     for (auto it = g_frozenSpawn.begin(); it != g_frozenSpawn.end();) {
         if (!NpcExists(*it)) { it = g_frozenSpawn.erase(it); continue; }
@@ -129,19 +185,8 @@ void Npcs_Tick(TickCtx& c) {
 void Npcs_Register() {
     const char* C = "Postacie";
     CardTitle("Arena");
-    T.Add(MkRow("arena", "Tryb Areny", "fale wrogów 6-10 m od ciebie, na lądzie; liczba = fala startowa", C, "Arena", K_SLIDER, 1, 1, 20));
+    T.Add(MkRow("arena", "Tryb Areny", "fale wrogów 6-10 m od ciebie, na lądzie; liczba = fala startowa", C, "Spawner", K_SLIDER, 1, 1, 20));
     St(ST_NEW, "build 3: CRASH (atak na postać bez załadowanego modelu); build 4: atak dopiero, gdy wróg jest gotowy"); Icon(ICN_CROSSHAIR);
-    CardTitle("Masowo");
-    T.Add(MkRow("killall", "Zabij wrogów w promieniu", "metry", C, "Arena", K_ACTION, 20, 1, 200, [](Row& r) {
-        int c = 0;
-        NpcsInRadius(r.val * 100.f, [&](void* n) {
-            if (NpcDead(n) || IsAlly(n) || n == MainHero()) return;
-            if (CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(Player()) }) != K.attHostile) return;
-            Kill(n, Player()); c++;
-        });
-        T.Toast("Zabito " + std::to_string(c) + " wrogów"); }));
-    St(ST_OK, "build 3: działa"); Icon(ICN_KILL);
-
     const char* D = "Drużyna";
     CardTitle("Drużyna");
     T.Add(MkRow("allyall", "Wszyscy w promieniu do drużyny", "metry, idą za tobą", C, D, K_ACTION, 10, 1, 100, [](Row& r) {
@@ -149,7 +194,7 @@ void Npcs_Register() {
         T.Toast(std::to_string(c) + " nowych sojuszników"); }));
     St(ST_OK, "build 3: działa (ale postacie z dialogiem odchodziły)"); Icon(ICN_USERS);
     T.Add(MkRow("dismiss", "Rozwiąż drużynę", "sojusznicy wracają do swoich zajęć", C, D, K_ACTION, 0, 0, 0, [](Row&) {
-        std::vector<void*> a = g_allies; g_allies.clear();
+        std::vector<void*> a = g_allies; g_allies.clear(); g_pstate.clear();
         for (void* n : a) if (NpcAlive(n)) { SetNpcAivar(n, K.aivParty, 0); Peace(n); }
         T.Toast("Drużyna rozwiązana (" + std::to_string(a.size()) + ")"); }));
     NoVal(); St(ST_OK, "build 3: działa"); Icon(ICN_TIMES);

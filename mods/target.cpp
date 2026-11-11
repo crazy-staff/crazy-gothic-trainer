@@ -124,6 +124,7 @@ void Target_Register() {
         auto it = std::find(g_savedTargets.begin(), g_savedTargets.end(), f);
         if (it == g_savedTargets.end()) { g_savedTargets.push_back(f); g_activeSaved = (int)g_savedTargets.size() - 1; }
         else g_activeSaved = (int)(it - g_savedTargets.begin());
+        Photo_Request(f);
         T.Toast("Zapisano cel: " + U(NpcName(f))); }));
     NoVal(); Icon(ICN_BOOKMARK); St(ST_OK, "działa; build 4: portret, instancja i miejsce na liście"); Hidden();
     T.Add(MkRow("tforget", "Użyj NPC pod wzrokiem", "odznacza zapisany cel (lista zostaje)", C, S, K_ACTION, 0, 0, 0, [](Row&) {
@@ -132,7 +133,7 @@ void Target_Register() {
 
     CardTitle("Akcje");
     T.Add(MkRow("mind", "Kontrola umysłu", "cel walczy po twojej stronie i idzie za tobą", C, S, K_ACTION, 0, 0, 0,
-        NeedT([](void* t) { MakeAlly(t); T.Toast(U(NpcName(t)) + " jest teraz twój"); }))); NoVal(); Icon(ICN_MAGIC);
+        NeedT([](void* t) { MakeAlly(t); T.Toast(U(NpcName(t)) + " jest teraz twój"); }))); NoVal(); Icon(ICN_MAGIC); Hidden();
     St(ST_OK, "build 3: działa (ta sama logika co drużyna)");
     T.Add(MkRow("swap", "Zamiana ciał", "grasz celem; powrót przyciskiem w nagłówku menu", C, S, K_ACTION, 0, 0, 0,
         NeedT([](void* t) {
@@ -140,18 +141,18 @@ void Target_Register() {
             if (On("noclip")) { Row* r = T.Get("noclip"); r->on = false; }
             SetAsPlayer(t);
             T.Toast("Jesteś teraz: " + U(NpcName(t)));
-        }))); NoVal(); Icon(ICN_EXCHANGE); St(ST_OK, "działa (też powrót)");
+        }))); NoVal(); Icon(ICN_EXCHANGE); Hidden(); St(ST_OK, "działa (też powrót)");
     T.Add(MkRow("tpull", "Przyciągnij do siebie", "", C, S, K_ACTION, 0, 0, 0,
-        NeedT([](void* t) { SafeSetPos(t, Grounded(InFront(200.f))); T.Toast("Przyciągnięto"); }))); NoVal(); Icon(ICN_MAGNET); St(ST_OK, "działa");
+        NeedT([](void* t) { SafeSetPos(t, Grounded(InFront(200.f))); T.Toast("Przyciągnięto"); }))); NoVal(); Icon(ICN_MAGNET); Hidden(); St(ST_OK, "działa");
     T.Add(MkRow("tpto", "Teleport do celu", "", C, S, K_ACTION, 0, 0, 0,
-        NeedT([](void* t) { zVEC3 p = Pos(t); SafeSetPos(Player(), { p.x, p.y + 60, p.z }); }))); NoVal(); Icon(ICN_SIGNIN); St(ST_OK, "działa");
-    T.Add(MkRow("yeet", "Wystrzel w powietrze", "wysokość w metrach", C, S, K_ACTION, 15, 1, 200,
-        NeedT([](void* t) { zVEC3 p = Pos(t); p.y += Val("yeet") * 100.f; SafeSetPos(t, p); T.Toast("Lot!"); }))); Icon(ICN_ROCKET); St(ST_OK, "działa");
+        NeedT([](void* t) { zVEC3 p = Pos(t); SafeSetPos(Player(), { p.x, p.y + 60, p.z }); }))); NoVal(); Icon(ICN_SIGNIN); Hidden(); St(ST_OK, "działa");
+    T.Add(MkRow("yeet", "Wystrzel w powietrze", "wysokość z ustawień akcji", C, S, K_ACTION, 0, 0, 0,
+        NeedT([](void* t) { zVEC3 p = Pos(t); p.y += Val("yeetv") * 100.f; SafeSetPos(t, p); T.Toast("Lot!"); }))); NoVal(); Icon(ICN_ROCKET); Hidden(); St(ST_OK, "działa");
     T.Add(MkRow("tkill", "Zabij", "działa też na nieśmiertelnych", C, S, K_ACTION, 0, 0, 0,
-        NeedT([](void* t) { Kill(t, Player()); T.Toast("Zabito: " + U(NpcName(t))); }))); NoVal(); Icon(ICN_KILL); St(ST_OK, "działa");
+        NeedT([](void* t) { Kill(t, Player()); T.Toast("Zabito: " + U(NpcName(t))); }))); NoVal(); Icon(ICN_KILL); Hidden(); St(ST_OK, "działa");
     T.Add(MkRow("trevive", "Ożyw / ulecz", "ożywia tę samą postać w miejscu (ekwipunek i questy zostają)", C, S, K_ACTION, 0, 0, 0,
         NeedT([](void* t) { Revive(t); })));
-    NoVal(); Icon(ICN_REFRESH); St(ST_NEW, "build 3: działało jako odrodzenie (nowa postać); build 4: ożywienie w miejscu, odrodzenie tylko awaryjnie");
+    NoVal(); Icon(ICN_REFRESH); Hidden(); St(ST_NEW, "build 3: działało jako odrodzenie (nowa postać); build 4: ożywienie w miejscu, odrodzenie tylko awaryjnie");
     T.Add(MkRow("trob", "Okradnij do zera", "cały ekwipunek celu trafia do ciebie", C, S, K_ACTION, 0, 0, 0, NeedT([](void* t) {
         std::vector<std::pair<int, int>> got;
         Sym* itemSym = SymByName("ITEM");
@@ -170,19 +171,23 @@ void Target_Register() {
             CreateItems(Player(), g.first, g.second); total += g.second;
         }
         T.Toast("Zabrano " + std::to_string(total) + " przedmiotów (" + std::to_string(got.size()) + " rodzajów)"); })));
-    NoVal(); Icon(ICN_BAG); St(ST_NEW, "build 3: nie zgłoszone - sprawdź");
+    NoVal(); Icon(ICN_BAG); Hidden(); St(ST_NEW, "build 3: nie zgłoszone - sprawdź");
     T.Add(MkRow("tremove", "Usuń ze świata", "", C, S, K_ACTION, 0, 0, 0, NeedT([](void* t) {
-        ReplaceTargetRef(t, nullptr); RemoveVob(t); T.Toast("Puf."); }))); NoVal(); Icon(ICN_TRASH);
+        ReplaceTargetRef(t, nullptr); RemoveVob(t); T.Toast("Puf."); }))); NoVal(); Icon(ICN_TRASH); Hidden();
 
     CardTitle("Magia na celu");
-    T.Add(MkRow("tstorm", "Burza ognia", "obrażenia; zaklęcie pojawia się na celu, nie jest twoje", C, S, K_ACTION, 200, 1, 5000,
-        NeedT([](void* t) { SpellOn(t, "SPELLFX_FIRESTORM", (int)Val("tstorm")); })));
-    Icon(ICN_FIRE); St(ST_NEW, "build 3: działało, ale rzucał bohater (pudła, agresja na ciebie); build 4: efekt na celu + bezpośrednie obrażenia");
-    T.Add(MkRow("tlight", "Piorun", "obrażenia", C, S, K_ACTION, 150, 1, 5000, NeedT([](void* t) { SpellOn(t, "SPELLFX_THUNDERBOLT", (int)Val("tlight")); })));
-    Icon(ICN_BOLT); St(ST_NEW, "jak wyżej (build 4)");
+    T.Add(MkRow("tstorm", "Burza ognia", "obrażenia; zaklęcie pojawia się na celu, nie jest twoje", C, S, K_ACTION, 0, 0, 0,
+        NeedT([](void* t) { SpellOn(t, "SPELLFX_FIRESTORM", (int)Val("stormdmg")); })));
+    Icon(ICN_FIRE); Hidden(); NoVal(); St(ST_NEW, "build 3: działało, ale rzucał bohater (pudła, agresja na ciebie); build 4: efekt na celu + bezpośrednie obrażenia");
+    T.Add(MkRow("tlight", "Piorun", "obrażenia", C, S, K_ACTION, 0, 0, 0, NeedT([](void* t) { SpellOn(t, "SPELLFX_THUNDERBOLT", (int)Val("lightdmg")); })));
+    Icon(ICN_BOLT); Hidden(); NoVal(); St(ST_NEW, "jak wyżej (build 4)");
     T.Add(MkRow("tice", "Zamroź w lodzie", "4 sekundy", C, S, K_ACTION, 0, 0, 0, NeedT([](void* t) { SpellOn(t, "SPELLFX_ICECUBE", 0); })));
-    NoVal(); Icon(ICN_SNOW); St(ST_NEW, "jak wyżej (build 4)");
+    NoVal(); Icon(ICN_SNOW); Hidden(); St(ST_NEW, "jak wyżej (build 4)");
 
+    CardTitle("Ustawienia akcji");
+    T.Add(MkRow("yeetv", "Wysokość lotu", "m", C, S, K_VALUE, 15, 1, 200)); St(ST_OK, "działa");
+    T.Add(MkRow("stormdmg", "Obrażenia burzy ognia", "", C, S, K_VALUE, 200, 1, 2000)); St(ST_NEW, "build 4");
+    T.Add(MkRow("lightdmg", "Obrażenia pioruna", "", C, S, K_VALUE, 150, 1, 2000)); St(ST_NEW, "build 4");
     CardTitle("Wygląd celu");
     T.Add(MkRow("tscale", "Skala modelu", "1 = normalnie", C, S, K_ACTION, 2, 0.1f, 10, NeedT([](void* t) {
         float v = Val("tscale");

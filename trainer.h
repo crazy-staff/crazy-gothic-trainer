@@ -6,7 +6,7 @@
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 4
+#define TRAINER_BUILD 5
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]
@@ -17,14 +17,15 @@ enum Kind {
     K_VALUE,    // setting only (number or dropdown), no button
 };
 enum Status { ST_NEW, ST_OK, ST_BUG, ST_CRASH };
+enum { HK_CTRL = 1 << 16, HK_ALT = 2 << 16, HK_SHIFT = 4 << 16 };
 
 struct Row {
     std::string id, name, note, cat, sub, group;   // group = card title inside the subsection
     Kind kind;
-    float val = 0, vmin = 0, vmax = 0;
+    float val = 0, vmin = 0, vmax = 0, def = 0;     // def = default value (reset icon)
     bool isFloat = false;
     bool on = false;
-    int hotkey = 0;
+    int hotkey = 0;                              // vk | HK_CTRL/HK_ALT/HK_SHIFT
     std::function<void(Row&)> act;              // game thread
     bool noValue = false;
     bool hidden = false;                         // drawn by a custom panel, not as a row
@@ -50,6 +51,7 @@ struct Label {
 struct DiagLine { std::string text; bool ok; };
 struct NearNpc {                  // npc list for pickers (ally picker etc.)
     uintptr_t ptr; std::string name, guild, inst; int group, hp, hpmax, level; float dist; bool ally, dead, monster, hostile;
+    int pstate = 0;   // party: 0 follows, 1 waits, 2 back at post
 };
 struct SavedInfo {                // saved target details for the target panel
     uintptr_t ptr; std::string name, inst, guild, group, place; float x, y, z, dist; int hp, hpmax, level; bool dead, monster;
@@ -66,7 +68,8 @@ struct Snapshot {
     std::vector<std::string> savedTargets; int activeSaved = -1;
     std::vector<SavedInfo> saved;
     std::string tInst, tPlace; float tx = 0, ty = 0, tz = 0; uintptr_t tPtr = 0;
-    std::vector<NearNpc> nearby;
+    std::vector<NearNpc> nearby, party;
+    std::string subjectName; uintptr_t subjectPtr = 0;
     bool quicksilver = false;
     bool swapped = false;
     bool arena = false; int arenaWave = 0, arenaAlive = 0;
@@ -99,6 +102,9 @@ struct Trainer {
     float accent[3] = { 0.66f, 0.55f, 1.00f };
     bool testerMode = false;
     double gameClock = 0;                // seconds of unpaused game time (pause-safe scheduling)
+    volatile double lastTick = 0;        // real time of the last game frame (game menu open = stale)
+    bool dirty = false; double lastSave = 0;
+    void SaveNow();
 
     void Init();
     Row* Get(const std::string& id);
@@ -140,6 +146,11 @@ void Act_SelectSavedTarget(int idx);
 void Act_RemoveSavedTarget(int idx);
 void Act_Unswap();
 void Act_MakeAllies(const std::vector<uintptr_t>& npcs);
+void Act_PartyCmd(uintptr_t npc, int cmd);   // 0 follow 1 wait 2 to post 3 summon 4 tp to 5 kick
+void Act_Photo(uintptr_t npc);               // portrait request (0 = current subject)
+void Act_SetName(const std::string& utf8);
+void Act_ApplyLook();
+void Act_UpdatePos(int idx, const SavedPos& p);
 void Act_SelectSavedPtr(uintptr_t p);
 void CardTitle(const char* t);       // following rows of the module go into this card
 

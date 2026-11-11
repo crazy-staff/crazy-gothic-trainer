@@ -49,7 +49,20 @@ static void SetMenu(bool open) {
     if (T.menuOpen == open) return;
     T.menuOpen = open;
     ImGui::GetIO().MouseDrawCursor = open;
-    if (!open) T.Save();
+    if (!open) T.SaveNow();
+}
+
+// Low-level mouse hook: after alt-tab the game grabs the mouse through DirectInput and the
+// window stops getting WM_MOUSEWHEEL, so the menu reads the wheel here instead.
+static HHOOK g_mouseHook;
+static volatile LONG g_wheel = 0;
+static LRESULT CALLBACK LLMouse(int code, WPARAM w, LPARAM l) {
+    if (code == HC_ACTION && w == WM_MOUSEWHEEL && T.menuOpen && GetForegroundWindow() == g_gameHwnd) {
+        auto* m = (MSLLHOOKSTRUCT*)l;
+        InterlockedExchangeAdd(&g_wheel, (short)HIWORD(m->mouseData));
+        return 1;
+    }
+    return CallNextHookEx(g_mouseHook, code, w, l);
 }
 
 static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
@@ -68,12 +81,12 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
             if (!repeat && !typing && GetForegroundWindow() == h) T.Hotkey(vk);
         }
         if (T.menuOpen) {
-            ImGui_ImplWin32_WndProcHandler(h, m, w, l);
+            if (m != WM_MOUSEWHEEL || !g_mouseHook) ImGui_ImplWin32_WndProcHandler(h, m, w, l);
             switch (m) {
             case WM_KEYDOWN: case WM_KEYUP: case WM_SYSKEYDOWN: case WM_SYSKEYUP: case WM_CHAR:
             case WM_MOUSEMOVE: case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_RBUTTONDOWN: case WM_RBUTTONUP:
             case WM_MBUTTONDOWN: case WM_MBUTTONUP: case WM_MOUSEWHEEL: case WM_LBUTTONDBLCLK: case WM_RBUTTONDBLCLK:
-            case WM_SETCURSOR: case WM_INPUT:
+            case WM_SETCURSOR: case WM_INPUT: case WM_MOUSEHWHEEL:
                 return m == WM_SETCURSOR ? TRUE : 0;
             }
         }
@@ -98,6 +111,7 @@ static HRESULT __stdcall hkPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
             UiInitFonts((float)std::max<LONG>(600, rc.bottom - rc.top));
             g_oldProc = (WNDPROC)SetWindowLongPtrA(g_hwnd, GWLP_WNDPROC, (LONG_PTR)WndProc);
             g_imgui = true; g_sc = sc;
+            g_mouseHook = SetWindowsHookExA(WH_MOUSE_LL, LLMouse, g_self, 0);
             Log("imgui ready hwnd=%p %ldx%ld", g_hwnd, rc.right - rc.left, rc.bottom - rc.top);
             T.Toast("Gothic Crazy Trainer gotowy - Insert");
         }
@@ -117,13 +131,14 @@ static HRESULT __stdcall hkPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
             bool nl = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0, nr = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
             if (nl != lb) { io2.AddMouseButtonEvent(0, nl); lb = nl; }
             if (nr != rb) { io2.AddMouseButtonEvent(1, nr); rb = nr; }
+            LONG wh = InterlockedExchange(&g_wheel, 0);
+            if (wh) io2.AddMouseWheelEvent(0, wh / 120.f);
         }
-        {   // portraits of saved targets: crop of the clean game frame (before our overlay is drawn)
-            Snapshot ps;
-            { std::lock_guard<std::mutex> l(T.mtx); ps.inGame = T.snap.inGame; ps.saved = T.snap.saved; ps.world = T.snap.world; }
-            static std::string lastWorld;
-            if (ps.world != lastWorld) { lastWorld = ps.world; PortraitClear(); }
-            PortraitCapture(g_dev, g_ctx, sc, ps, T.menuOpen);
+        {   // portraits: capture the clean game frame before our overlay is drawn
+            static std::string lastWorld; std::string wn;
+            { std::lock_guard<std::mutex> l(T.mtx); wn = T.snap.world; }
+            if (wn != lastWorld) { lastWorld = wn; PortraitClear(); }
+            PortraitPresent(g_dev, g_ctx, sc);
         }
         ImGui::NewFrame();
         ImGuiIO& io = ImGui::GetIO();

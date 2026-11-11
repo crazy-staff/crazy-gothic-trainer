@@ -17,12 +17,15 @@ DECL_MODULE(World)
 DECL_MODULE(Esp)
 DECL_MODULE(Teleport)
 DECL_MODULE(Marvin)
+DECL_MODULE(Photo)
+void Photo_Request(void* npc);
 
 // Fun module: spell rain list and spell-on-target (shared with the Target module)
 constexpr int RAIN_FX_COUNT = 9;
 extern const char* kRainFx[RAIN_FX_COUNT];
 extern const char* kRainNames[RAIN_FX_COUNT];
-void SpellOn(void* target, const char* fx, int dmg);
+void SpellOn(void* target, const char* fx, int dmg, void* killer = nullptr);
+void Party_AllyHitPlayer(void* npc);
 
 // helpers for building rows
 Row MkRow(const char* id, const char* name, const char* note, const char* cat, const char* sub, Kind k, float v = 0,
@@ -70,3 +73,17 @@ std::function<void(Row&)> NeedT(std::function<void(void*)> f);
 #define ICN_PAW "\xef\x86\xb0"
 #define ICN_STAR "\xef\x80\x85"
 #define ICN_FLASK "\xef\x83\x83"
+#define ICN_LIST "\xef\x80\xba"
+#define ICN_GAVEL "\xef\x83\xa3"
+#define ICN_ARROW "\xef\x84\xa4"
+#define ICN_DIAMOND "\xef\x88\x99"
+#define ICN_FILE "\xef\x85\x9c"
+#define ICN_CUTLERY "\xef\x83\xb5"
+#define ICN_RING "\xef\x84\x8c"
+#define ICN_KEY "\xef\x82\x84"
+#define ICN_BOOK "\xef\x80\xad"
+#define ICN_UNDO "\xef\x83\xa2"
+#define ICN_PENCIL "\xef\x81\x80"
+#define ICN_CHECK "\xef\x80\x8c"
+#define ICN_PAUSE "\xef\x81\x8c"
+#define ICN_FLAG "\xef\x80\xa4"
