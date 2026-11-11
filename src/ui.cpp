@@ -16,6 +16,7 @@
 #include <cstring>
 #include <map>
 #include <set>
+#include <climits>
 
 extern unsigned g_espColors[7];
 
@@ -43,7 +44,7 @@ const float PAD = 6;   // inner padding of a card (rows are inset by this on eve
 
 struct Sec { const char* name; const char* icon; std::vector<const char*> subs; };
 const std::vector<Sec> kSecs = {
-    { "Bohater", ICN_USER, { "Statystyki", "Umiejętności", "Wygląd", "Ochrona", "Walka", "Ruch" } },
+    { "Postać", ICN_USER, { "Statystyki", "Umiejętności", "Wygląd", "Cheaty", "Ruch" } },
     { "Ekwipunek", ICN_BAG, { "Spawner", "Zestawy" } },
     { "Postacie", ICN_USERS, { "Cel", "Drużyna", "Spawner" } },
     { "Fun", ICN_FIRE, { "Walka", "Magia", "Chaos" } },
@@ -55,14 +56,14 @@ int curSec = 0, curSub = 0; bool cfgPage = false;
 Row* editRow = nullptr; char editBuf[32]; bool editFirst = false;
 Row* bindRow = nullptr; bool bindKeys[256];
 char search[96] = "", gsearch[96] = "";
-int itemCat = -1, npcGroup = -1, itemSort = 0; std::string itemSub;
-int fValMin = 0, fValMax = 0, fDmgMin = 0, fReqMax = 0, fRangeMin = 0, fProtMin = 0;
+int itemCat = -1, npcGroup = -1; std::string itemSub;
 char consoleBuf[2048] = "", scriptBuf[96] = "", posName[64] = "", macroName[64] = "", setName[64] = "", allySearch[64] = "", nameBuf[64] = "";
 int macroRepeat = 1, allyFilter = 0, editPos = -1; SavedPos editPosV; char editPosName[64];
-std::string wpTag;
 float manX = 0, manY = 0, manZ = 0;
 std::set<uintptr_t> allyPick;
-std::map<uintptr_t, std::pair<double, int>> photoAsked;
+std::map<std::string, std::pair<double, int>> photoAsked;
+bool testsPage = false;
+int lookSig = 0; double lookAt = 0;
 
 std::string KeyOnly(int vk) {
     UINT sc = MapVirtualKeyA(vk, MAPVK_VK_TO_VSC);
@@ -265,12 +266,16 @@ void EditField(Row& r, ImVec2 pos, float w) {
     ImGui::SetNextItemWidth(w);
     ImGui::PushStyleColor(ImGuiCol_FrameBg, C_ACCD);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, R_BTN());
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8 * S, 4 * S));
     if (editFirst) ImGui::SetKeyboardFocusHere();
     bool done = ImGui::InputText("##ed", editBuf, sizeof editBuf,
         ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
-    ImGui::PopStyleVar(); ImGui::PopStyleColor();
+    ImGui::PopStyleVar(2); ImGui::PopStyleColor();
     if (done || (!ImGui::IsItemActive() && !editFirst)) {
-        if (!ImGui::IsKeyPressed(ImGuiKey_Escape)) r.val = std::max(r.vmin, std::min(r.vmax, (float)atof(editBuf)));
+        if (!ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            r.val = std::max(r.vmin, std::min(r.vmax, (float)atof(editBuf)));
+            if (r.live) ApplyRow(r);
+        }
         editRow = nullptr; T.Save();
     }
     editFirst = false;
@@ -337,54 +342,54 @@ float ResetIcon(Row& r, float right, float cy) {
     float sz = 22 * S;
     ImVec2 p(right - sz, cy - sz * 0.5f);
     ImGui::SetCursorScreenPos(p);
-    if (ImGui::InvisibleButton("##rst", ImVec2(sz, sz))) { r.val = r.def; T.Save(); }
+    if (ImGui::InvisibleButton("##rst", ImVec2(sz, sz))) { r.val = r.def; if (r.live) ApplyRow(r); T.Save(); }
     bool hov = ImGui::IsItemHovered();
     if (hov) { DL()->AddRectFilled(p, ImVec2(p.x + sz, p.y + sz), U32(C_BTNH), R_SM()); char b[64]; snprintf(b, sizeof b, r.isFloat ? "Przywróć domyślne (%.2f)" : "Przywróć domyślne (%.0f)", r.def); Tip("%s", b); }
     IconAt(DL(), ImVec2(p.x + sz * 0.5f, p.y + sz * 0.5f), ICN_UNDO, U32(hov ? C_ACC : C_DIM), 12 * S);
-    return sz + 6 * S;
-}
-void SliderLine(Row& r, float x0, float x1, float y) {
-    float valW = 66 * S;
-    float tx1 = x1 - valW - 10 * S;
-    std::string v = ValStr(r);
-    if (editRow == &r) EditField(r, ImVec2(x1 - valW, y - 12 * S), valW);
-    else {
-        PF(fBold); ImVec2 ts = ImGui::CalcTextSize(v.c_str()); ImGui::PopFont();
-        ImVec2 tp(x1 - ts.x, std::floor(y - ts.y * 0.5f));
-        ImGui::SetCursorScreenPos(ImVec2(x1 - valW, y - 11 * S));
-        if (ImGui::InvisibleButton("##vl", ImVec2(valW, 22 * S))) BeginEdit(r);
-        if (ImGui::IsItemHovered()) {
-            DL()->AddRectFilled(ImVec2(tp.x - 6 * S, y - 11 * S), ImVec2(x1 + 4 * S, y + 11 * S), U32(C_ACCD), R_SM());
-            Tip("kliknij, aby wpisać dokładną wartość");
-        }
-        Text(tp, fBold, C_TEXT, v.c_str());
-    }
-    float t = r.vmax > r.vmin ? (r.val - r.vmin) / (r.vmax - r.vmin) : 0;
-    t = std::max(0.f, std::min(1.f, t));
-    float kx = x0 + (tx1 - x0) * t;
-    DL()->AddRectFilled(ImVec2(x0, y - 2.5f * S), ImVec2(tx1, y + 2.5f * S), U32(C_TRACK), 3 * S);
-    DL()->AddRectFilled(ImVec2(x0, y - 2.5f * S), ImVec2(kx, y + 2.5f * S), U32(C_ACC), 3 * S);
-    ImGui::SetCursorScreenPos(ImVec2(x0 - 7 * S, y - 10 * S));
-    ImGui::InvisibleButton("##trk", ImVec2(tx1 - x0 + 14 * S, 20 * S));
-    bool hov = ImGui::IsItemHovered() || ImGui::IsItemActive();
-    DL()->AddCircleFilled(ImVec2(kx, y), (hov ? 7.f : 6.f) * S, IM_COL32(255, 255, 255, 255), 16);
-    if (ImGui::IsItemActive()) {
-        float nt = std::max(0.f, std::min(1.f, (ImGui::GetIO().MousePos.x - x0) / (tx1 - x0)));
-        float nv = r.vmin + nt * (r.vmax - r.vmin);
-        r.val = r.isFloat ? std::round(nv * 100.f) / 100.f : std::round(nv);
-    }
-    if (ImGui::IsItemDeactivated()) T.Save();
+    return sz + 4 * S;
 }
 void NumberBox(Row& r, float vx, float cy, float vw) {
     std::string v = ValStr(r);
-    float h = 26 * S;
+    float h = 28 * S;
     if (editRow == &r) { EditField(r, ImVec2(vx, cy - h * 0.5f), vw); return; }
     ImGui::SetCursorScreenPos(ImVec2(vx, cy - h * 0.5f));
     if (ImGui::InvisibleButton("##num", ImVec2(vw, h))) BeginEdit(r);
     bool hv = ImGui::IsItemHovered();
     DL()->AddRectFilled(ImVec2(vx, cy - h * 0.5f), ImVec2(vx + vw, cy + h * 0.5f), U32(hv ? C_BTNH : C_CARD2), R_BTN());
-    PF(fBold); ImVec2 ts = ImGui::CalcTextSize(v.c_str()); DL()->AddText(ImVec2(vx + vw - ts.x - 9 * S, std::floor(cy - ts.y * 0.5f)), U32(C_ACC), v.c_str()); ImGui::PopFont();
+    PF(fBold); ImVec2 ts = ImGui::CalcTextSize(v.c_str()); DL()->AddText(ImVec2(vx + vw - ts.x - 10 * S, std::floor(cy - ts.y * 0.5f)), U32(C_ACC), v.c_str()); ImGui::PopFont();
     if (hv) Tip("kliknij, aby wpisać");
+}
+// value as plain text (like "1.00 Frames"); click = type exact value
+float ValueText(Row& r, float right, float cy) {
+    std::string v = ValStr(r);
+    float w = 70 * S;
+    if (editRow == &r) { EditField(r, ImVec2(right - w, cy - 12 * S), w); return w + 8 * S; }
+    PF(fReg); ImVec2 ts = ImGui::CalcTextSize(v.c_str()); ImGui::PopFont();
+    ImVec2 p(right - ts.x, std::floor(cy - ts.y * 0.5f));
+    ImGui::SetCursorScreenPos(ImVec2(p.x - 4 * S, cy - 11 * S));
+    if (ImGui::InvisibleButton("##vl", ImVec2(ts.x + 8 * S, 22 * S))) BeginEdit(r);
+    bool hv = ImGui::IsItemHovered();
+    if (hv) Tip("kliknij, aby wpisać dokładną wartość");
+    Text(p, fReg, hv ? C_TEXT : C_DIM, v.c_str());
+    return ts.x + 12 * S;
+}
+// track only (value is shown in the first line); live rows apply when released
+void SliderTrack(Row& r, float x0, float x1, float y) {
+    float t = r.vmax > r.vmin ? (r.val - r.vmin) / (r.vmax - r.vmin) : 0;
+    t = std::max(0.f, std::min(1.f, t));
+    float kx = x0 + (x1 - x0) * t;
+    DL()->AddRectFilled(ImVec2(x0, y - 2.5f * S), ImVec2(x1, y + 2.5f * S), U32(C_TRACK), 3 * S);
+    if (kx > x0) DL()->AddRectFilled(ImVec2(x0, y - 2.5f * S), ImVec2(kx, y + 2.5f * S), U32(C_ACC), 3 * S);
+    ImGui::SetCursorScreenPos(ImVec2(x0 - 8 * S, y - 10 * S));
+    ImGui::InvisibleButton("##trk", ImVec2(x1 - x0 + 16 * S, 20 * S));
+    bool hov = ImGui::IsItemHovered() || ImGui::IsItemActive();
+    DL()->AddCircleFilled(ImVec2(kx, y), (hov ? 7.5f : 6.5f) * S, IM_COL32(255, 255, 255, 255), 20);
+    if (ImGui::IsItemActive()) {
+        float nt = std::max(0.f, std::min(1.f, (ImGui::GetIO().MousePos.x - x0) / (x1 - x0)));
+        float nv = r.vmin + nt * (r.vmax - r.vmin);
+        r.val = r.isFloat ? std::round(nv * 100.f) / 100.f : std::round(nv);
+    }
+    if (ImGui::IsItemDeactivated()) { if (r.live) ApplyRow(r); T.Save(); }
 }
 bool HasValueLine(const Row& r) {
     switch (r.kind) {
@@ -394,7 +399,7 @@ bool HasValueLine(const Row& r) {
     default: return false;
     }
 }
-float RowH(const Row& r) { return HasValueLine(r) ? 58 * S : 42 * S; }
+float RowH(const Row& r) { return HasValueLine(r) ? 62 * S : 42 * S; }
 
 // hotkey chip: visible when bound, while recording, or when the row is hovered
 float HotkeyChip(Row& r, float right, float cy, bool rowHov) {
@@ -442,7 +447,7 @@ void PollBinding() {
     }
 }
 
-// one setting inside a card
+// one setting inside a card: line 1 = label ... [hotkey][reset][value][control], line 2 = slider
 void CardRow(Row& r, float x, float y, float w, bool last) {
     ImGui::PushID(r.id.c_str());
     float h = RowH(r);
@@ -454,42 +459,43 @@ void CardRow(Row& r, float x, float y, float w, bool last) {
     if (!r.icon.empty() && iconsOk) { IconAt(DL(), ImVec2(lx + 8 * S, cy), r.icon.c_str(), U32(C_ACC), 14 * S); lx += 26 * S; }
     PF(fReg); ImVec2 ns = ImGui::CalcTextSize(r.name.c_str()); ImGui::PopFont();
     float right = x1 - 12 * S;
-    float ctrlW = 0;
+    float used = 0;
     switch (r.kind) {
     case K_TOGGLE: case K_SLIDER: case K_SET:
-        ctrlW = 36 * S;
-        if (Switch("##sw", r.on, ImVec2(right - ctrlW, cy - 10 * S))) ApplyRow(r);
+        used = 36 * S;
+        if (Switch("##sw", r.on, ImVec2(right - used, cy - 10 * S))) ApplyRow(r);
         break;
-    case K_ACTION: {
-        const char* lbl = "Wykonaj";
-        ctrlW = ButtonW(lbl);
-        if (Button("##do", lbl, ImVec2(right - ctrlW, cy - BtnH() * 0.5f))) ApplyRow(r);
-        if (!r.noValue && !UseSlider(r)) { NumberBox(r, right - ctrlW - 100 * S, cy, 92 * S); ctrlW += 100 * S; }
-    } break;
+    case K_ACTION:
+        if (!r.live) { const char* lbl = r.noValue ? "Wykonaj" : (r.id == "ore" || r.id == "xp" || r.id == "lp" ? "Dodaj" : "Wykonaj");
+                       used = ButtonW(lbl); if (Button("##do", lbl, ImVec2(right - used, cy - BtnH() * 0.5f))) ApplyRow(r); }
+        break;
     case K_CHOICE: {
         const char* lbl = "Ustaw";
-        float bw = ButtonW(lbl);
-        float cw = std::min(w * 0.42f, 190 * S);
+        float bw = ButtonW(lbl), cw = std::min(w * 0.42f, 190 * S);
         if (Button("##do", lbl, ImVec2(right - bw, cy - BtnH() * 0.5f))) ApplyRow(r);
         Combo(r, ImVec2(right - bw - 8 * S - cw, cy - 13 * S), cw);
-        ctrlW = bw + 8 * S + cw;
+        used = bw + 8 * S + cw;
     } break;
     case K_VALUE:
-        if (!r.options.empty()) { float cw = std::min(w * 0.5f, 230 * S); Combo(r, ImVec2(right - cw, cy - 13 * S), cw); ctrlW = cw; }
-        else if (!UseSlider(r)) { NumberBox(r, right - 92 * S, cy, 92 * S); ctrlW = 92 * S; }
+        if (!r.options.empty()) { float cw = std::min(w * 0.5f, 230 * S); Combo(r, ImVec2(right - cw, cy - 13 * S), cw); used = cw; }
         break;
     }
-    if ((r.kind == K_SLIDER || r.kind == K_SET) && !UseSlider(r)) { NumberBox(r, right - ctrlW - 100 * S, cy, 92 * S); ctrlW += 100 * S; }
-    float rst = ResetIcon(r, right - ctrlW - 6 * S, cy);
-    float chipW = HotkeyChip(r, right - ctrlW - 8 * S - rst, cy, hov);
-    float labelMax = right - ctrlW - chipW - rst - 10 * S;
+    float vr = right - used - (used > 0 ? 10 * S : 0);
+    if (HasVal(r) && r.options.empty()) {
+        if (UseSlider(r)) vr -= ValueText(r, vr, cy);
+        else { NumberBox(r, vr - 92 * S, cy, 92 * S); vr -= 100 * S; }
+    }
+    vr -= ResetIcon(r, vr, cy);
+    vr -= HotkeyChip(r, vr, cy, hov);
+    float labelMax = vr - 6 * S;
     TextClip(ImVec2(lx, std::floor(cy - ns.y * 0.5f)), fReg, r.kind == K_SET && r.on ? C_ON : C_TEXT, r.name, labelMax);
     if (ImGui::IsMouseHoveringRect(ImVec2(lx, y), ImVec2(std::min(lx + ns.x, labelMax), y + 36 * S)) && (!r.note.empty() || r.kind == K_SET)) {
         std::string tip = r.note;
         if (r.kind == K_SET) tip += std::string(tip.empty() ? "" : "\n") + "Włączone = ta wartość nadpisuje grę; wyłączone = wartość z gry.";
+        if (r.live) tip += std::string(tip.empty() ? "" : "\n") + "Zmienia się od razu po puszczeniu suwaka.";
         Tip("%s", tip.c_str());
     }
-    if (HasValueLine(r)) SliderLine(r, lx, right, y + 43 * S);
+    if (HasValueLine(r)) SliderTrack(r, x0 + 12 * S, right, y + 45 * S);
     if (!last) DL()->AddLine(ImVec2(x0 + 12 * S, y + h), ImVec2(x1 - 12 * S, y + h), U32(C_LINE));
     ImGui::PopID();
 }
@@ -569,58 +575,91 @@ void ListRowBg(ImVec2 p, float w, float h, int i) {
 }
 
 // ------------------------------------------------------------------ portraits
-void AskPhoto(uintptr_t ptr) {
-    if (!ptr || PortraitFor(ptr)) return;
+void AskPhoto(uintptr_t ptr, const std::string& key) {
+    if (!ptr || key.empty() || PortraitFor(key)) return;
     double now = NowSec();
-    auto& a = photoAsked[ptr];
-    if (a.second >= 2 || now - a.first < 4.0) return;   // two tries per character, then give up
+    auto& a = photoAsked[key];
+    if (a.second >= 2 || now - a.first < 6.0) return;   // two tries per character, then give up
     a.first = now; a.second++;
     Act_Photo(ptr);
 }
-void Avatar(ImVec2 c, float r, bool monster, uintptr_t ptr, bool ask = true) {
-    void* tex = ptr ? PortraitFor(ptr) : nullptr;
-    DL()->AddCircleFilled(c, r, U32(Mix(C_CARD, C_ACC, tex ? 0.18f : 0.28f)), 48);
-    if (tex) {
-        // the portrait has a transparent background and fades out at the bottom; clip it to the circle
-        DL()->AddImageRounded((ImTextureID)(intptr_t)tex, ImVec2(c.x - r, c.y - r), ImVec2(c.x + r, c.y + r), ImVec2(0, 0), ImVec2(1, 1), IM_COL32_WHITE, r);
-    } else if (iconsOk) {
-        IconAt(DL(), c, monster ? ICN_PAW : ICN_USER, U32(C_TEXT, 0.8f), r * 0.9f);
-        if (ask && ptr) AskPhoto(ptr);
+// portrait: transparent background, faded bottom, no frame; placeholder = faint icon
+void Avatar(ImVec2 c, float r, bool monster, uintptr_t ptr, const std::string& key, bool ask = false) {
+    if (void* tex = PortraitFor(key)) {
+        DL()->AddImage((ImTextureID)(intptr_t)tex, ImVec2(c.x - r, c.y - r), ImVec2(c.x + r, c.y + r));
+        return;
     }
-    DL()->AddCircle(c, r, U32(C_ACC, 0.7f), 48, 1.5f * S);
+    DL()->AddCircleFilled(c, r * 0.82f, U32(C_CARD2), 40);
+    IconAt(DL(), c, monster ? ICN_PAW : ICN_USER, U32(C_FAINT), r * 0.75f);
+    if (ask) AskPhoto(ptr, key);
 }
 void HpBar(float x0, float x1, float y, int v, int m, const ImVec4& c, float th = 5) {
     float f = m > 0 ? std::max(0.f, std::min(1.f, (float)v / m)) : 0;
     DL()->AddRectFilled(ImVec2(x0, y), ImVec2(x1, y + th * S), U32(C_TRACK), th * 0.5f * S);
     if (f > 0) DL()->AddRectFilled(ImVec2(x0, y), ImVec2(x0 + (x1 - x0) * f, y + th * S), U32(c), th * 0.5f * S);
 }
-// "Kogo edytujesz" segmented control for the Bohater pages
+// segmented control: equal padding inside, small gap between segments
+int Segmented(const char* id, const std::vector<const char*>& opts, int cur, ImVec2 p) {
+    float h = 32 * S, gap = 4 * S, pad = 4 * S;
+    float total = pad * 2 + gap * (opts.size() - 1);
+    for (auto o : opts) total += TextW(o, fBold) + 32 * S;
+    DL()->AddRectFilled(p, ImVec2(p.x + total, p.y + h + pad * 2), U32(C_CARD2), R_ITEM());
+    float x = p.x + pad;
+    int res = cur;
+    for (int i = 0; i < (int)opts.size(); i++) {
+        float bw = TextW(opts[i], fBold) + 32 * S;
+        ImGui::PushID(id); ImGui::PushID(i);
+        ImGui::SetCursorScreenPos(ImVec2(x, p.y + pad));
+        if (ImGui::InvisibleButton("##seg", ImVec2(bw, h))) res = i;
+        bool hv = ImGui::IsItemHovered(), act = i == cur;
+        if (act || hv) DL()->AddRectFilled(ImVec2(x, p.y + pad), ImVec2(x + bw, p.y + pad + h), U32(act ? C_ACCD : C_HOVER), R_BTN());
+        PF(act ? fBold : fReg); ImVec2 ts = ImGui::CalcTextSize(opts[i]); ImGui::PopFont();
+        Text(ImVec2(std::floor(x + (bw - ts.x) * 0.5f), std::floor(p.y + pad + (h - ts.y) * 0.5f)), act ? fBold : fReg, act ? C_ACC : (hv ? C_TEXT : C_DIM), opts[i]);
+        ImGui::PopID(); ImGui::PopID();
+        x += bw + gap;
+    }
+    return res;
+}
+float SegmentedW(const std::vector<const char*>& opts) { float t = 8 * S + 4 * S * (opts.size() - 1); for (auto o : opts) t += TextW(o, fBold) + 32 * S; return t; }
+// "Kogo edytujesz" for the Postać pages (+ which target when "Cel")
 void SubjectBar(const Snapshot& s, float w) {
     Row* r = T.Get("subject");
     if (!r) return;
     ImVec2 p = ImGui::GetCursorScreenPos();
-    float h = 58 * S;
+    float h = 76 * S;
     DL()->AddRectFilled(p, ImVec2(p.x + w, p.y + h), U32(C_CARD), R_CARD());
-    Avatar(ImVec2(p.x + 32 * S, p.y + h * 0.5f), 19 * S, false, s.subjectPtr);
-    Text(ImVec2(p.x + 62 * S, p.y + 10 * S), fSmall, C_DIM, "Edytujesz");
-    TextClip(ImVec2(p.x + 62 * S, p.y + 27 * S), fBold, C_TEXT, s.subjectName.empty() ? "-" : s.subjectName, p.x + w * 0.45f);
-    const char* opts[] = { "Sterowana postać", "Bezimienny", "Cel" };
-    float segW = 0; for (auto o : opts) segW += TextW(o, fBold) + 28 * S;
-    float sx = p.x + w - segW - 14 * S - 8 * S, sy = p.y + (h - 34 * S) * 0.5f;
-    DL()->AddRectFilled(ImVec2(sx - 4 * S, sy - 4 * S), ImVec2(p.x + w - 14 * S, sy + 38 * S), U32(C_CARD2), R_ITEM());
-    for (int i = 0; i < 3; i++) {
-        float bw = TextW(opts[i], fBold) + 28 * S;
-        ImGui::PushID(i + 7700);
-        ImGui::SetCursorScreenPos(ImVec2(sx, sy));
-        bool act = (int)r->val == i;
-        if (ImGui::InvisibleButton("##seg", ImVec2(bw, 30 * S))) { r->val = (float)i; T.Save(); }
-        bool hv = ImGui::IsItemHovered();
-        if (act || hv) DL()->AddRectFilled(ImVec2(sx, sy), ImVec2(sx + bw, sy + 30 * S), U32(act ? C_ACCD : C_HOVER), R_BTN());
-        TextV(sx + 14 * S, sy + 15 * S, act ? fBold : fReg, act ? C_ACC : (hv ? C_TEXT : C_DIM), opts[i]);
-        ImGui::PopID();
-        sx += bw;
+    Avatar(ImVec2(p.x + 18 * S + 28 * S, p.y + h * 0.5f), 28 * S, false, s.subjectPtr, s.subjectInst);
+    Text(ImVec2(p.x + 86 * S, p.y + 18 * S), fSmall, C_DIM, "Edytujesz");
+    std::vector<const char*> opts = { "Obecna postać", "Bezimienny", "Cel" };
+    float sw = SegmentedW(opts);
+    float sx = p.x + w - 18 * S - sw;
+    TextClip(ImVec2(p.x + 86 * S, p.y + 36 * S), fBold, C_TEXT, s.subjectName.empty() ? "-" : s.subjectName, sx - 12 * S);
+    int nv = Segmented("subj", opts, (int)r->val, ImVec2(sx, p.y + 18 * S));
+    if (nv != (int)r->val) { r->val = (float)nv; T.Save(); }
+    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 10 * S)); ImGui::Dummy(ImVec2(w, 0));
+    if ((int)r->val == 2) {   // which target
+        ImVec2 q = ImGui::GetCursorScreenPos();
+        float hh = 52 * S;
+        DL()->AddRectFilled(q, ImVec2(q.x + w, q.y + hh), U32(C_CARD), R_CARD());
+        TextV(q.x + 18 * S, q.y + hh * 0.5f, fReg, C_TEXT, "Który cel");
+        std::string cur = s.activeSaved >= 0 && s.activeSaved < (int)s.saved.size() ? s.saved[s.activeSaved].name + "  (zapisany)" : (s.tValid ? s.tName + "  (pod wzrokiem)" : "pod wzrokiem - brak");
+        float cw = std::min(w * 0.55f, 360 * S);
+        ImGui::SetCursorScreenPos(ImVec2(q.x + w - 18 * S - cw, q.y + (hh - 28 * S) * 0.5f));
+        ImGui::SetNextItemWidth(cw);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2); ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, R_BTN());
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10 * S, 5 * S));
+        if (ImGui::BeginCombo("##tgtpick", cur.c_str())) {
+            if (ImGui::Selectable("Postać pod wzrokiem", s.activeSaved < 0)) Act_SelectTargetFor(-1);
+            for (int i = 0; i < (int)s.saved.size(); i++) {
+                ImGui::PushID(i);
+                if (ImGui::Selectable((s.saved[i].name + "  ·  " + s.saved[i].inst).c_str(), s.activeSaved == i)) Act_SelectTargetFor(i);
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::PopStyleVar(2); ImGui::PopStyleColor();
+        ImGui::SetCursorScreenPos(ImVec2(q.x, q.y + hh + 10 * S)); ImGui::Dummy(ImVec2(w, 0));
     }
-    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 12 * S)); ImGui::Dummy(ImVec2(w, 0));
 }
 
 // ================================================================== pages
@@ -640,78 +679,190 @@ const char* CatIcon(int c) {
 }
 int ReqOf(const ItemEntry& e, int atr) { for (int i = 0; i < 3; i++) if (e.condAtr[i] == atr && e.condVal[i] > 0) return e.condVal[i]; return 0; }
 int ProtOf(const ItemEntry& e) { int m = 0; for (int i = 0; i < 8; i++) m = std::max(m, e.prot[i]); return m; }
-void FilterField(const char* label, const char* id, int* v, float w) {
-    ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "%s", label); ImGui::SameLine();
-    NumField(id, v, 0, 1000000, w); ImGui::SameLine(0, 16 * S);
+// ---- item stats (every number the scripts give an item becomes a filterable stat)
+std::vector<std::vector<std::pair<std::string, int>>> g_istat;
+void BuildItemStats() {
+    if (g_istat.size() == g_cat.items.size()) return;
+    g_istat.clear();
+    static const char* prot[8] = { nullptr, "Ochrona: obuchowe", "Ochrona: ostrza", "Ochrona: ogień", nullptr, "Ochrona: magia", "Ochrona: strzały", nullptr };
+    for (auto& e : g_cat.items) {
+        std::vector<std::pair<std::string, int>> kv;
+        auto add = [&](const std::string& k, int v) { for (auto& p : kv) if (p.first == k) return; kv.push_back({ k, v }); };
+        add("Wartość", e.value);
+        add("Cena sprzedaży", e.value / 2);
+        if (e.damage) add("Obrażenia", e.damage);
+        if (e.range) add("Zasięg", e.range);
+        for (int i = 0; i < 8; i++) if (prot[i] && e.prot[i]) add(prot[i], e.prot[i]);
+        for (int i = 0; i < 3; i++) if (e.condVal[i] > 0) {
+            const char* n = e.condAtr[i] == 4 ? "Wymagana siła" : e.condAtr[i] == 5 ? "Wymagana zręczność" : e.condAtr[i] == 3 ? "Wymagana mana" : "Wymaganie";
+            add(n, e.condVal[i]);
+        }
+        for (int k = 0; k < 6; k++) {
+            if (e.text[k].empty() || !e.count[k]) continue;
+            std::string t = e.text[k];
+            while (!t.empty() && (t.back() == ':' || t.back() == ' ')) t.pop_back();
+            if (!t.empty()) add(t, e.count[k]);
+        }
+        g_istat.push_back(kv);
+    }
+}
+bool StatOf(size_t i, const std::string& k, int& v) { for (auto& p : g_istat[i]) if (p.first == k) { v = p.second; return true; } return false; }
+struct StatFilter { std::string stat; int mn = 0, mx = 0; };
+std::vector<StatFilter> g_ifilters;
+std::string g_isort = "Nazwa"; bool g_isortDesc = false;
+void PopupStyle() {
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16 * S, 14 * S));
+    ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, R_ITEM());
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8 * S, 8 * S));
+    ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, 1.f);
+    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(C_ACC.x, C_ACC.y, C_ACC.z, 0.15f));
+    ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.09f, 0.09f, 0.12f, 0.99f));
+}
+void PopupStyleEnd() { ImGui::PopStyleColor(2); ImGui::PopStyleVar(4); }
+// generic string dropdown
+bool StrCombo(const char* id, const std::vector<std::string>& opts, std::string& cur, float w, const char* placeholder = "-") {
+    bool ch = false;
+    ImGui::SetNextItemWidth(w);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2); ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, R_BTN());
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10 * S, 7 * S));
+    if (ImGui::BeginCombo(id, cur.empty() ? placeholder : cur.c_str(), ImGuiComboFlags_HeightLarge)) {
+        for (auto& o : opts) { if (ImGui::Selectable(o.c_str(), o == cur)) { cur = o; ch = true; } }
+        ImGui::EndCombo();
+    }
+    ImGui::PopStyleVar(2); ImGui::PopStyleColor();
+    return ch;
+}
+void AskItemIcon(const ItemEntry& e) {
+    std::string key = "I_" + e.id;
+    if (PortraitFor(key)) return;
+    double now = NowSec();
+    auto& a = photoAsked[key];
+    if (a.second >= 1 || now - a.first < 6.0) return;
+    a.first = now; a.second++;
+    Act_PhotoItem(e.sym);
 }
 // ---- Ekwipunek / Spawner
 void ItemSpawner(float w) {
     if (!g_cat.built) { ImGui::TextColored(C_DIM, "Wczytaj grę, żeby zobaczyć listę przedmiotów."); return; }
-    // quick ore
-    if (Row* ore = T.Get("ore")) {
-        std::vector<CardSpec> c{ { "", { ore }, nullptr, 0, true } };
-        Masonry(c, w);
+    BuildItemStats();
+    if (Row* ore = T.Get("ore")) { std::vector<CardSpec> c{ { "", { ore }, nullptr, 0, true } }; Masonry(c, w); }
+    // stats available in the current category / subcategory
+    std::vector<std::string> stats;
+    for (size_t i = 0; i < g_cat.items.size(); i++) {
+        auto& e = g_cat.items[i];
+        if ((itemCat >= 0 && e.cat != itemCat) || (!itemSub.empty() && e.sub != itemSub)) continue;
+        for (auto& p : g_istat[i]) if (std::find(stats.begin(), stats.end(), p.first) == stats.end()) stats.push_back(p.first);
     }
     BeginPanel("##ispf", nullptr, w);
-    InputBox("##isearch", search, sizeof search, "Szukaj: nazwa albo ID (np. miecz, ITMW_)...", w - 230 * S);
-    ImGui::SameLine(); ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Ilość"); ImGui::SameLine();
-    NumField("##amt", &T.itemAmount, 1, 100000, 100 * S);
-    if (Chip("Wszystkie", itemCat < 0, ICN_LIST)) { itemCat = -1; itemSub.clear(); }
-    for (int c = 0; c < IC_COUNT; c++) if (Chip(kItemCatNames[c], itemCat == c, CatIcon(c))) { itemCat = c; itemSub.clear(); }
-    ImGui::NewLine();
-    if (itemCat >= 0) {
-        auto subs = SubsOf(itemCat);
-        if (subs.size() > 1) {
-            if (Chip("wszystkie##sub", itemSub.empty())) itemSub.clear();
-            for (auto& s : subs) if (Chip((s + "##s").c_str(), itemSub == s)) itemSub = s;
-            ImGui::NewLine();
+    float fbw = ButtonW("Filtry (00)", fBold), catW = 210 * S, amtW = 90 * S;
+    InputBox("##isearch", search, sizeof search, "Szukaj: nazwa albo ID (np. miecz, ITMW_)...", w - 36 * S - catW - amtW - fbw - 70 * S);
+    ImGui::SameLine();
+    {   // category dropdown with icons
+        std::string cur = itemCat < 0 ? "Wszystkie kategorie" : kItemCatNames[itemCat];
+        ImGui::SetNextItemWidth(catW);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2); ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, R_BTN());
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10 * S, 7 * S));
+        if (ImGui::BeginCombo("##icat", cur.c_str(), ImGuiComboFlags_HeightLarge)) {
+            if (ImGui::Selectable("     Wszystkie kategorie", itemCat < 0)) { itemCat = -1; itemSub.clear(); }
+            for (int c = 0; c < IC_COUNT; c++) {
+                ImVec2 ip = ImGui::GetCursorScreenPos();
+                ImGui::PushID(c);
+                if (ImGui::Selectable((std::string("     ") + kItemCatNames[c]).c_str(), itemCat == c)) { itemCat = c; itemSub.clear(); }
+                ImGui::PopID();
+                IconAt(ImGui::GetWindowDrawList(), ImVec2(ip.x + 9 * S, ip.y + ImGui::GetTextLineHeight() * 0.5f), CatIcon(c), U32(C_ACC), 12 * S);
+            }
+            ImGui::EndCombo();
         }
+        ImGui::PopStyleVar(2); ImGui::PopStyleColor();
     }
-    // filters that make sense for the chosen category
-    FilterField("Wartość od", "##vmin", &fValMin, 80 * S);
-    FilterField("do", "##vmax", &fValMax, 80 * S);
-    bool weap = itemCat == IC_MELEE || itemCat == IC_RANGED;
-    if (weap) { FilterField("Min. obrażenia", "##dmin", &fDmgMin, 70 * S); FilterField(itemCat == IC_MELEE ? "Maks. wym. siła" : "Maks. wym. zręczność", "##rmax", &fReqMax, 70 * S); }
-    if (itemCat == IC_MELEE) FilterField("Min. zasięg", "##range", &fRangeMin, 70 * S);
-    if (itemCat == IC_ARMOR) FilterField("Min. ochrona", "##pmin", &fProtMin, 70 * S);
-    ImGui::NewLine();
-    ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Sortuj:"); ImGui::SameLine();
-    std::vector<const char*> sorts = { "Nazwa", "Wartość" };
-    if (weap) sorts.push_back("Obrażenia");
-    if (itemCat == IC_ARMOR) sorts.push_back("Ochrona");
-    if (itemSort >= (int)sorts.size()) itemSort = 0;
-    for (int i = 0; i < (int)sorts.size(); i++) if (Chip(sorts[i], itemSort == i)) itemSort = i;
+    ImGui::SameLine(); ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Ilość"); ImGui::SameLine();
+    NumField("##amt", &T.itemAmount, 1, 100000, amtW);
+    ImGui::SameLine();
+    char fl[32]; snprintf(fl, sizeof fl, g_ifilters.empty() && itemSub.empty() ? "Filtry" : "Filtry (%d)", (int)g_ifilters.size() + (itemSub.empty() ? 0 : 1));
+    ImVec2 fp = ImGui::GetCursorScreenPos();
+    if (Button("##flt", fl, ImVec2(fp.x, fp.y), !(g_ifilters.empty() && itemSub.empty()))) ImGui::OpenPopup("##ifilters");
+    ImGui::SetCursorScreenPos(ImVec2(fp.x, fp.y + BtnH()));
+    PopupStyle();
+    ImGui::SetNextWindowSize(ImVec2(520 * S, 0));
+    if (ImGui::BeginPopup("##ifilters")) {
+        PF(fBold); ImGui::TextColored(C_TEXT, "Filtry"); ImGui::PopFont();
+        if (itemCat >= 0) {
+            auto subs = SubsOf(itemCat);
+            if (subs.size() > 1) {
+                ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Podkategoria"); ImGui::SameLine(140 * S);
+                std::vector<std::string> o = { "wszystkie" }; o.insert(o.end(), subs.begin(), subs.end());
+                std::string cur = itemSub.empty() ? "wszystkie" : itemSub;
+                if (StrCombo("##isub", o, cur, 340 * S)) itemSub = cur == "wszystkie" ? "" : cur;
+            }
+        } else { PF(fSmall); ImGui::TextColored(C_DIM, "Wybierz kategorię, żeby filtrować po jej statystykach."); ImGui::PopFont(); }
+        int del = -1;
+        for (int i = 0; i < (int)g_ifilters.size(); i++) {
+            auto& f = g_ifilters[i];
+            ImGui::PushID(i + 6100);
+            StrCombo("##st", stats, f.stat, 210 * S, "statystyka"); ImGui::SameLine();
+            ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "od"); ImGui::SameLine(); NumField("##mn", &f.mn, -100000, 1000000, 70 * S); ImGui::SameLine();
+            ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "do"); ImGui::SameLine(); NumField("##mx", &f.mx, 0, 1000000, 70 * S); ImGui::SameLine();
+            if (IconButton("##rm", ICN_TIMES, "Usuń filtr", ImGui::GetCursorScreenPos(), 30 * S, C_DIM)) del = i;
+            ImGui::NewLine();
+            ImGui::PopID();
+        }
+        if (del >= 0) g_ifilters.erase(g_ifilters.begin() + del);
+        if (g_ifilters.empty()) { PF(fSmall); ImGui::TextColored(C_DIM, "Brak filtrów statystyk. \"do\" = 0 oznacza bez górnej granicy."); ImGui::PopFont(); }
+        ImVec2 bp = ImGui::GetCursorScreenPos();
+        if (Button("##addf", "+ Dodaj filtr", bp, false)) g_ifilters.push_back({ stats.empty() ? "Wartość" : stats[0], 0, 0 });
+        if (Button("##clrf", "Wyczyść", ImVec2(bp.x + ButtonW("+ Dodaj filtr") + 8 * S, bp.y), false)) { g_ifilters.clear(); itemSub.clear(); }
+        ImGui::SetCursorScreenPos(ImVec2(bp.x, bp.y + BtnH() + 6 * S)); ImGui::Dummy(ImVec2(10, 0));
+        ImGui::EndPopup();
+    }
+    PopupStyleEnd();
+    // active filters + sort
+    ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Sortuj"); ImGui::SameLine();
+    std::vector<std::string> so = { "Nazwa" }; for (auto& st : stats) so.push_back(st);
+    StrCombo("##isort", so, g_isort, 200 * S); ImGui::SameLine();
+    if (IconButton("##sdir", g_isortDesc ? "\xef\x85\xa1" : "\xef\x85\xa0", g_isortDesc ? "Malejąco" : "Rosnąco", ImGui::GetCursorScreenPos(), 32 * S, C_TEXT)) g_isortDesc = !g_isortDesc;
+    ImGui::SameLine(0, 16 * S);
+    if (!itemSub.empty()) { if (Chip((itemSub + "  ×##fs").c_str(), true)) itemSub.clear(); }
+    for (int i = 0; i < (int)g_ifilters.size(); i++) {
+        auto& f = g_ifilters[i];
+        char b[160]; snprintf(b, sizeof b, f.mx > 0 ? "%s %d–%d  ×##f%d" : "%s ≥ %d  ×##f%d", f.stat.c_str(), f.mn, f.mx, i);
+        if (f.mx <= 0) snprintf(b, sizeof b, "%s ≥ %d  ×##f%d", f.stat.c_str(), f.mn, i);
+        if (Chip(b, true)) { g_ifilters.erase(g_ifilters.begin() + i); break; }
+    }
     ImGui::NewLine();
     EndPanel();
-    std::vector<const ItemEntry*> v;
-    for (auto& e : g_cat.items) {
+    std::vector<int> v;
+    for (size_t i = 0; i < g_cat.items.size(); i++) {
+        const ItemEntry& e = g_cat.items[i];
         if (itemCat >= 0 && e.cat != itemCat) continue;
         if (!itemSub.empty() && e.sub != itemSub) continue;
         if (!(MatchQ(search, e.name, e.id) || MatchQ(search, e.info, e.sub))) continue;
-        if (e.value < fValMin || (fValMax > 0 && e.value > fValMax)) continue;
-        if (weap && e.damage < fDmgMin) continue;
-        if (weap && fReqMax > 0 && ReqOf(e, itemCat == IC_MELEE ? 4 : 5) > fReqMax) continue;
-        if (itemCat == IC_MELEE && e.range < fRangeMin) continue;
-        if (itemCat == IC_ARMOR && ProtOf(e) < fProtMin) continue;
-        v.push_back(&e);
+        bool ok = true;
+        for (auto& f : g_ifilters) { int x; if (!StatOf(i, f.stat, x) || x < f.mn || (f.mx > 0 && x > f.mx)) { ok = false; break; } }
+        if (ok) v.push_back((int)i);
     }
-    std::string sk = sorts[itemSort];
-    if (sk == "Wartość") std::stable_sort(v.begin(), v.end(), [](auto a, auto b) { return a->value > b->value; });
-    if (sk == "Obrażenia") std::stable_sort(v.begin(), v.end(), [](auto a, auto b) { return a->damage > b->damage; });
-    if (sk == "Ochrona") std::stable_sort(v.begin(), v.end(), [](auto a, auto b) { return ProtOf(*a) > ProtOf(*b); });
-    PF(fSmall); ImGui::TextColored(C_DIM, "%d przedmiotów  ·  przycisk + dodaje do edytora zestawu (Ekwipunek › Zestawy)", (int)v.size()); ImGui::PopFont();
-    float h = 54 * S;
+    if (g_isort != "Nazwa") {
+        std::stable_sort(v.begin(), v.end(), [](int a, int b) {
+            int x = INT_MIN, y = INT_MIN; StatOf(a, g_isort, x); StatOf(b, g_isort, y);
+            return g_isortDesc ? x > y : x < y; });
+    } else if (g_isortDesc) std::reverse(v.begin(), v.end());
+    PF(fSmall); ImGui::TextColored(C_DIM, "%d przedmiotów  ·  + dodaje do edytora zestawu (Ekwipunek › Zestawy)", (int)v.size()); ImGui::PopFont();
+    float h = 58 * S;
     ImGuiListClipper clip; clip.Begin((int)v.size(), h + 4 * S);
     while (clip.Step())
-        for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
-            const ItemEntry& e = *v[i];
+        for (int k = clip.DisplayStart; k < clip.DisplayEnd; k++) {
+            const ItemEntry& e = g_cat.items[v[k]];
             ImVec2 p = ImGui::GetCursorScreenPos();
-            ListRowBg(p, w, h, i);
-            float ic = 36 * S;
-            DL()->AddRectFilled(ImVec2(p.x + 9 * S, p.y + (h - ic) * 0.5f), ImVec2(p.x + 9 * S + ic, p.y + (h + ic) * 0.5f), U32(C_ACCD, 0.7f), R_BTN());
-            IconAt(DL(), ImVec2(p.x + 9 * S + ic * 0.5f, p.y + h * 0.5f), CatIcon(e.cat), U32(C_ACC), 15 * S);
-            float x = p.x + 56 * S;
-            if (T.Crashed("item:" + e.id)) { float pw; Pill(ImVec2(x, p.y + 7 * S), "CRASH", C_ST_CRASH, &pw); x += pw + 6 * S; }
+            ListRowBg(p, w, h, k);
+            float ic = 44 * S;
+            ImVec2 ip(p.x + 8 * S, p.y + (h - ic) * 0.5f);
+            if (void* tex = PortraitFor("I_" + e.id)) DL()->AddImage((ImTextureID)(intptr_t)tex, ip, ImVec2(ip.x + ic, ip.y + ic));
+            else {
+                DL()->AddRectFilled(ip, ImVec2(ip.x + ic, ip.y + ic), U32(C_ACCD, 0.5f), R_BTN());
+                IconAt(DL(), ImVec2(ip.x + ic * 0.5f, ip.y + ic * 0.5f), CatIcon(e.cat), U32(C_ACC), 15 * S);
+                AskItemIcon(e);
+            }
+            float x = p.x + 62 * S;
+            if (T.Crashed("item:" + e.id)) { float pw; Pill(ImVec2(x, p.y + 8 * S), "CRASH", C_ST_CRASH, &pw); x += pw + 6 * S; }
             float bx = p.x + w - 10 * S;
             ImGui::PushID(e.sym);
             float b3 = ButtonW("Celowi", fReg), b2 = ButtonW("Pod nogi", fReg), b1 = ButtonW("Do ekwipunku", fReg), by = p.y + (h - BtnH()) * 0.5f;
@@ -729,16 +880,13 @@ void ItemSpawner(float w) {
             if (Button("##inv", "Do ekwipunku", ImVec2(bx - b1, by), true, fReg)) Act_GiveItem(e.sym, T.itemAmount);
             bx -= b1 + 10 * S;
             ImGui::PopID();
-            TextClip(ImVec2(x, p.y + 9 * S), fBold, C_TEXT, e.name, bx);
+            TextClip(ImVec2(x, p.y + 10 * S), fBold, C_TEXT, e.name, bx);
             char sub[300];
-            snprintf(sub, sizeof sub, "%s%s%s  ·  %d rudy", e.sub.empty() ? kItemCatNames[e.cat] : e.sub.c_str(), e.info.empty() ? "" : "  ·  ", e.info.c_str(), e.value);
-            TextClip(ImVec2(p.x + 56 * S, p.y + 30 * S), fSmall, C_DIM, sub, bx);
+            snprintf(sub, sizeof sub, "%s%s%s  ·  sprzedaż %d rudy", e.sub.empty() ? kItemCatNames[e.cat] : e.sub.c_str(), e.info.empty() ? "" : "  ·  ", e.info.c_str(), e.value / 2);
+            TextClip(ImVec2(p.x + 62 * S, p.y + 31 * S), fSmall, C_DIM, sub, bx);
             if (ImGui::IsMouseHoveringRect(p, ImVec2(bx, p.y + h)) && ImGui::IsWindowHovered()) {
-                std::vector<std::pair<std::string, std::string>> kv = { { "Kategoria", e.sub.empty() ? kItemCatNames[e.cat] : e.sub }, { "Wartość", std::to_string(e.value) + " rudy" }, { "ID", e.id } };
-                if (e.damage) kv.push_back({ "Obrażenia", std::to_string(e.damage) });
-                if (e.range) kv.push_back({ "Zasięg", std::to_string(e.range) });
-                if (int pr = ProtOf(e)) kv.push_back({ "Ochrona (max)", std::to_string(pr) });
-                for (int k = 0; k < 6; k++) if (!e.text[k].empty()) kv.push_back({ e.text[k], e.count[k] ? std::to_string(e.count[k]) : "" });
+                std::vector<std::pair<std::string, std::string>> kv = { { "Kategoria", e.sub.empty() ? kItemCatNames[e.cat] : e.sub }, { "ID", e.id } };
+                for (auto& st : g_istat[v[k]]) kv.push_back({ st.first, std::to_string(st.second) });
                 TipKV(e.name, kv);
             }
             ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 4 * S)); ImGui::Dummy(ImVec2(w, 0));
@@ -811,6 +959,17 @@ void SetsPage(float w) {
     ImGui::Dummy(ImVec2(w, 0));
     if (del >= 0) { T.sets.erase(T.sets.begin() + del); T.SaveSets(); }
 }
+const char* GroupIcon(int g) {
+    switch (g) {
+    case NG_ANIMALS: return ICN_PAW;
+    case NG_BEASTS: return "\xef\x86\x88";   // bug
+    case NG_UNDEAD: return ICN_GHOST;
+    case NG_ORCS: return ICN_GAVEL;
+    case NG_MAGIC: return ICN_MAGIC;
+    case NG_MAGES: return ICN_FLASK;
+    default: return ICN_USER;
+    }
+}
 // ---- Postacie / Spawner
 void NpcSpawner(float w) {
     if (!g_cat.built) { ImGui::TextColored(C_DIM, "Wczytaj grę, żeby zobaczyć listę."); return; }
@@ -823,7 +982,7 @@ void NpcSpawner(float w) {
     for (int m = 0; m < 4; m++) if (Chip(modes[m], T.spawnMode == m)) T.spawnMode = m;
     ImGui::NewLine();
     if (Chip("Wszyscy##g", npcGroup < 0)) npcGroup = -1;
-    for (int g = 0; g < NG_COUNT; g++) if (Chip(kNpcGroupNames[g], npcGroup == g)) npcGroup = g;
+    for (int g = 0; g < NG_COUNT; g++) if (Chip(kNpcGroupNames[g], npcGroup == g, GroupIcon(g))) npcGroup = g;
     ImGui::NewLine();
     EndPanel();
     std::vector<const NpcEntry*> v;
@@ -838,7 +997,7 @@ void NpcSpawner(float w) {
             ListRowBg(p, w, h, i);
             float ic = 34 * S;
             DL()->AddRectFilled(ImVec2(p.x + 9 * S, p.y + (h - ic) * 0.5f), ImVec2(p.x + 9 * S + ic, p.y + (h + ic) * 0.5f), U32(C_ACCD, 0.7f), R_BTN());
-            IconAt(DL(), ImVec2(p.x + 9 * S + ic * 0.5f, p.y + h * 0.5f), e.monster ? ICN_PAW : ICN_USER, U32(C_ACC), 14 * S);
+            IconAt(DL(), ImVec2(p.x + 9 * S + ic * 0.5f, p.y + h * 0.5f), GroupIcon(e.group), U32(C_ACC), 14 * S);
             float x = p.x + 54 * S;
             if (T.Crashed("npc:" + e.id)) { float pw; Pill(ImVec2(x, p.y + 7 * S), "CRASH", C_ST_CRASH, &pw); x += pw + 6 * S; }
             ImGui::PushID(e.sym);
@@ -857,7 +1016,7 @@ void TargetPage(const Snapshot& s, float w) {
     static const std::vector<ActGroup> groups = {
         { "Kontrola", &C_G_CTRL, { "swap", "mind" } },
         { "Przemieszczanie", &C_G_MOVE, { "tpull", "tpto", "yeet" } },
-        { "Atak", &C_G_ATK, { "tkill", "tstorm", "tlight", "tice" } },
+        { "Atak", &C_G_ATK, { "tkill", "tcast", "tfreeze" } },
         { "Inne", &C_G_OTHER, { "trevive", "trob", "tremove" } },
     };
     ImVec2 p = ImGui::GetCursorScreenPos();
@@ -869,7 +1028,7 @@ void TargetPage(const Snapshot& s, float w) {
     // left: avatar + info
     float ar = 52 * S;
     ImVec2 ac(p.x + 22 * S + ar, p.y + 22 * S + ar);
-    Avatar(ac, ar, s.tMonster, s.tValid ? s.tPtr : 0);
+    Avatar(ac, ar, s.tMonster, s.tValid ? s.tPtr : 0, s.tValid ? s.tInst : std::string());
     float ix = p.x + 44 * S + ar * 2;
     // right: grouped actions
     float bs = 34 * S, gap = 6 * S;
@@ -919,7 +1078,14 @@ void TargetPage(const Snapshot& s, float w) {
     float bw1 = ButtonW("Zapisz cel pod wzrokiem"), bw2 = ButtonW("Użyj NPC pod wzrokiem");
     float bx = p.x + w - 20 * S - bw1;
     if (Button("##tsave", "Zapisz cel pod wzrokiem", ImVec2(bx, by))) { if (Row* rw = T.Get("tsave")) ApplyRow(*rw); }
-    if (s.activeSaved >= 0 && Button("##tw", "Użyj NPC pod wzrokiem", ImVec2(bx - bw2 - 8 * S, by), false)) { if (Row* rw = T.Get("tforget")) ApplyRow(*rw); }
+    float bx2 = bx;
+    if (s.activeSaved >= 0) { bx2 -= bw2 + 8 * S; if (Button("##tw", "Użyj NPC pod wzrokiem", ImVec2(bx2, by), false)) { if (Row* rw = T.Get("tforget")) ApplyRow(*rw); } }
+    if (s.tValid) {
+        const char* el = "Edytuj w Postać";
+        bx2 -= ButtonW(el) + 8 * S;
+        if (Button("##editp", el, ImVec2(bx2, by), false)) { if (Row* r = T.Get("subject")) { r->val = 2; T.Save(); } curSec = 0; curSub = 0; cfgPage = false; testsPage = false; }
+    }
+    if (s.tValid && s.tInst2 == "1") Pill(ImVec2(ix, by + 6 * S), "ZAMROŻONY", C_G_MOVE);
     ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 12 * S)); ImGui::Dummy(ImVec2(w, 0));
 
     if (!s.saved.empty()) {
@@ -936,7 +1102,7 @@ void TargetPage(const Snapshot& s, float w) {
             bool hov = ImGui::IsItemHovered();
             DL()->AddRectFilled(ImVec2(x, y), ImVec2(x + cw, y + ch), U32(hov ? C_HOVER : C_CARD), R_CARD());
             if (act) DL()->AddRect(ImVec2(x, y), ImVec2(x + cw, y + ch), U32(C_ACC, 0.85f), R_CARD(), 1.5f * S);
-            Avatar(ImVec2(x + 16 * S + 32 * S, y + ch * 0.5f), 32 * S, si.monster, si.ptr);
+            Avatar(ImVec2(x + 16 * S + 32 * S, y + ch * 0.5f), 34 * S, si.monster, si.ptr, si.inst);
             float tx = x + 94 * S, mx = x + cw - 46 * S;
             TextClip(ImVec2(tx, y + 12 * S), fBold, si.dead ? C_ST_CRASH : C_TEXT, si.name + (si.dead ? "  (martwy)" : ""), mx);
             TextClip(ImVec2(tx, y + 33 * S), fSmall, C_ACC, si.inst, mx);
@@ -971,7 +1137,7 @@ void PartyPage(const Snapshot& s, float w) {
         ImVec2 p = ImGui::GetCursorScreenPos();
         DL()->AddRectFilled(p, ImVec2(p.x + w, p.y + h), U32(C_CARD), R_ITEM());
         ImGui::PushID((int)(n.ptr & 0x7FFFFFFF));
-        Avatar(ImVec2(p.x + 12 * S + 20 * S, p.y + h * 0.5f), 20 * S, n.monster, n.ptr);
+        Avatar(ImVec2(p.x + 12 * S + 20 * S, p.y + h * 0.5f), 24 * S, n.monster, n.ptr, n.inst);
         float tx = p.x + 64 * S;
         float bs = 32 * S, bx = p.x + w - 12 * S - 6 * (bs + 6 * S) + 6 * S;
         TextClip(ImVec2(tx, p.y + 10 * S), fBold, n.dead ? C_ST_CRASH : C_TEXT, n.name, bx - 140 * S);
@@ -1032,31 +1198,38 @@ void PartyPage(const Snapshot& s, float w) {
         ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + rh + 4 * S)); ImGui::Dummy(ImVec2(w, 0));
     }
 }
-// ---- Fun / Magia: spell checklist (part of the "Deszcz zaklęć" card)
-float RainSpells(float x, float y, float w, bool draw) {
+// ---- spell checklists (part of "Deszcz zaklęć" / "Magia na celu" cards)
+float SpellList(float x, float y, float w, bool draw, const char* rowId, const char* const* names, int n, const char* title) {
     float rowH = 32 * S;
-    int cols = 2, n = RAIN_FX_COUNT;
+    int cols = 2;
     float h = 30 * S + ((n + cols - 1) / cols) * rowH + 6 * S;
     if (!draw) return h;
-    Row* m = T.Get("rainmask");
+    Row* m = T.Get(rowId);
     if (!m) return h;
     DL()->AddLine(ImVec2(x + 18 * S, y), ImVec2(x + w - 18 * S, y), U32(C_LINE));
-    Text(ImVec2(x + 18 * S, y + 8 * S), fSmall, C_DIM, "Zaklęcia (losowo z zaznaczonych)");
+    Text(ImVec2(x + 18 * S, y + 8 * S), fSmall, C_DIM, title);
     int mask = (int)m->val;
     float cw = (w - 36 * S) / cols;
     for (int i = 0; i < n; i++) {
         float cx = x + 18 * S + (i % cols) * cw, cy = y + 30 * S + (i / cols) * rowH;
-        ImGui::PushID(i + 3300);
+        ImGui::PushID(rowId); ImGui::PushID(i);
         bool on = (mask >> i) & 1;
-        ImGui::SetCursorScreenPos(ImVec2(cx, cy));
-        if (ImGui::InvisibleButton("##spr", ImVec2(cw - 8 * S, rowH - 4 * S))) { mask ^= (1 << i); m->val = (float)mask; T.Save(); }
+        ImGui::SetCursorScreenPos(ImVec2(cx - 6 * S, cy));
+        if (ImGui::InvisibleButton("##spr", ImVec2(cw - 4 * S, rowH - 4 * S))) { mask ^= (1 << i); m->val = (float)mask; T.Save(); }
         bool hv = ImGui::IsItemHovered();
-        if (hv) DL()->AddRectFilled(ImVec2(cx - 6 * S, cy), ImVec2(cx + cw - 8 * S, cy + rowH - 4 * S), U32(C_HOVER, 0.6f), R_BTN());
+        if (hv) DL()->AddRectFilled(ImVec2(cx - 6 * S, cy), ImVec2(cx + cw - 10 * S, cy + rowH - 4 * S), U32(C_HOVER, 0.6f), R_BTN());
         Check("##sp", on, ImVec2(cx, cy + (rowH - 4 * S - 18 * S) * 0.5f));
-        TextV(cx + 28 * S, cy + (rowH - 4 * S) * 0.5f, fReg, on ? C_TEXT : C_DIM, kRainNames[i]);
-        ImGui::PopID();
+        TextV(cx + 28 * S, cy + (rowH - 4 * S) * 0.5f, fReg, on ? C_TEXT : C_DIM, names[i]);
+        ImGui::PopID(); ImGui::PopID();
     }
     return h;
+}
+float RainSpells(float x, float y, float w, bool draw) { return SpellList(x, y, w, draw, "rainmask", kRainNames, RAIN_FX_COUNT, "Zaklęcia (losowo z zaznaczonych)"); }
+float TargetSpells(float x, float y, float w, bool draw) {
+    float h = SpellList(x, y, w, draw, "tspells", kTSpellNames, kTSpellCount, "Zaklęcia na cel (tylko jedna osoba, losowo z zaznaczonych)");
+    if (!draw) return h + BtnH() + 12 * S;
+    if (Button("##cast", "Rzuć w cel", ImVec2(x + 18 * S, y + h))) Act_CastOnTarget();
+    return h + BtnH() + 12 * S;
 }
 // ---- Świat / Teleport
 void TeleportPage(const Snapshot& s, float w) {
@@ -1144,16 +1317,49 @@ void TeleportPage(const Snapshot& s, float w) {
         tags.assign(cnt.begin(), cnt.end());
         std::sort(tags.begin(), tags.end(), [](auto& a, auto& b) { return a.second > b.second; });
     }
+    static std::string wpRegion; static std::set<std::string> wpTags;
+    std::vector<std::string> regions = { "Wszystkie regiony" };
+    for (auto& t : tags) { bool reg = false; for (auto& L : labels) if (L.region == t.first) { reg = true; break; } if (reg) regions.push_back(t.first); }
     BeginPanel("##wpf", nullptr, w);
-    InputBox("##wsearch", search, sizeof search, "Szukaj: miejsce, opis albo nazwa waypointu (OCR_, PSI_...)", w - 36 * S);
-    if (Chip("Wszystkie##wt", wpTag.empty())) wpTag.clear();
-    for (auto& t : tags) { std::string l = t.first + "  " + std::to_string(t.second) + "##t"; if (Chip(l.c_str(), wpTag == t.first)) wpTag = wpTag == t.first ? "" : t.first; }
+    float rw = 220 * S, tw = ButtonW("Rodzaj miejsca (00)");
+    InputBox("##wsearch", search, sizeof search, "Szukaj: opis albo nazwa waypointu (OCR_, PSI_...)", w - 36 * S - rw - tw - 16 * S);
+    ImGui::SameLine();
+    std::string cr = wpRegion.empty() ? "Wszystkie regiony" : wpRegion;
+    if (StrCombo("##wreg", regions, cr, rw)) wpRegion = cr == "Wszystkie regiony" ? "" : cr;
+    ImGui::SameLine();
+    char tl[48]; snprintf(tl, sizeof tl, wpTags.empty() ? "Rodzaj miejsca" : "Rodzaj miejsca (%d)", (int)wpTags.size());
+    ImVec2 tp = ImGui::GetCursorScreenPos();
+    if (Button("##wtags", tl, tp, !wpTags.empty())) ImGui::OpenPopup("##wtagpop");
+    ImGui::SetCursorScreenPos(ImVec2(tp.x, tp.y + BtnH()));
+    PopupStyle();
+    if (ImGui::BeginPopup("##wtagpop")) {
+        PF(fBold); ImGui::TextColored(C_TEXT, "Rodzaj miejsca (dowolny z zaznaczonych)"); ImGui::PopFont();
+        int col = 0;
+        for (auto& t : tags) {
+            bool isReg = std::find(regions.begin(), regions.end(), t.first) != regions.end();
+            if (isReg) continue;
+            ImGui::PushID(t.first.c_str());
+            bool on = wpTags.count(t.first) != 0;
+            ImVec2 cp = ImGui::GetCursorScreenPos();
+            if (Check("##t", on, cp)) { if (on) wpTags.erase(t.first); else wpTags.insert(t.first); }
+            ImGui::SameLine(0, 8 * S); ImGui::AlignTextToFramePadding();
+            ImGui::TextColored(on ? C_TEXT : C_DIM, "%s  (%d)", t.first.c_str(), t.second);
+            if (++col % 3) ImGui::SameLine(col % 3 * 190 * S); 
+            ImGui::PopID();
+        }
+        ImGui::NewLine();
+        if (Button("##wclr", "Wyczyść", ImGui::GetCursorScreenPos(), false)) wpTags.clear();
+        ImGui::Dummy(ImVec2(0, BtnH()));
+        ImGui::EndPopup();
+    }
+    PopupStyleEnd();
     ImGui::NewLine();
     EndPanel();
     std::vector<int> v;
     for (int i = 0; i < (int)g_cat.wps.size(); i++) {
         const auto& L = labels[i];
-        if (!wpTag.empty() && std::find(L.tags.begin(), L.tags.end(), wpTag) == L.tags.end()) continue;
+        if (!wpRegion.empty() && L.region != wpRegion) continue;
+        if (!wpTags.empty()) { bool any = false; for (auto& t : L.tags) if (wpTags.count(t)) any = true; if (!any) continue; }
         if (!(MatchQ(search, g_cat.wps[i].name, L.title) || MatchQ(search, L.region, L.region))) continue;
         v.push_back(i);
     }
@@ -1334,7 +1540,7 @@ void ConfigPage(float w) {
     PF(fSmall); ImGui::TextColored(C_DIM, "Skrót przypiszesz przy każdej opcji: najedź na wiersz i kliknij \"+ klawisz\". Działa z Ctrl / Alt / Shift."); ImGui::PopFont();
     int n = 0;
     for (auto& r : T.rows) {
-        if (r.kind == K_VALUE || (!r.hotkey && !r.hidden)) continue;
+        if (r.kind == K_VALUE || !r.hotkey) continue;
         n++;
         ImGui::PushID(r.id.c_str());
         ImVec2 p = ImGui::GetCursorScreenPos();
@@ -1351,6 +1557,113 @@ void ConfigPage(float w) {
     EndPanel();
 }
 
+// ------------------------------------------------------------------ tester checklist
+// Saved to G1CrazyTrainer_testy.txt (id \t status \t note) - Claude reads this file between builds.
+struct TestEntry { int status = 0; char note[300] = ""; };
+std::map<std::string, TestEntry> g_tests;
+bool g_testsLoaded = false, g_testsDirty = false; double g_testsAt = 0;
+int testFilter = 0; char testSearch[64] = "";
+struct KnownIssue { const char* id; const char* text; };
+const KnownIssue kIssues[] = {
+    { "UI-01", "Scroll kółkiem myszy w menu (b5: nie działał w ogóle)" },
+    { "UI-02", "Win+Shift+S / zrzut ekranu przy włączonej grze (b5: blokowało)" },
+    { "UI-03", "Esc w menu trainera tylko zamyka menu (b5: otwierało pauzę gry)" },
+    { "UI-04", "ESP i napisy chowają się w menu pauzy gry (Esc)" },
+    { "UI-05", "Suwaki: wartość jako tekst nad suwakiem, wszystkie zaczynają się równo" },
+    { "UI-06", "Przełącznik Obecna postać / Bezimienny / Cel - odstępy" },
+    { "UI-07", "Portrety: bez błysku, kamera wraca, głowa cała, neutralna poza" },
+    { "UI-08", "Spawner przedmiotów: filtry w okienku, statystyki, ikony przedmiotów" },
+    { "UI-09", "Okno aktywnych modów: wyłączone / tylko w menu / w grze" },
+    { "UI-10", "Lista skrótów pokazuje tylko ustawione" },
+    { "UI-11", "Teleport: filtr regionu i rodzaju miejsca" },
+    { "UI-12", "Podgląd wyglądu na żywo (Postać › Wygląd)" },
+};
+void LoadTests() {
+    g_testsLoaded = true;
+    FILE* f = fopen(DataPath("G1CrazyTrainer_testy.txt").c_str(), "rb");
+    if (!f) return;
+    char line[1024];
+    while (fgets(line, sizeof line, f)) {
+        std::string l(line);
+        while (!l.empty() && (l.back() == '\n' || l.back() == '\r')) l.pop_back();
+        size_t a = l.find('\t'); if (a == std::string::npos) continue;
+        size_t b = l.find('\t', a + 1);
+        TestEntry& e = g_tests[l.substr(0, a)];
+        e.status = atoi(l.substr(a + 1, b == std::string::npos ? std::string::npos : b - a - 1).c_str());
+        if (b != std::string::npos) snprintf(e.note, sizeof e.note, "%s", l.substr(b + 1).c_str());
+    }
+    fclose(f);
+}
+void SaveTests() {
+    g_testsDirty = false;
+    FILE* f = fopen(DataPath("G1CrazyTrainer_testy.txt").c_str(), "wb");
+    if (!f) return;
+    fprintf(f, "# build %d\n", TRAINER_BUILD);
+    for (auto& e : g_tests) {
+        if (!e.second.status && !e.second.note[0]) continue;
+        std::string n = e.second.note; for (auto& c : n) if (c == '\t' || c == '\n') c = ' ';
+        fprintf(f, "%s\t%d\t%s\n", e.first.c_str(), e.second.status, n.c_str());
+    }
+    fclose(f);
+}
+void TestRow(const std::string& id, const std::string& name, const std::string& where, float w, int idx) {
+    TestEntry& e = g_tests[id];
+    static const char* stN[] = { "Nie sprawdzone", "Działa", "Częściowo", "Nie działa" };
+    static const ImVec4* stC[] = { &C_DIM, &C_ST_OK, &C_ST_BUG, &C_ST_CRASH };
+    if (testFilter > 0 && e.status != testFilter - 1) return;
+    if (!MatchQ(testSearch, name, id) && !MatchQ(testSearch, where, e.note)) return;
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    float h = 86 * S;
+    DL()->AddRectFilled(p, ImVec2(p.x + w, p.y + h), U32(idx & 1 ? C_CARD : C_CARD2), R_ITEM());
+    DL()->AddRectFilled(ImVec2(p.x, p.y + 10 * S), ImVec2(p.x + 3 * S, p.y + h - 10 * S), U32(*stC[e.status]), 1.5f * S);
+    ImGui::PushID(id.c_str());
+    float pw; Pill(ImVec2(p.x + 14 * S, p.y + 12 * S), ("#" + id).c_str(), C_ACC, &pw);
+    TextClip(ImVec2(p.x + 22 * S + pw, p.y + 11 * S), fBold, C_TEXT, name, p.x + w * 0.55f);
+    TextClip(ImVec2(p.x + 22 * S + pw, p.y + 31 * S), fSmall, C_DIM, where, p.x + w * 0.55f);
+    float bx = p.x + w - 14 * S;
+    for (int k = 3; k >= 1; k--) {
+        float bw = ButtonW(stN[k], fReg);
+        bx -= bw;
+        ImGui::PushID(k);
+        bool act = e.status == k;
+        if (Button("##st", stN[k], ImVec2(bx, p.y + 10 * S), act, fReg, 0, stC[k])) { e.status = act ? 0 : k; g_testsDirty = true; g_testsAt = NowSec(); }
+        ImGui::PopID();
+        bx -= 6 * S;
+    }
+    ImGui::SetCursorScreenPos(ImVec2(p.x + 14 * S, p.y + 48 * S));
+    ImGui::SetNextItemWidth(w - 28 * S);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_WIN); ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, R_BTN());
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10 * S, 6 * S));
+    if (ImGui::InputTextWithHint("##note", "co się dzieje / co zmienić...", e.note, sizeof e.note)) { g_testsDirty = true; g_testsAt = NowSec(); }
+    ImGui::PopStyleVar(2); ImGui::PopStyleColor();
+    ImGui::PopID();
+    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 6 * S)); ImGui::Dummy(ImVec2(w, 0));
+}
+void TesterPage(float w) {
+    if (!g_testsLoaded) LoadTests();
+    BeginPanel("##tst", nullptr, w);
+    PF(fSmall); ImGui::TextColored(C_DIM, "Zaznaczaj, co działa, a co nie, i dopisuj uwagi. Zapisuje się samo do G1CrazyTrainer_testy.txt - przy następnym buildzie to przeczytam. Odwołuj się do #ID."); ImGui::PopFont();
+    InputBox("##tsq", testSearch, sizeof testSearch, "Szukaj po nazwie, #ID albo notatce...", w * 0.38f);
+    ImGui::SameLine();
+    const char* fl[] = { "Wszystko", "Nie sprawdzone", "Działa", "Częściowo", "Nie działa" };
+    for (int i = 0; i < 5; i++) if (Chip(fl[i], testFilter == i)) testFilter = i;
+    ImGui::NewLine();
+    int cnt[4] = {};
+    for (auto& r : T.rows) if (r.kind != K_VALUE) cnt[g_tests[r.id].status]++;
+    ImGui::TextColored(C_DIM, "Działa %d  ·  Częściowo %d  ·  Nie działa %d  ·  Nie sprawdzone %d", cnt[1], cnt[2], cnt[3], cnt[0]);
+    EndPanel();
+    SectionLabel("Menu i interfejs");
+    int i = 0;
+    for (auto& k : kIssues) TestRow(k.id, k.text, "zgłoszone przez ciebie", w, i++);
+    std::string lastCat;
+    for (auto& r : T.rows) {
+        if (r.kind == K_VALUE || r.cat == "Konfiguracja") continue;
+        if (r.cat != lastCat) { SectionLabel(r.cat.c_str()); lastCat = r.cat; }
+        TestRow(r.id, r.name, r.sub + " › " + r.group + (r.hist.empty() ? "" : "   ·   " + r.hist), w, i++);
+    }
+    if (g_testsDirty && NowSec() - g_testsAt > 0.8) SaveTests();
+}
+
 // ------------------------------------------------------------------ overlays
 void DrawEsp(const Snapshot& s, float W, float H) {
     ImDrawList* bg = ImGui::GetBackgroundDrawList();
@@ -1365,7 +1678,10 @@ void DrawEsp(const Snapshot& s, float W, float H) {
             static const int E[12][2] = { {0,1},{0,2},{0,4},{1,3},{1,5},{2,3},{2,6},{3,7},{4,5},{4,6},{5,7},{6,7} };
             for (auto& e : E) bg->AddLine(ImVec2(L.corners[e[0] * 2] * W, L.corners[e[0] * 2 + 1] * H), ImVec2(L.corners[e[1] * 2] * W, L.corners[e[1] * 2 + 1] * H), col, 1.3f * S);
         }
-        if (s.espLines && L.type == 0) bg->AddLine(ImVec2(W * 0.5f, H), ImVec2(L.box ? (L.bx0 + L.bx1) * 0.5f * W : a.x, L.box ? L.by1 * H : a.y), (col & 0x00FFFFFF) | 0x90000000, 1.2f * S);
+        if (s.espLines && L.type == 0) {   // to the box, else to the skeleton's feet, else to the label
+            ImVec2 e = L.box ? ImVec2((L.bx0 + L.bx1) * 0.5f * W, L.by1 * H) : (L.anchor && !L.bones.empty() ? ImVec2(L.ax * W, L.ay * H) : a);
+            bg->AddLine(ImVec2(W * 0.5f, H), e, (col & 0x00FFFFFF) | 0x90000000, 1.2f * S);
+        }
         if (L.text.empty() && L.sub.empty() && L.hp < 0 && L.lines.empty()) continue;
         ImVec2 ts = L.text.empty() ? ImVec2(0, 0) : ImGui::CalcTextSize(L.text.c_str());
         ImVec2 ss = L.sub.empty() ? ImVec2(0, 0) : ImGui::CalcTextSize(L.sub.c_str());
@@ -1444,13 +1760,13 @@ void Sidebar(const Snapshot& s, ImVec2 p, float w, float h) {
     float itemH = 38 * S, subH = 30 * S, ix0 = p.x + 12 * S, ix1 = p.x + w - 12 * S;
     for (int i = 0; i < (int)kSecs.size(); i++) {
         const Sec& sec = kSecs[i];
-        bool act = !cfgPage && curSec == i;
+        bool act = !cfgPage && !testsPage && curSec == i;
         bool single = sec.subs.size() == 1;
         ImGui::PushID(i + 100);
         ImGui::SetCursorScreenPos(ImVec2(ix0, y));
         if (ImGui::InvisibleButton("##sec", ImVec2(ix1 - ix0, itemH))) {
-            if (cfgPage || curSec != i) { curSec = i; curSub = 0; search[0] = 0; }
-            cfgPage = false; gsearch[0] = 0;
+            if (cfgPage || testsPage || curSec != i) { curSec = i; curSub = 0; search[0] = 0; }
+            cfgPage = false; testsPage = false; gsearch[0] = 0;
         }
         bool hov = ImGui::IsItemHovered();
         if (act || hov) DL()->AddRectFilled(ImVec2(ix0, y), ImVec2(ix1, y + itemH), U32(act ? C_ACCD : C_HOVER, act ? 0.6f : 0.6f), R_ITEM());
@@ -1476,13 +1792,25 @@ void Sidebar(const Snapshot& s, ImVec2 p, float w, float h) {
         }
     }
     float by = p.y + h - 14 * S - itemH;
+    if (T.testerMode) {
+        float ty = by - itemH - 4 * S;
+        ImGui::SetCursorScreenPos(ImVec2(ix0, ty));
+        if (ImGui::InvisibleButton("##tests", ImVec2(ix1 - ix0, itemH))) { testsPage = true; cfgPage = false; gsearch[0] = 0; }
+        bool th = ImGui::IsItemHovered();
+        if (testsPage || th) DL()->AddRectFilled(ImVec2(ix0, ty), ImVec2(ix1, ty + itemH), U32(testsPage ? C_ACCD : C_HOVER, 0.6f), R_ITEM());
+        IconAt(DL(), ImVec2(ix0 + 20 * S, ty + itemH * 0.5f), ICN_CHECK, U32(testsPage ? C_ACC : C_DIM), 14 * S);
+        TextV(ix0 + 40 * S, ty + itemH * 0.5f, testsPage ? fBold : fReg, testsPage || th ? C_TEXT : C_DIM, "Testy");
+        by = ty + itemH + 4 * S;
+        by = p.y + h - 14 * S - itemH;
+        y = std::max(y, 0.f);
+    }
     ImGui::SetCursorScreenPos(ImVec2(ix0, by));
-    if (ImGui::InvisibleButton("##cfg", ImVec2(ix1 - ix0, itemH))) { cfgPage = true; gsearch[0] = 0; }
+    if (ImGui::InvisibleButton("##cfg", ImVec2(ix1 - ix0, itemH))) { cfgPage = true; testsPage = false; gsearch[0] = 0; }
     bool hov = ImGui::IsItemHovered();
     if (cfgPage || hov) DL()->AddRectFilled(ImVec2(ix0, by), ImVec2(ix1, by + itemH), U32(cfgPage ? C_ACCD : C_HOVER, 0.6f), R_ITEM());
     IconAt(DL(), ImVec2(ix0 + 20 * S, by + itemH * 0.5f), ICN_COG, U32(cfgPage ? C_ACC : C_DIM), 14 * S);
     TextV(ix0 + 40 * S, by + itemH * 0.5f, cfgPage ? fBold : fReg, cfgPage || hov ? C_TEXT : C_DIM, "Konfiguracja");
-    float pcH = 84 * S, py = by - pcH - 12 * S;
+    float pcH = 84 * S, py = by - pcH - 12 * S - (T.testerMode ? itemH + 4 * S : 0);
     if (py < y + 10 * S) return;
     DL()->AddRectFilled(ImVec2(ix0, py), ImVec2(ix1, py + pcH), U32(C_CARD), R_ITEM());
     if (!s.inGame) {
@@ -1559,7 +1887,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
     std::string toast; double toastUntil;
     { std::lock_guard<std::mutex> l(T.mtx); s = T.snap; toast = T.toast; toastUntil = T.toastUntil; }
     // game paused in its own menu (Esc) / loading: the game frame stopped -> hide our overlays
-    bool live = NowSec() - T.lastTick < 0.3;
+    bool live = NowSec() - T.lastTick < 0.3 && !T.inGameMenu;
     ImDrawList* bg = ImGui::GetBackgroundDrawList();
     if (live) {
         DrawEsp(s, dispW, dispH);
@@ -1582,7 +1910,26 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
             hy += ts.y + 22 * S;
         }
         ImGui::PopFont();
-        if (gx::On("statuswin") && s.inGame) StatusWindow(menuOpen, dispW);
+    }
+    int swm = (int)gx::Val("statuswin");
+    if (s.inGame && ((swm == 2 && (live || menuOpen)) || (swm == 1 && menuOpen))) StatusWindow(menuOpen, dispW);
+    // photo studio running: cover the screen so the parked camera is never seen
+    if (s.photoBusy) {
+        bool full = !menuOpen || s.photoBatch;
+        ImDrawList* dl = full ? ImGui::GetForegroundDrawList() : bg;
+        dl->AddRectFilled(ImVec2(0, 0), ImVec2(dispW, dispH), IM_COL32(12, 11, 18, 255));
+        if (full) {
+            char b[160];
+            if (s.photoTotal > 1) snprintf(b, sizeof b, "Generuję portrety i ikony...  %d / %d", s.photoDone, s.photoTotal);
+            else snprintf(b, sizeof b, "Generuję portret...");
+            PF(fBig); ImVec2 ts = ImGui::CalcTextSize(b); dl->AddText(ImVec2(dispW * 0.5f - ts.x * 0.5f, dispH * 0.46f), U32(C_TEXT), b); ImGui::PopFont();
+            float bw = 360 * S, f = s.photoTotal > 0 ? (float)s.photoDone / s.photoTotal : 0.f;
+            ImVec2 b0(dispW * 0.5f - bw * 0.5f, dispH * 0.46f + 36 * S);
+            dl->AddRectFilled(b0, ImVec2(b0.x + bw, b0.y + 6 * S), U32(C_TRACK), 3 * S);
+            dl->AddRectFilled(b0, ImVec2(b0.x + bw * f, b0.y + 6 * S), U32(C_ACC), 3 * S);
+            const char* h = "raz na postać - potem portret wczytuje się z pliku  ·  Esc przerywa";
+            PF(fSmall); ImVec2 hs = ImGui::CalcTextSize(h); dl->AddText(ImVec2(dispW * 0.5f - hs.x * 0.5f, b0.y + 18 * S), U32(C_DIM), h); ImGui::PopFont();
+        }
     }
     if ((live || menuOpen) && NowSec() < toastUntil && !toast.empty()) {
         PF(fBold);
@@ -1594,6 +1941,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         fg->AddText(p, U32(C_ACC), toast.c_str());
         ImGui::PopFont();
     }
+    if (g_testsDirty && NowSec() - g_testsAt > 0.8) SaveTests();
     if (!menuOpen) { editRow = nullptr; bindRow = nullptr; return; }
 
     ImGui::SetNextWindowSize(ImVec2(std::min(dispW * 0.92f, 1080 * S), std::min(dispH * 0.88f, 780 * S)), ImGuiCond_FirstUseEver);
@@ -1608,7 +1956,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
     float cx = wp.x + sideW + 26 * S, cw = ws.x - sideW - 50 * S;
     float hcy = wp.y + 36 * S;
     const Sec& sec = kSecs[curSec];
-    std::string crumbA = cfgPage ? "Konfiguracja" : sec.name, crumbB = (cfgPage || sec.subs.size() == 1) ? "" : sec.subs[curSub];
+    std::string crumbA = cfgPage ? "Konfiguracja" : testsPage ? "Testy" : sec.name, crumbB = (cfgPage || testsPage || sec.subs.size() == 1) ? "" : sec.subs[curSub];
     if (gsearch[0]) { crumbA = "Wyniki wyszukiwania"; crumbB = ""; }
     float sw = 240 * S, sh = 34 * S;
     float hx = wp.x + ws.x - 24 * S - sw;
@@ -1645,21 +1993,30 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         Masonry(cards, w);
     } else if (cfgPage) {
         ConfigPage(w);
+    } else if (testsPage && T.testerMode) {
+        TesterPage(w);
     } else {
         std::string cat = sec.name, sub = sec.subs[curSub];
         auto cards = CardsFor(cat, sub);
-        if (cat == "Bohater" && (sub == "Statystyki" || sub == "Umiejętności" || sub == "Wygląd")) {
+        if (cat == "Postać" && (sub == "Statystyki" || sub == "Umiejętności" || sub == "Wygląd")) {
             SubjectBar(s, w);
             if (sub == "Wygląd") {
-                if (CardSpec* c = FindCard(cards, "Twarz i ciało")) {
-                    c->customH = 66 * S;
-                    c->custom = [](float x, float y, float cw2) -> float {
-                        DL()->AddLine(ImVec2(x + 18 * S, y), ImVec2(x + cw2 - 18 * S, y), U32(C_LINE));
-                        if (Button("##look", "Zastosuj wygląd", ImVec2(x + 18 * S, y + 18 * S))) Act_ApplyLook();
-                        if (Button("##photo", "Odśwież portret", ImVec2(x + 18 * S + ButtonW("Zastosuj wygląd") + 8 * S, y + 18 * S), false)) Act_Photo(0);
-                        return 66 * S;
-                    };
-                }
+                // live preview: look values changed -> apply after a short pause and refresh the portrait
+                int sig = (int)gx::Val("vhead") * 1000000 + (int)gx::Val("vface") * 100 + (int)gx::Val("vbody") * 10 + (int)gx::Val("vskin");
+                if (lookSig == 0) lookSig = sig;
+                if (sig != lookSig) { lookSig = sig; lookAt = NowSec() + 0.5; }
+                if (lookAt > 0 && NowSec() > lookAt && !ImGui::IsMouseDown(0)) { lookAt = 0; Act_ApplyLook(); }
+                CardSpec pv{ "Podgląd", {}, nullptr, 236 * S, false };
+                std::string key = s.subjectInst; uintptr_t sp = s.subjectPtr;
+                pv.custom = [key, sp](float x, float y, float cw2) -> float {
+                    float sz = 190 * S;
+                    ImVec2 c(x + cw2 * 0.5f, y + 8 * S + sz * 0.5f);
+                    if (void* tex = PortraitFor(key)) DL()->AddImage((ImTextureID)(intptr_t)tex, ImVec2(c.x - sz * 0.5f, c.y - sz * 0.5f), ImVec2(c.x + sz * 0.5f, c.y + sz * 0.5f));
+                    else { IconAt(DL(), c, ICN_USER, U32(C_FAINT), 40 * S); AskPhoto(sp, key); }
+                    float bw = ButtonW("Odśwież portret");
+                    if (Button("##photo", "Odśwież portret", ImVec2(x + (cw2 - bw) * 0.5f, y + sz + 14 * S), false)) Act_Photo(0, true);
+                    return 236 * S;
+                };
                 CardSpec nm{ "Imię", {}, nullptr, 0, false };
                 nm.customH = 60 * S;
                 nm.custom = [](float x, float y, float cw2) -> float {
@@ -1670,10 +2027,18 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
                     return 60 * S;
                 };
                 cards.insert(cards.begin(), nm);
+                cards.insert(cards.begin(), pv);
             }
             Masonry(cards, w);
         }
-        else if (cat == "Postacie" && sub == "Cel") { TargetPage(s, w); Masonry(cards, w); }
+        else if (cat == "Postacie" && sub == "Cel") {
+            TargetPage(s, w);
+            if (CardSpec* c = FindCard(cards, "Magia na celu")) {
+                c->customH = TargetSpells(0, 0, 0, false);
+                c->custom = [](float x, float y, float cw2) { return TargetSpells(x, y, cw2, true); };
+            }
+            Masonry(cards, w);
+        }
         else if (cat == "Ekwipunek" && sub == "Spawner") ItemSpawner(w);
         else if (cat == "Ekwipunek" && sub == "Zestawy") { Masonry(cards, w); SetsPage(w); }
         else if (cat == "Postacie" && sub == "Spawner") { Masonry(cards, w); NpcSpawner(w); }

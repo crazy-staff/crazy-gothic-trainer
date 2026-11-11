@@ -259,6 +259,60 @@ WpLabel DescribeWp(const std::string& n) {
     if (!L.region.empty()) L.tags.insert(L.tags.begin(), L.region);
     return L;
 }
+namespace {
+struct M34 { float m[12]; };
+M34 Mul(const M34& a, const float* b) {
+    M34 r;
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 4; j++)
+            r.m[i * 4 + j] = a.m[i * 4 + 0] * b[0 * 4 + j] + a.m[i * 4 + 1] * b[1 * 4 + j] + a.m[i * 4 + 2] * b[2 * 4 + j] + (j == 3 ? a.m[i * 4 + 3] : 0.f);
+    return r;
+}
+}
+bool ModelNodes(void* npc, std::vector<ModelNode>& out) {
+    out.clear();
+    void* model = VobModel(npc);
+    if (!model) return false;
+    void** arr = fld<void**>(model, MODEL_NODELIST);
+    int num = fld<int>(model, MODEL_NODELIST + 8);
+    if (!arr || num <= 0 || num > 200 || IsBadReadPtr(arr, num * 4)) return false;
+    std::vector<std::pair<void*, int>> idx;
+    for (int i = 0; i < num; i++) { if (!arr[i] || IsBadReadPtr(arr[i], 0x4C)) return false; idx.push_back({ arr[i], i }); }
+    auto find = [&](void* p) { for (auto& e : idx) if (e.first == p) return e.second; return -1; };
+    std::vector<M34> om(num);
+    std::vector<char> done(num, 0);
+    out.resize(num);
+    M34 world; const float* W = &fld<float>(npc, VOB_TRAFO); for (int k = 0; k < 12; k++) world.m[k] = W[k];
+    zVEC3 base = Pos(npc);
+    for (int i = 0; i < num; i++) out[i].parent = -1;
+    for (int pass = 0; pass < 4; pass++)
+        for (int i = 0; i < num; i++) {
+            if (done[i]) continue;
+            void* p = fld<void*>(arr[i], 0);
+            const float* local = &fld<float>(arr[i], 0xC);
+            int pi = p ? find(p) : -1;
+            if (pi < 0) { om[i] = Mul(world, local); done[i] = 1; continue; }
+            if (!done[pi]) continue;
+            om[i] = Mul(om[pi], local); out[i].parent = pi; done[i] = 1;
+        }
+    for (int i = 0; i < num; i++) {
+        out[i].pos = { om[i].m[3], om[i].m[7], om[i].m[11] };
+        if (!done[i] || Dist(out[i].pos, base) > 800.f) out[i].parent = -2;
+        void* proto = fld<void*>(arr[i], 4);
+        if (proto && !IsBadReadPtr(proto, 0x18)) {
+            const zSTRING& nm = fld<zSTRING>(proto, 4);
+            if (nm.ptr && nm.len > 0 && nm.len < 64 && !IsBadReadPtr(nm.ptr, nm.len)) out[i].name.assign(nm.ptr, nm.len);
+        }
+        if (out[i].name.rfind("ZS_", 0) == 0) out[i].parent = -2;
+    }
+    return true;
+}
+bool HeadPos(void* npc, zVEC3& o) {
+    std::vector<ModelNode> n;
+    if (!ModelNodes(npc, n)) return false;
+    for (auto& x : n) if (x.parent != -2 && x.name.find("HEAD") != std::string::npos) { o = x.pos; return true; }
+    return false;
+}
 bool GameFocused() { return GetForegroundWindow() == g_gameHwnd; }
 bool On(const char* id) { Row* r = T.Get(id); return r && r->on; }
 float Val(const char* id) { Row* r = T.Get(id); return r ? r->val : 0.f; }

@@ -127,6 +127,11 @@ std::vector<std::string> ChestContents(void* chest) {
 }
 }
 
+void Cap(std::vector<std::pair<float, Label>>& v, int maxN, Snapshot& s) {   // nearest first, at most maxN
+    std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    if ((int)v.size() > maxN) { s.espHidden += (int)v.size() - maxN; v.resize(maxN); }
+    for (auto& e : v) s.labels.push_back(std::move(e.second));
+}
 void Esp_Hooks() {}
 void Esp_World() { g_npc.clear(); g_chests.clear(); g_lastNpc = g_lastChest = 0; }
 
@@ -141,6 +146,7 @@ void Esp_Tick(TickCtx& c) {
     int boxMode = (int)Val("espboxmode");
     double now = NowSec();
 
+    std::vector<std::pair<float, Label>> npcL, itemL, chestL;
     if (npcOn) {
         bool refresh = now - g_lastNpc > 0.25;
         if (refresh) {
@@ -178,28 +184,60 @@ void Esp_Tick(TickCtx& c) {
             const float* b = &fld<float>(n, VOB_BBOX);
             if (!Project({ p.x, b[4] + 15.f, p.z }, L.x, L.y)) return;
             bool wantSkel = On("espskel") && d < 4000.f;
-            if (On("espbox") && boxMode != 3) Boxes(n, L, boxMode);
-            if ((On("espbox") && boxMode == 3) || wantSkel) {
-                std::vector<zVEC3> pts; std::vector<int> par;
-                if (Skeleton(n, pts, par)) {
+            bool fit = On("espbox") && (boxMode == 3 || boxMode == 4);
+            if (On("espbox") && !fit) Boxes(n, L, boxMode);
+            if (fit || wantSkel || s.espLines) {
+                std::vector<ModelNode> nodes;
+                if (ModelNodes(n, nodes)) {
                     float x0 = 1e9f, y0 = 1e9f, x1 = -1e9f, y1 = -1e9f; int nproj = 0;
-                    std::vector<float> sx(pts.size()), sy(pts.size()); std::vector<char> ok(pts.size(), 0);
-                    for (size_t i = 0; i < pts.size(); i++) {
-                        if (par[i] == -2) continue;
-                        if (!Project(pts[i], sx[i], sy[i])) continue;
+                    std::vector<float> sx(nodes.size()), sy(nodes.size()); std::vector<char> ok(nodes.size(), 0);
+                    for (size_t i = 0; i < nodes.size(); i++) {
+                        if (nodes[i].parent == -2) continue;
+                        if (!Project(nodes[i].pos, sx[i], sy[i])) continue;
                         ok[i] = 1; nproj++;
                         x0 = std::min(x0, sx[i]); y0 = std::min(y0, sy[i]); x1 = std::max(x1, sx[i]); y1 = std::max(y1, sy[i]);
                     }
                     if (wantSkel)
-                        for (size_t i = 0; i < pts.size(); i++)
-                            if (par[i] >= 0 && ok[i] && ok[par[i]]) { L.bones.push_back(sx[i]); L.bones.push_back(sy[i]); L.bones.push_back(sx[par[i]]); L.bones.push_back(sy[par[i]]); }
-                    if (On("espbox") && boxMode == 3 && nproj > 3) {
+                        for (size_t i = 0; i < nodes.size(); i++) {
+                            int pi = nodes[i].parent;
+                            if (pi >= 0 && ok[i] && ok[pi]) { L.bones.push_back(sx[i]); L.bones.push_back(sy[i]); L.bones.push_back(sx[pi]); L.bones.push_back(sy[pi]); }
+                        }
+                    if (nproj > 3) { L.anchor = true; L.ax = (x0 + x1) * 0.5f; L.ay = y1; }
+                    if (fit && boxMode == 3 && nproj > 3) {
                         float px = (x1 - x0) * 0.18f + 0.002f, py = (y1 - y0) * 0.08f + 0.004f;
                         L.box = 1; L.bx0 = x0 - px; L.bx1 = x1 + px; L.by0 = y0 - py * 1.6f; L.by1 = y1 + py * 0.5f;
                     }
+                    if (fit && boxMode == 4) {   // 3D box fitted to the bones, in the character's own orientation
+                        const float* m = &fld<float>(n, VOB_TRAFO);
+                        float mn[3] = { 1e9f, 1e9f, 1e9f }, mx[3] = { -1e9f, -1e9f, -1e9f };
+                        int cnt = 0;
+                        for (auto& nd : nodes) {
+                            if (nd.parent == -2) continue;
+                            float dv[3] = { nd.pos.x - m[3], nd.pos.y - m[7], nd.pos.z - m[11] };
+                            for (int a2 = 0; a2 < 3; a2++) {
+                                float l = m[0 * 4 + a2] * dv[0] + m[1 * 4 + a2] * dv[1] + m[2 * 4 + a2] * dv[2];
+                                mn[a2] = std::min(mn[a2], l); mx[a2] = std::max(mx[a2], l);
+                            }
+                            cnt++;
+                        }
+                        if (cnt > 3) {
+                            const float pad[3] = { 14.f, 12.f, 14.f };
+                            for (int a2 = 0; a2 < 3; a2++) { mn[a2] -= pad[a2]; mx[a2] += pad[a2]; }
+                            bool all = true; float bx0 = 1e9f, by0 = 1e9f, bx1 = -1e9f, by1 = -1e9f;
+                            for (int i = 0; i < 8 && all; i++) {
+                                float l[3] = { (i & 1) ? mx[0] : mn[0], (i & 2) ? mx[1] : mn[1], (i & 4) ? mx[2] : mn[2] };
+                                zVEC3 wp{ m[3] + m[0] * l[0] + m[1] * l[1] + m[2] * l[2], m[7] + m[4] * l[0] + m[5] * l[1] + m[6] * l[2], m[11] + m[8] * l[0] + m[9] * l[1] + m[10] * l[2] };
+                                float qx, qy;
+                                if (!Project(wp, qx, qy)) { all = false; break; }
+                                L.corners[i * 2] = qx; L.corners[i * 2 + 1] = qy;
+                                bx0 = std::min(bx0, qx); by0 = std::min(by0, qy); bx1 = std::max(bx1, qx); by1 = std::max(by1, qy);
+                            }
+                            if (all) { L.box = 2; L.bx0 = bx0; L.by0 = by0; L.bx1 = bx1; L.by1 = by1; }
+                        }
+                    }
                 }
             }
-            if (On("espbox") && boxMode == 3 && L.box == 0) Boxes(n, L, 1);   // no skeleton -> silhouette
+            if (fit && L.box == 0) Boxes(n, L, 1);   // no skeleton -> silhouette
             if (On("espname")) L.text = inf.name;
             std::string sub;
             auto add = [&](const std::string& t) { if (!sub.empty()) sub += "  ·  "; sub += t; };
@@ -210,8 +248,9 @@ void Esp_Tick(TickCtx& c) {
             if (On("esphp") && Attr(n, 1) > 0) L.hp = std::max(0.f, std::min(1.f, (float)Attr(n, 0) / Attr(n, 1)));
             if (On("espeq") && d < 1500.f) L.lines = inf.eq;
             L.color = dead ? g_espColors[4] : inf.color;
-            s.labels.push_back(std::move(L));
+            npcL.push_back({ d, std::move(L) });
         });
+        Cap(npcL, (int)Val("espmaxnpc"), s);
     }
     void* w = GameWorld();
     if (itemOn) {
@@ -225,10 +264,11 @@ void Esp_Tick(TickCtx& c) {
             Label L{}; L.type = 1; L.hp = -1;
             if (!Project(p, L.x, L.y)) return;
             L.text = ItemLine(it);
-            char b[48]; snprintf(b, sizeof b, "%d rudy  ·  %.0fm", v, d / 100.f); L.sub = b;
+            char b[64]; snprintf(b, sizeof b, "sprzedasz za %d rudy  ·  %.0fm", v / 2, d / 100.f); L.sub = b;   // Gothic 1 traders pay half
             L.color = g_espColors[5];
-            s.labels.push_back(std::move(L));
+            itemL.push_back({ d, std::move(L) });
         });
+        Cap(itemL, (int)Val("espmaxitem"), s);
     }
     if (chestOn) {
         if (now - g_lastChest > 3.0 || g_chests.empty()) {
@@ -245,8 +285,9 @@ void Esp_Tick(TickCtx& c) {
             L.text = "Skrzynia"; char b[24]; snprintf(b, sizeof b, "%.0fm", d / 100.f); L.sub = b;
             if (On("espchestinv") && d < 2500.f) L.lines = ChestContents(v);
             L.color = g_espColors[6];
-            s.labels.push_back(std::move(L));
+            chestL.push_back({ d, std::move(L) });
         }
+        Cap(chestL, (int)Val("espmaxchest"), s);
     }
 }
 
@@ -259,6 +300,7 @@ void Esp_Register() {
     CardTitle("Postacie");
     tog("espnpc", "Pokaż postacie", P, false, ST_OK, "działa"); Icon(ICN_EYE);
     T.Add(MkRow("esprange", "Maksymalny zasięg", "m", C, P, K_VALUE, 50, 5, 300)); St(ST_OK, "działa");
+    T.Add(MkRow("espmaxnpc", "Maks. postaci naraz", "najbliższe; mniej = lżej dla słabszych komputerów", C, P, K_VALUE, 40, 1, 200)); St(ST_NEW, "nowe w build 6");
     T.Add(MkRow("espfilter", "Pokazuj", "", C, P, K_VALUE, 0, 0, 4));
     Opts({ { 0, "Wszystkich" }, { 1, "Tylko wrogów" }, { 2, "Tylko ludzi" }, { 3, "Tylko potwory" }, { 4, "Tylko drużynę" } }); St(ST_OK, "działa");
     tog("espdead", "Martwi", P, false, ST_OK, "działa");
@@ -271,8 +313,9 @@ void Esp_Register() {
     tog("espeq", "Ekwipunek (do 15 m)", P, false, ST_OK, "build 3: działa; build 4: liczba sztuk");
     CardTitle("Ramka i szkielet");
     tog("espbox", "Ramka", P, false, ST_BUG, "build 3: ramki 2D/3D niedopasowane, sylwetka OK; build 4: ramka dopasowana do kości");
-    T.Add(MkRow("espboxmode", "Rodzaj ramki", "", C, P, K_VALUE, 3, 0, 3));
-    Opts({ { 3, "Dopasowana (z kości)" }, { 1, "Sylwetka" }, { 0, "Bounding box 2D" }, { 2, "Bounding box 3D" } }); St(ST_NEW, "build 4: nowa 'dopasowana'");
+    T.Add(MkRow("espboxmode", "Rodzaj ramki", "", C, P, K_VALUE, 3, 0, 4));
+    Opts({ { 3, "2D dopasowana do kości" }, { 4, "3D dopasowana do kości" }, { 1, "Sylwetka" }, { 0, "Bounding box 2D" }, { 2, "Bounding box 3D" } });
+    St(ST_NEW, "build 6: nowa ramka 3D z kości");
     tog("espskel", "Szkielet", P, false, ST_NEW, "nowe w build 4 (do 40 m)");
     tog("espline", "Linie od dołu ekranu", P, false, ST_OK, "działa");
 
@@ -280,7 +323,9 @@ void Esp_Register() {
     CardTitle("Przedmioty na ziemi");
     tog("espitems", "Pokaż przedmioty", I, false, ST_OK, "działa"); Icon(ICN_BAG);
     T.Add(MkRow("espitemval", "Min. wartość", "rudy", C, I, K_VALUE, 0, 0, 5000)); St(ST_OK, "działa");
+    T.Add(MkRow("espmaxitem", "Maks. przedmiotów naraz", "najbliższe", C, I, K_VALUE, 40, 1, 200)); St(ST_NEW, "nowe w build 6");
     CardTitle("Skrzynie");
     tog("espchest", "Pokaż skrzynie", I, false, ST_OK, "działa"); Icon(ICN_CUBE);
     tog("espchestinv", "Zawartość skrzyń", I, false, ST_BUG, "build 3: brak liczby sztuk; build 4: liczba sztuk z obiektu przedmiotu");
+    T.Add(MkRow("espmaxchest", "Maks. skrzyń naraz", "najbliższe", C, I, K_VALUE, 20, 1, 100)); St(ST_NEW, "nowe w build 6");
 }

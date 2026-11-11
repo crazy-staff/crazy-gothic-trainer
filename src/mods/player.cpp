@@ -9,6 +9,7 @@ using namespace g1;
 using namespace gx;
 
 namespace {
+void* g_percSelf = nullptr;   // npc currently running its perception scripts
 uint32_t g_ncSaved = 0; void* g_ncNpc = nullptr; int g_ncMode = -1;
 
 struct Tal { const char* id; const char* name; const char* konst; int maxLvl; std::vector<std::pair<int, std::string>> opts; };
@@ -19,8 +20,8 @@ const std::vector<std::pair<int, std::string>> kCircle = { { 0, "Brak" }, { 1, "
 const Tal kTal[] = {
     { "tal1h", "Broń jednoręczna", "NPC_TALENT_1H", 2, kLvl3 }, { "tal2h", "Broń dwuręczna", "NPC_TALENT_2H", 2, kLvl3 },
     { "talbow", "Łuk", "NPC_TALENT_BOW", 2, kLvl3 }, { "talxbow", "Kusza", "NPC_TALENT_CROSSBOW", 2, kLvl3 },
-    { "talmage", "Krąg magii", "NPC_TALENT_MAGE", 6, kCircle }, { "tallock", "Otwieranie zamków", "NPC_TALENT_PICKLOCK", 1, kLvl2 },
-    { "talpocket", "Kradzież kieszonkowa", "NPC_TALENT_PICKPOCKET", 1, kLvl2 }, { "talsneak", "Skradanie", "NPC_TALENT_SNEAK", 1, kLvl2 },
+    { "talmage", "Krąg magii", "NPC_TALENT_MAGE", 6, kCircle }, { "tallock", "Otwieranie zamków", "NPC_TALENT_PICKLOCK", 2, kLvl3 },
+    { "talpocket", "Kradzież kieszonkowa", "NPC_TALENT_PICKPOCKET", 2, kLvl3 }, { "talsneak", "Skradanie", "NPC_TALENT_SNEAK", 1, kLvl2 },
     { "talacro", "Akrobatyka", "NPC_TALENT_ACROBAT", 1, kLvl2 },
 };
 
@@ -107,11 +108,31 @@ void NoclipFrame(float dt) {
             return;
     }
     SetPos(h, np);
-    // the camera AI eases towards the hero, so fast movement made it lag behind: carry it along
-    if (On("nccam")) if (void* cv = fld<void*>(Game(), OG_CAMVOB)) {
-        zVEC3 cp = Pos(cv);
-        SafeSetPos(cv, { cp.x + np.x - p.x, cp.y + np.y - p.y, cp.z + np.z - p.z });
+}
+// rigid camera: the offset/rotation relative to the hero is captured once and then kept exactly,
+// so the hero stays in the middle of the screen however fast it turns or strafes
+bool g_camRel = false; float g_rr[9], g_rp[3];
+void NoclipCamera(void* h) {
+    void* cv = fld<void*>(Game(), OG_CAMVOB);
+    if (!cv || !On("nccam")) { g_camRel = false; return; }
+    const float* H = &fld<float>(h, VOB_TRAFO);
+    const float* C = &fld<float>(cv, VOB_TRAFO);
+    auto R = [](const float* m, int r, int c) { return m[r * 4 + c]; };
+    if (!g_camRel) {
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++) { float v = 0; for (int k = 0; k < 3; k++) v += R(H, k, i) * R(C, k, j); g_rr[i * 3 + j] = v; }
+        float d[3] = { C[3] - H[3], C[7] - H[7], C[11] - H[11] };
+        for (int i = 0; i < 3; i++) { g_rp[i] = 0; for (int k = 0; k < 3; k++) g_rp[i] += R(H, k, i) * d[k]; }
+        g_camRel = true;
+        return;
     }
+    float m[12];
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) { float v = 0; for (int k = 0; k < 3; k++) v += R(H, i, k) * g_rr[k * 3 + j]; m[i * 4 + j] = v; }
+        float v = H[i * 4 + 3]; for (int k = 0; k < 3; k++) v += R(H, i, k) * g_rp[k];
+        m[i * 4 + 3] = v;
+    }
+    Cam_Override(m);
 }
 
 // ---- hooks ---------------------------------------------------------------------------------
@@ -142,6 +163,7 @@ int __fastcall hkCanSense(void* self, void* edx, void* vob) {
     void* h = Player();
     if (vob && vob == h && self != h) {
         if (On("ghost")) return 0;
+        if (On("noclip") && On("ncignore")) return 0;
         if (On("allynotalk") && IsAlly(self)) return 0;   // allies stop interrupting the player with dialogs
     }
     return oCanSense(self, edx, vob);
@@ -164,18 +186,33 @@ void __fastcall hkPercCheck(void* self, void* edx) {
     static int pFight = -2, pDraw = -2;
     if (pFight == -2) { pFight = ConstInt("PERC_ASSESSFIGHTER", -1); pDraw = ConstInt("PERC_DRAWWEAPON", -1); }
     if (!On("noweapon") || self == Player()) { oPercCheck(self, edx); return; }
+    g_percSelf = self;
     int n = std::min(33, fld<int>(self, NPC_PERCCOUNT));
     int* list = &fld<int>(self, NPC_PERCLIST);
     int saved[33]; bool any = false;
     for (int i = 0; i < n; i++) { saved[i] = list[i * 2]; if ((list[i * 2] == pFight || list[i * 2] == pDraw) && list[i * 2] > 0) { list[i * 2] = 0; any = true; } }
     oPercCheck(self, edx);
+    g_percSelf = nullptr;
     if (any) { int m = std::min(n, fld<int>(self, NPC_PERCCOUNT)); for (int i = 0; i < m; i++) if (list[i * 2] == 0 && saved[i] > 0) list[i * 2] = saved[i]; }
+}
+// hit reaction (stumble / knock-back) only - damage still applies
+using fnDmgAnim = void(__fastcall*)(void*, void*, void*);
+fnDmgAnim oDmgAnim = nullptr;
+void __fastcall hkDmgAnim(void* self, void* edx, void* desc) {
+    if (self && On("nohit") && (self == Player() || self == MainHero())) return;
+    oDmgAnim(self, edx, desc);
+}
+// while an npc processes its perceptions, the player's drawn weapon is invisible to its scripts
+using fnFightMode = int(__fastcall*)(void*, void*, int);
+fnFightMode oFightMode = nullptr;
+int __fastcall hkFightMode(void* self, void* edx, int mode) {
+    if (g_percSelf && self == Player() && On("noweapon")) return 0;
+    return oFightMode(self, edx, mode);
 }
 // the real hit path (melee, ranged, magic) - build 3 hooked a legacy wrapper that melee never used
 using fnDamage = void(__fastcall*)(void*, void*, void*);
 fnDamage oDamage = nullptr;
 void __fastcall hkDamage(void* self, void* edx, void* desc) {
-    if (self && On("nohit") && (self == Player() || self == MainHero())) return;   // attacks pass through
     if (self && desc && (self == Player() || self == MainHero())) {
         void* att = fld<void*>(desc, 8);                  // oSDamageDescriptor::pNpcAttacker
         if (IsNpc(att) && IsAlly(att)) { Party_AllyHitPlayer(att); return; }   // party never hurts you
@@ -191,6 +228,8 @@ void Player_Hooks() {
     MH_CreateHook((LPVOID)F_NPC_PASSIVEPERC, (LPVOID)&hkPassive, (LPVOID*)&oPassive);
     MH_CreateHook((LPVOID)F_NPC_ONDAMAGE_DESC, (LPVOID)&hkDamage, (LPVOID*)&oDamage);
     MH_CreateHook((LPVOID)0x6B7400, (LPVOID)&hkPercCheck, (LPVOID*)&oPercCheck);   // oCNpc::PerceptionCheck
+    MH_CreateHook((LPVOID)0x741990, (LPVOID)&hkDmgAnim, (LPVOID*)&oDmgAnim);       // oCNpc::OnDamage_Anim
+    MH_CreateHook((LPVOID)0x6A19E0, (LPVOID)&hkFightMode, (LPVOID*)&oFightMode);   // oCNpc::IsInFightMode
 }
 void Player_World() { g_ncNpc = nullptr; g_ncMode = -1; }
 
@@ -203,9 +242,10 @@ void Player_Tick(TickCtx& c) {
         if (On("dex")) SetAttr(sb, 5, (int)Val("dex"));
         if (On("hpmax")) SetAttr(sb, 1, (int)Val("hpmax"));
         if (On("manamax")) SetAttr(sb, 3, (int)Val("manamax"));
-        c.s.subjectName = U(NpcName(sb)); c.s.subjectPtr = (uintptr_t)sb;
+        c.s.subjectName = U(NpcName(sb)); c.s.subjectPtr = (uintptr_t)sb; c.s.subjectInst = InstName(sb);
     }
-    if (On("noclip")) NoclipFrame(c.paused ? 0.f : c.dt); else if (g_ncNpc) NoclipRestore();
+    if (On("noclip")) { NoclipFrame(c.paused ? 0.f : c.dt); NoclipCamera(h); }
+    else { g_camRel = false; if (g_ncNpc) NoclipRestore(); }
 
     Snapshot& s = c.s;
     s.hp = Attr(h, 0); s.hpmax = Attr(h, 1); s.mana = Attr(h, 2); s.manamax = Attr(h, 3);
@@ -249,15 +289,15 @@ void Act_ApplyLook() {
         CallExt("Mdl_SetVisualBody", { Arg::Npc(sb), Arg::Str("HUM_BODY_NAKED0"), Arg::Int((int)Val("vbody")), Arg::Int((int)Val("vskin")),
                                        Arg::Str(kHeads[head]), Arg::Int((int)Val("vface")), Arg::Int(0), Arg::Int(-1) });
         CallExt("AI_EquipBestArmor", { Arg::Npc(sb) });   // the body swap drops the armour visual
-        Schedule(0.6, [sb] { if (NpcExists(sb)) Photo_Request(sb); });
+        Schedule(0.6, [sb] { if (NpcExists(sb)) Photo_Refresh(sb); });
         T.Toast("Zmieniono wygląd");
     });
 }
 
 void Player_Register() {
-    const char* C = "Bohater";
+    const char* C = "Postać";
     T.Add(MkRow("subject", "Kogo edytujesz", "", C, "Statystyki", K_VALUE, 0, 0, 2)); Hidden();
-    Opts({ { 0, "Sterowana postać" }, { 1, "Bezimienny" }, { 2, "Cel" } }); St(ST_NEW, "nowe w build 5");
+    Opts({ { 0, "Obecna postać" }, { 1, "Bezimienny" }, { 2, "Cel" } }); St(ST_NEW, "nowe w build 5");
 
     const char* SS = "Statystyki";
     CardTitle("Atrybuty (włączone = nadpisuje grę)");
@@ -292,12 +332,23 @@ void Player_Register() {
         T.Add(MkRow(h.id, h.name, "procent trafienia / opanowania broni", C, SU, K_ACTION, 100, 0, 100, [hp](Row& r) {
             CallExt("Npc_SetTalentValue", { Arg::Npc(Subject()), Arg::Int(ConstInt(hp->konst, 1)), Arg::Int((int)r.val) });
             T.Toast(r.name + ": " + std::to_string((int)r.val) + "%"); }));
-        Icon(ICN_CROSSHAIR); St(ST_NEW, "nowe w build 4");
+        Icon(ICN_CROSSHAIR); St(ST_OK, "build 5: działa"); Live();
+    }
+    struct Th { const char* id; const char* name; const char* konst; };
+    static const Th kTh[] = { { "hclock", "Otwieranie zamków", "NPC_TALENT_PICKLOCK" }, { "hcpocket", "Kradzież kieszonkowa", "NPC_TALENT_PICKPOCKET" },
+                              { "hcsneak", "Skradanie", "NPC_TALENT_SNEAK" } };
+    for (auto& h : kTh) {
+        const Th* hp = &h;
+        T.Add(MkRow(h.id, h.name, "procent umiejętności (jak w statystykach postaci)", C, SU, K_ACTION, 100, 0, 100, [hp](Row& r) {
+            CallExt("Npc_SetTalentValue", { Arg::Npc(Subject()), Arg::Int(ConstInt(hp->konst, 1)), Arg::Int((int)r.val) }); }));
+        St(ST_NEW, "nowe w build 6 (wymaksowanie ustawiało 50%)"); Live();
     }
     CardTitle("Szybko");
     T.Add(MkRow("alltal", "Wymaksuj wszystko", "wszystkie umiejętności na max, 6. krąg, 100% trafienia", C, SU, K_ACTION, 0, 0, 0, [](Row&) {
         for (auto& t : kTal) SetTalent(t, t.maxLvl);
         for (auto& h : kHc) CallExt("Npc_SetTalentValue", { Arg::Npc(Subject()), Arg::Int(ConstInt(h.konst, 1)), Arg::Int(100) });
+        for (const char* k : { "NPC_TALENT_PICKLOCK", "NPC_TALENT_PICKPOCKET", "NPC_TALENT_SNEAK" })
+            CallExt("Npc_SetTalentValue", { Arg::Npc(Subject()), Arg::Int(ConstInt(k, 1)), Arg::Int(100) });
         T.Toast("Wszystkie umiejętności na maksa"); }));
     NoVal(); Icon(ICN_STAR); St(ST_OK, "build 3: działa; build 4: + 100% trafienia");
 
@@ -318,25 +369,25 @@ void Player_Register() {
     St(ST_OK, "działa");
     T.Add(MkRow("pscale", "Skala", "1 = normalnie", C, SW, K_ACTION, 1, 0.1f, 5, [](Row& r) {
         CallExt("Mdl_SetModelScale", { Arg::Npc(Subject()), Arg::Flt(r.val), Arg::Flt(r.val), Arg::Flt(r.val) }); }, true));
-    St(ST_OK, "build 3: działa"); Icon(ICN_EXPAND);
+    St(ST_OK, "build 3: działa"); Icon(ICN_EXPAND); Live();
     T.Add(MkRow("pfat", "Grubość", "0 = normalnie", C, SW, K_ACTION, 0, -2, 5, [](Row& r) {
         CallExt("Mdl_SetModelFatness", { Arg::Npc(Subject()), Arg::Flt(r.val) }); }, true));
-    St(ST_NEW, "nowe w build 4");
+    St(ST_OK, "build 5: działa"); Live();
 
-    const char* SV = "Ochrona";
+    const char* SV = "Cheaty";
     CardTitle("Ochrona");
     T.Add(MkRow("god", "Nieśmiertelność", "HP nie spada; chroni też główne ciało podczas zamiany", C, SV, K_TOGGLE));
     St(ST_OK, "build 2-3: działa"); Icon(ICN_HEART);
-    T.Add(MkRow("nohit", "Ciosy przechodzą", "ataki w ciebie nie trafiają: bez obrażeń, bez zachwiania, bez odrzutu", C, SV, K_TOGGLE));
-    St(ST_NEW, "build 3: nic nie robiło; build 4: hak na prawdziwej ścieżce trafienia"); Icon(ICN_SHIELD);
-    CardTitle("Niewidzialność");
+    T.Add(MkRow("nohit", "Bez zachwiania od ciosów", "obrażenia wchodzą normalnie, ale postać nie reaguje na trafienia (z nieśmiertelnością: zero obrażeń i zero reakcji)", C, SV, K_TOGGLE));
+    St(ST_NEW, "build 5: dawało pełną nieśmiertelność; build 6: tylko brak animacji trafienia, obrażenia wchodzą"); Icon(ICN_SHIELD);
+    CardTitle("Ukrycie");
     T.Add(MkRow("ghost", "Tryb ducha", "nikt cię nie widzi ani nie słyszy; kradzież i broń nie wywołują reakcji", C, SV, K_TOGGLE, 0, 0, 0,
         [](Row& r) { if (r.on) NpcsInRadius(3000.f, [](void* n) { Peace(n); }); }));
-    St(ST_BUG, "build 3: częściowo; build 4: blokada słuchu i percepcji pasywnych"); Icon(ICN_GHOST);
-    T.Add(MkRow("noweapon", "Ignorują wyciągniętą broń", "ludzie nie reagują na broń w ręku (reszta zachowania normalna)", C, SV, K_TOGGLE));
-    St(ST_NEW, "nowe w build 5"); Icon(ICN_EYE);
+    St(ST_OK, "build 5: działa"); Icon(ICN_GHOST); Excl({ "noweapon" });
+    T.Add(MkRow("noweapon", "Ignorują wyciągniętą broń", "widzą cię normalnie, tylko nie reagują na broń w ręku (tryb ducha już to obejmuje)", C, SV, K_TOGGLE));
+    St(ST_NEW, "build 5: nie działało; build 6: skrypty postaci nie widzą twojej broni"); Icon(ICN_EYE); Excl({ "ghost" });
 
-    const char* SC = "Walka";
+    const char* SC = "Cheaty";
     CardTitle("Walka i magia");
     T.Add(MkRow("dmg", "Mnożnik obrażeń", "dla NPC, w którego celujesz", C, SC, K_SLIDER, 5, 1, 50, nullptr, true));
     St(ST_OK, "build 2-3: działa"); Icon(ICN_BOLT);
@@ -351,8 +402,10 @@ void Player_Register() {
     Opts({ { 0, "Latanie (przez ściany)" }, { 1, "Ślizg (po ziemi)" } }); St(ST_OK, "build 3: działa");
     T.Add(MkRow("ncspeed", "Prędkość", "m/s (Shift x4)", C, SR, K_VALUE, 9, 1, 100)); St(ST_OK, "build 3: działa");
     T.Add(MkRow("ncturn", "Obrót Q/E", "stopnie na sekundę", C, SR, K_VALUE, 130, 20, 720)); St(ST_OK, "build 3: działa");
-    T.Add(MkRow("nccam", "Kamera bez opóźnienia", "kamera przesuwa się razem z bohaterem", C, SR, K_TOGGLE));
-    T.rows.back().on = true; St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("nccam", "Kamera sztywno za postacią", "postać zawsze na środku, także przy szybkim obrocie i chodzeniu w bok", C, SR, K_TOGGLE));
+    T.rows.back().on = true; St(ST_NEW, "build 5: postać uciekała ze środka przy obrocie; build 6: kamera przyczepiona do postaci");
+    T.Add(MkRow("ncignore", "Wrogowie cię ignorują", "w no-clipie potwory i przeciwnicy cię nie zauważają", C, SR, K_TOGGLE));
+    T.rows.back().on = true; St(ST_NEW, "nowe w build 6");
     CardTitle("Bohater");
     T.Add(MkRow("pspeed", "Szybkość bohatera", "tempo animacji = bieg, ataki, obrót", C, SR, K_SLIDER, 1.5f, 0.2f, 5, nullptr, true));
     St(ST_OK, "build 3: działa"); Icon(ICN_BOLT);

@@ -20,7 +20,6 @@ void TimeScales(void* hero, bool paused) {
     if (On("quicksilver")) npcScale *= std::max(0.02f, Val("qsfactor"));
     float heroScale = On("pspeed") ? Val("pspeed") : 1.f;
     if (On("quicksilver")) heroScale *= std::max(1.f, Val("qshero"));
-    if (spd && mode == 1 && On("speedonlyworld")) heroScale /= std::max(0.05f, Val("speed"));
     if (paused) return;
     void* main = MainHero();
     ForEachNpc([&](void* n) {
@@ -81,11 +80,10 @@ void World_Register() {
     const char* S = "Czas i fabuła";
     CardTitle("Tempo");
     T.Add(MkRow("speed", "Tempo świata", "0.1 = slow-mo, 3 = turbo", C, S, K_SLIDER, 0.3f, 0.1f, 5, nullptr, true));
-    St(ST_BUG, "build 3: działa, ale spowalniało też obrót myszą/QE; build 4: domyślnie zwalnia postacie, nie zegar gry"); Icon(ICN_CLOCK);
+    St(ST_OK, "build 4-5: tryb 'postacie' działa"); Icon(ICN_CLOCK); Excl({ "quicksilver" });
     T.Add(MkRow("speedmode", "Co zwalnia", "", C, S, K_VALUE, 0, 0, 1));
-    Opts({ { 0, "Postacie wokół (ty i kamera normalnie)" }, { 1, "Całą grę (zegar silnika)" } }); St(ST_NEW, "nowe w build 4");
-    T.Add(MkRow("speedonlyworld", "Bohater normalnie (tryb zegara)", "kompensuje twoje animacje, gdy zwalniasz całą grę", C, S, K_TOGGLE));
-    St(ST_OK, "build 3: działa");
+    Opts({ { 0, "Postacie wokół (ty i kamera normalnie)" }, { 1, "Całą grę (też ciebie i obrót kamery)" } });
+    St(ST_NEW, "build 6: 'bohater normalnie' w trybie zegara usunięte - silnik zwalnia też obrót kamery, nie da się tego obejść");
     CardTitle("Pora dnia");
     T.Add(MkRow("hour", "Ustaw godzinę", "0-23", C, S, K_ACTION, 12, 0, 23, [](Row& r) {
         CallExt("Wld_SetTime", { Arg::Int((int)r.val), Arg::Int(0) }); g_frozenTime = -1;
@@ -103,7 +101,7 @@ void World_Register() {
     T.Add(MkRow("pausemenu", "Pauza przy otwartym menu", "świat stoi, gdy menu trainera jest otwarte", "Konfiguracja", "Konfiguracja", K_TOGGLE));
     T.rows.back().on = true; St(ST_OK, "działa"); Icon(ICN_CLOCK);
     CardTitle("Okno aktywnych modów");
-    T.Add(MkRow("statuswin", "Pokazuj w grze", "małe okno z listą wszystkiego, co jest włączone (i z jakimi ustawieniami)", "Konfiguracja", "Konfiguracja", K_TOGGLE));
-    St(ST_NEW, "nowe w build 5"); Icon(ICN_LIST);
+    T.Add(MkRow("statuswin", "Kiedy pokazywać", "małe okno z listą wszystkiego, co jest włączone (i z jakimi ustawieniami)", "Konfiguracja", "Konfiguracja", K_VALUE, 0, 0, 2));
+    Opts({ { 0, "Wyłączone" }, { 1, "Tylko w menu" }, { 2, "W menu i w grze" } }); St(ST_NEW, "build 6: trzy tryby");
     T.Add(MkRow("statusalpha", "Przezroczystość tła", "%", "Konfiguracja", "Konfiguracja", K_VALUE, 70, 0, 100)); St(ST_NEW, "nowe w build 5");
 }

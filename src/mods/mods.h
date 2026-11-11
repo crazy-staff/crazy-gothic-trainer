@@ -19,6 +19,8 @@ DECL_MODULE(Teleport)
 DECL_MODULE(Marvin)
 DECL_MODULE(Photo)
 void Photo_Request(void* npc);
+void Photo_Refresh(void* npc);
+void Cam_Override(const float* m12);   // camera matrix for this frame (noclip)
 
 // Fun module: spell rain list and spell-on-target (shared with the Target module)
 constexpr int RAIN_FX_COUNT = 9;
@@ -26,6 +28,9 @@ extern const char* kRainFx[RAIN_FX_COUNT];
 extern const char* kRainNames[RAIN_FX_COUNT];
 void SpellOn(void* target, const char* fx, int dmg, void* killer = nullptr);
 void Party_AllyHitPlayer(void* npc);
+extern const char* kTSpellNames[];
+extern const int kTSpellCount;
+void MakeMortal(void* npc);   // clear script immortality and 'immune' protections
 
 // helpers for building rows
 Row MkRow(const char* id, const char* name, const char* note, const char* cat, const char* sub, Kind k, float v = 0,
@@ -35,6 +40,8 @@ void NoVal();
 void Opts(std::vector<std::pair<int, std::string>> o);
 void Icon(const char* utf8);
 void Hidden();
+void Live();
+void Excl(std::vector<std::string> ids);
 std::function<void(Row&)> NeedT(std::function<void(void*)> f);
 
 // Fork Awesome glyphs (utf8)

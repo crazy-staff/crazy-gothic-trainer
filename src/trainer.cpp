@@ -45,6 +45,8 @@ void NoVal() { T.rows.back().noValue = true; }
 void Opts(std::vector<std::pair<int, std::string>> o) { T.rows.back().options = std::move(o); }
 void Icon(const char* u) { T.rows.back().icon = u; }
 void Hidden() { T.rows.back().hidden = true; }
+void Live() { T.rows.back().live = true; }
+void Excl(std::vector<std::string> ids) { T.rows.back().excl = std::move(ids); }
 std::function<void(Row&)> NeedT(std::function<void(void*)> f) {
     return [f](Row&) { void* t = Target(); if (!t) { T.Toast("Brak celu - spójrz na NPC albo zapisz cel"); return; } f(t); };
 }
@@ -142,8 +144,13 @@ static void __fastcall hkRender(void* self, void* edx) {
     g_crumb = "render"; oRender(self, edx);
     g_crumb = "idle";
 }
+// CGameManager::Menu(int) - the game's own menu (Esc / main menu) runs inside this call
+using fnMenu = void(__fastcall*)(void*, void*, int);
+static fnMenu oMenu = nullptr;
+static void __fastcall hkMenu(void* self, void* edx, int a) { T.inGameMenu = true; oMenu(self, edx, a); T.inGameMenu = false; }
 void InstallGameHooks() {
     MH_CreateHook((LPVOID)F_OCGAME_RENDER, (LPVOID)&hkRender, (LPVOID*)&oRender);
+    MH_CreateHook((LPVOID)0x4279F0, (LPVOID)&hkMenu, (LPVOID*)&oMenu);
     Player_Hooks(); Items_Hooks(); Npcs_Hooks(); Target_Hooks(); Chaos_Hooks(); World_Hooks(); Esp_Hooks(); Teleport_Hooks(); Marvin_Hooks(); Photo_Hooks();
     MH_EnableHook(MH_ALL_HOOKS);
 }
@@ -158,8 +165,13 @@ void Trainer::Tick() {
     // input ownership: menu owns everything, noclip owns the keyboard
     // re-asserted 4x per second only: doing it every frame (DirectInput unacquire) caused stutter
     static bool lastK = true, lastM = true; static double lastInput = 0;
-    bool wantK = !menuOpen && !(On("noclip") && inGame), wantM = !menuOpen;
-    if (wantK != lastK || wantM != lastM || ((!wantK || !wantM) && NowSec() - lastInput > 0.25)) {
+    // after the menu closes the game gets the keyboard back only once Esc is released
+    // (otherwise the still-pressed Esc opens the game's pause menu)
+    static bool escHold = false;
+    if (menuOpen) escHold = true;
+    else if (escHold && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000)) escHold = false;
+    bool wantK = !menuOpen && !escHold && !(On("noclip") && inGame), wantM = !menuOpen;
+    if (wantK != lastK || wantM != lastM || (menuOpen && NowSec() - lastInput > 0.03) || ((!wantK || !wantM) && NowSec() - lastInput > 0.25)) {
         SetGameInput2(wantK, wantM); lastK = wantK; lastM = wantM; lastInput = NowSec();
     }
 
@@ -214,6 +226,12 @@ void ApplyRow(Row& r) {
     Row* rp = &r;
     switch (r.kind) {
     case K_TOGGLE: case K_SLIDER:
+        if (!r.on) {   // mutually exclusive features
+            for (auto& id : r.excl) if (Row* o = T.Get(id)) if (o->on) {
+                T.Toast("Nie możesz włączyć \"" + r.name + "\", bo masz włączone \"" + o->name + "\"");
+                return;
+            }
+        }
         r.on = !r.on;
         if (r.act) T.Queue("row:" + r.id, [rp] { if (InGame()) rp->act(*rp); });
         T.Toast(r.name + ": " + (r.on ? "ON" : "OFF"));

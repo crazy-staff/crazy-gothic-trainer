@@ -35,7 +35,7 @@ void ArenaFrame() {
         zVEC3 p = SpawnPointNear(600.f, 1000.f, (float)i / cnt * 6.2831f);
         void* n = nullptr;
         Guard("npc:" + e->id, [&] { n = SpawnNpc(e->sym, p); });
-        if (n) { Guard("row:arena:aggro", [&] { Aggro(n, Player()); }); g_arena.push_back(n); }
+        if (n) { MakeMortal(n); Guard("row:arena:aggro", [&] { Aggro(n, Player()); }); g_arena.push_back(n); }
     }
     g_next = now + 4;
     char b[96]; snprintf(b, sizeof b, "ARENA: fala %d (%d wrogów)", g_wave, cnt);
@@ -43,6 +43,11 @@ void ArenaFrame() {
 }
 }
 
+void MakeMortal(void* n) {
+    fld<int>(n, NPC_FLAGS) &= ~2;
+    static int protOff = -1; if (protOff < 0) protOff = FieldOff("C_NPC.PROTECTION", 0x1A4);
+    for (int k = 0; k < 8; k++) { int& p = fld<int>(n, protOff + 4 * k); if (p < 0 || p >= 999) p = 50; }   // -1 / 999 = immune
+}
 void Act_SpawnNpc(int sym, int count, int mode) {
     Sym* s = SymAt(sym); std::string id = s ? zs(s->name) : "?";
     T.Queue("npc:" + id, [=] {
@@ -57,7 +62,7 @@ void Act_SpawnNpc(int sym, int count, int mode) {
             void* npc = SpawnNpc(sym, p);
             if (!npc) continue;
             ok++;
-            fld<int>(npc, NPC_FLAGS) &= ~2;   // script immortality (some monsters) - spawned ones can die
+            MakeMortal(npc);   // script immortality / immune protections (some monsters) - spawned ones can die
             // named npcs get beamed to their daily-routine waypoint on insertion: bring them back
             for (double t : { 0.15, 0.6, 1.5 })
                 Schedule(t, [npc, p] { if (NpcExists(npc) && Dist(Pos(npc), p) > 400.f) SafeSetPos(npc, p); });
@@ -89,6 +94,21 @@ void Wait(void* n) {
     CallExt("AI_StandupQuick", { Arg::Npc(n) });
     int st = IsMonster(n) ? StateSym({ "ZS_MM_RTN_REST", "ZS_MM_RTN_ROAM" }) : StateSym({ "ZS_STAND", "ZS_STANDAROUND", "ZS_GUARD" });
     if (st >= 0) CallExt("AI_StartState", { Arg::Npc(n), Arg::Int(st), Arg::Int(1), Arg::Str("") });
+}
+// back to the daily routine: stop the current action, weapon away, attitude back, walk to where the
+// routine says it should be right now
+void ToRoutine(void* n) {
+    if (!NpcReady(n)) return;
+    CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
+    CallExt("AI_StandupQuick", { Arg::Npc(n) });
+    CallExt("AI_RemoveWeapon", { Arg::Npc(n) });
+    int perm = CallExt("Npc_GetPermAttitude", { Arg::Npc(n), Arg::Npc(Player()) });
+    CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(perm) });
+    if (IsMonster(n)) {
+        int st = K.offStartAi >= 0 ? fld<int>(n, K.offStartAi) : -1;
+        if (st <= 0) st = K.stMmAll;
+        if (st > 0) CallExt("AI_StartState", { Arg::Npc(n), Arg::Int(st), Arg::Int(1), Arg::Str("") });
+    } else CallExt("AI_ContinueRoutine", { Arg::Npc(n) });
 }
 NearNpc Describe(void* n, void* h) {
     NearNpc e;
@@ -153,14 +173,16 @@ void Act_PartyCmd(uintptr_t p, int cmd) {
         if (!NpcExists(n)) return;
         void* h = Player();
         switch (cmd) {
-        case 0: g_pstate[n] = 0; MakeAlly(n); T.Toast(U(NpcName(n)) + " idzie za tobą"); break;
+        case 0: g_pstate[n] = 0;
+            if (NpcReady(n)) { CallExt("Npc_ClearAIQueue", { Arg::Npc(n) }); CallExt("AI_StandupQuick", { Arg::Npc(n) }); }
+            MakeAlly(n); T.Toast(U(NpcName(n)) + " idzie za tobą"); break;
         case 1: g_pstate[n] = 1; Wait(n); T.Toast(U(NpcName(n)) + " czeka tutaj"); break;
         case 2: g_pstate[n] = 2; SetNpcAivar(n, K.aivParty, 0); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
-                Peace(n); if (!IsAlly(n)) g_allies.push_back(n); T.Toast(U(NpcName(n)) + " wraca na posterunek"); break;
+                ToRoutine(n); g_allies.push_back(n); T.Toast(U(NpcName(n)) + " wraca do swojej rutyny"); break;
         case 3: SafeSetPos(n, Grounded(InFront(180.f))); g_pstate[n] = 0; MakeAlly(n); T.Toast("Przywołano: " + U(NpcName(n))); break;
         case 4: { zVEC3 q = Pos(n); SafeSetPos(h, { q.x, q.y + 60, q.z }); } break;
         case 5: g_pstate.erase(n); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
-                SetNpcAivar(n, K.aivParty, 0); Peace(n); T.Toast(U(NpcName(n)) + " opuszcza drużynę"); break;
+                SetNpcAivar(n, K.aivParty, 0); ToRoutine(n); T.Toast(U(NpcName(n)) + " opuszcza drużynę"); break;
         }
     });
 }
@@ -178,7 +200,13 @@ void Npcs_Tick(TickCtx& c) {
         ++it;
     }
     if (On("arena")) { if (g_wave == 0 && g_next == 0) g_wave = std::max(0, (int)Val("arena") - 1); if (!c.paused) ArenaFrame(); }
-    else { g_wave = 0; g_next = 0; g_arena.clear(); }
+    else {
+        if (!g_arena.empty()) {   // arena switched off: its monsters disappear
+            for (void* n : g_arena) if (NpcExists(n)) RemoveVob(n);
+            T.Toast("Arena zakończona - przeciwnicy usunięci");
+        }
+        g_wave = 0; g_next = 0; g_arena.clear();
+    }
     c.s.arena = On("arena"); c.s.arenaWave = g_wave; c.s.arenaAlive = (int)g_arena.size();
 }
 
@@ -195,7 +223,7 @@ void Npcs_Register() {
     St(ST_OK, "build 3: działa (ale postacie z dialogiem odchodziły)"); Icon(ICN_USERS);
     T.Add(MkRow("dismiss", "Rozwiąż drużynę", "sojusznicy wracają do swoich zajęć", C, D, K_ACTION, 0, 0, 0, [](Row&) {
         std::vector<void*> a = g_allies; g_allies.clear(); g_pstate.clear();
-        for (void* n : a) if (NpcAlive(n)) { SetNpcAivar(n, K.aivParty, 0); Peace(n); }
+        for (void* n : a) if (NpcAlive(n)) { SetNpcAivar(n, K.aivParty, 0); ToRoutine(n); }
         T.Toast("Drużyna rozwiązana (" + std::to_string(a.size()) + ")"); }));
     NoVal(); St(ST_OK, "build 3: działa"); Icon(ICN_TIMES);
     CardTitle("Zachowanie drużyny");

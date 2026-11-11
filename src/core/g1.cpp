@@ -219,8 +219,10 @@ void* FocusNpc() {
     void* f = fld<void*>(p, NPC_FOCUSVOB);
     return IsNpc(f) ? f : nullptr;
 }
-void Kill(void* npc, void* killer) {
+bool IsImmortal(const void* npc) { return (fld<int>(npc, NPC_FLAGS) & 2) != 0; }
+void Kill(void* npc, void* killer, bool evenImmortal) {
     if (!npc || NpcDead(npc)) return;
+    if (!evenImmortal && IsImmortal(npc)) return;
     if (!fld<void*>(npc, NPC_ANICTRL)) return;   // DoDie uses the animation controller -> null = engine crash
     fld<int>(npc, NPC_FLAGS) &= ~2;  // NPC_FLAG_IMMORTAL (gate guards etc.)
     SetAttr(npc, 0, 0);

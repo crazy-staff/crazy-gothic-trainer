@@ -45,10 +45,12 @@ static void MakeRTV(IDXGISwapChain* sc) {
     }
 }
 
+static DWORD g_hookThread;
 static void SetMenu(bool open) {
     if (T.menuOpen == open) return;
     T.menuOpen = open;
     ImGui::GetIO().MouseDrawCursor = open;
+    if (g_hookThread) PostThreadMessageA(g_hookThread, open ? WM_APP + 1 : WM_APP + 2, 0, 0);
     if (!open) T.SaveNow();
 }
 
@@ -56,6 +58,19 @@ static void SetMenu(bool open) {
 // window stops getting WM_MOUSEWHEEL, so the menu reads the wheel here instead.
 static HHOOK g_mouseHook;
 static volatile LONG g_wheel = 0;
+static LRESULT CALLBACK LLMouse(int code, WPARAM w, LPARAM l);
+// The hook lives on its own thread with its own message loop (a low-level hook on a thread that does
+// not pump messages lags the mouse for the whole system - that broke Win+Shift+S) and is installed
+// only while the menu is open.
+static DWORD WINAPI HookThread(LPVOID) {
+    MSG m;
+    PeekMessageA(&m, nullptr, 0, 0, PM_NOREMOVE);
+    while (GetMessageA(&m, nullptr, 0, 0) > 0) {
+        if (m.message == WM_APP + 1 && !g_mouseHook) g_mouseHook = SetWindowsHookExA(WH_MOUSE_LL, LLMouse, g_self, 0);
+        if (m.message == WM_APP + 2 && g_mouseHook) { UnhookWindowsHookEx(g_mouseHook); g_mouseHook = nullptr; }
+    }
+    return 0;
+}
 static LRESULT CALLBACK LLMouse(int code, WPARAM w, LPARAM l) {
     if (code == HC_ACTION && w == WM_MOUSEWHEEL && T.menuOpen && GetForegroundWindow() == g_gameHwnd) {
         auto* m = (MSLLHOOKSTRUCT*)l;
@@ -73,6 +88,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
             if (UiCapturingKey()) { if (!repeat) UiBindKey(vk); return 0; }
             if (!repeat && vk == VK_INSERT) { SetMenu(!T.menuOpen); return 0; }
             if (!repeat && vk == VK_ESCAPE && T.menuOpen && !UiTyping()) { SetMenu(false); return 0; }
+            if (!repeat && vk == VK_ESCAPE && T.snap.photoBatch) { Act_PhotoCancel(); return 0; }
             if (!repeat && vk == VK_ESCAPE && !T.menuOpen) {   // Esc leaves no-clip first (game menu/saving then sees a normal hero)
                 Row* nc = T.Get("noclip");
                 if (nc && nc->on) { ApplyRow(*nc); return 0; }
@@ -82,6 +98,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         }
         if (T.menuOpen) {
             if (m != WM_MOUSEWHEEL || !g_mouseHook) ImGui_ImplWin32_WndProcHandler(h, m, w, l);
+            else if (m == WM_MOUSEWHEEL) { /* delivered by the hook */ }
             switch (m) {
             case WM_KEYDOWN: case WM_KEYUP: case WM_SYSKEYDOWN: case WM_SYSKEYUP: case WM_CHAR:
             case WM_MOUSEMOVE: case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_RBUTTONDOWN: case WM_RBUTTONUP:
@@ -111,7 +128,7 @@ static HRESULT __stdcall hkPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
             UiInitFonts((float)std::max<LONG>(600, rc.bottom - rc.top));
             g_oldProc = (WNDPROC)SetWindowLongPtrA(g_hwnd, GWLP_WNDPROC, (LONG_PTR)WndProc);
             g_imgui = true; g_sc = sc;
-            g_mouseHook = SetWindowsHookExA(WH_MOUSE_LL, LLMouse, g_self, 0);
+            CreateThread(nullptr, 0, HookThread, nullptr, 0, &g_hookThread);
             Log("imgui ready hwnd=%p %ldx%ld", g_hwnd, rc.right - rc.left, rc.bottom - rc.top);
             T.Toast("Gothic Crazy Trainer gotowy - Insert");
         }
@@ -137,7 +154,6 @@ static HRESULT __stdcall hkPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
         {   // portraits: capture the clean game frame before our overlay is drawn
             static std::string lastWorld; std::string wn;
             { std::lock_guard<std::mutex> l(T.mtx); wn = T.snap.world; }
-            if (wn != lastWorld) { lastWorld = wn; PortraitClear(); }
             PortraitPresent(g_dev, g_ctx, sc);
         }
         ImGui::NewFrame();

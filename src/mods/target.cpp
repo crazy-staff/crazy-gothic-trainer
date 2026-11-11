@@ -7,7 +7,11 @@
 using namespace g1;
 using namespace gx;
 
+const char* kTSpellFx[] = { "SPELLFX_FIREBOLT", "SPELLFX_FIREBALL", "SPELLFX_THUNDERBOLT", "SPELLFX_THUNDERBALL", "SPELLFX_ICECUBE" };
+const char* kTSpellNames[] = { "Ognisty pocisk", "Ognista kula", "Piorun", "Kula błyskawic", "Bryła lodu" };
+const int kTSpellCount = 5;
 namespace {
+std::set<void*> g_tFrozen;
 void ReplaceTargetRef(void* oldN, void* newN) {
     for (auto& t : g_savedTargets) if (t == oldN) t = newN;
     g_savedTargets.erase(std::remove(g_savedTargets.begin(), g_savedTargets.end(), nullptr), g_savedTargets.end());
@@ -32,7 +36,11 @@ void Respawn(void* t) {
 // If the body is still lying after 2 s the engine refused -> fall back to a respawn.
 void Revive(void* t) {
     if (!NpcDead(t)) { SetAttr(t, 0, Attr(t, 1)); T.Toast("Uleczono: " + U(NpcName(t))); return; }
+    zVEC3 lay = Pos(t);
     SetAttr(t, 0, std::max(1, Attr(t, 1)));
+    // standing up from the death pose can push the body into the ground: keep it where it lay
+    for (double d : { 0.0, 0.3, 0.8, 1.5 })
+        Schedule(d, [t, lay] { if (NpcExists(t) && Dist(Pos(t), lay) > 60.f) SafeSetPos(t, Grounded({ lay.x, lay.y + 60.f, lay.z })); });
     if (NpcReady(t)) {
         CallExt("Npc_ClearAIQueue", { Arg::Npc(t) });
         CallExt("AI_StandupQuick", { Arg::Npc(t) });
@@ -52,6 +60,19 @@ void Revive(void* t) {
 }
 }
 
+void Act_CastOnTarget() {
+    T.Queue("row:tcast", [] {
+        void* t = Target(); if (!t) { T.Toast("Brak celu"); return; }
+        int mask = (int)Val("tspells"); std::vector<int> v;
+        for (int i = 0; i < kTSpellCount; i++) if (mask & (1 << i)) v.push_back(i);
+        if (v.empty()) { T.Toast("Zaznacz przynajmniej jedno zaklęcie"); return; }
+        int k = v[rng() % v.size()];
+        if (On("tspellimm")) fld<int>(t, NPC_FLAGS) &= ~2;
+        SpellOn(t, kTSpellFx[k], IsImmortal(t) && !On("tspellimm") ? 0 : (int)Val("tspelldmg"));
+        T.Toast(std::string(kTSpellNames[k]) + " -> " + U(NpcName(t)));
+    });
+}
+void Act_SelectTargetFor(int idx) { T.Queue("row:tselect", [idx] { if (idx < (int)g_savedTargets.size()) g_activeSaved = idx; }); }
 void Act_SelectSavedTarget(int idx) { T.Queue("row:tselect", [idx] { if (idx >= 0 && idx < (int)g_savedTargets.size()) g_activeSaved = idx; }); }
 void Act_SelectSavedPtr(uintptr_t p) {
     T.Queue("row:tselect", [p] {
@@ -77,7 +98,7 @@ void Act_Unswap() {
 }
 
 void Target_Hooks() {}
-void Target_World() { g_info.clear(); }
+void Target_World() { g_info.clear(); g_tFrozen.clear(); }
 void Target_Tick(TickCtx& c) {
     Snapshot& s = c.s;
     void* saved = SavedTarget();
@@ -92,6 +113,12 @@ void Target_Tick(TickCtx& c) {
         s.tInst = ci.inst; s.tPlace = ci.place;
         zVEC3 p = Pos(t); s.tx = p.x; s.ty = p.y; s.tz = p.z;
     }
+    for (auto it = g_tFrozen.begin(); it != g_tFrozen.end();) {   // keep frozen targets asleep
+        if (!NpcExists(*it)) { it = g_tFrozen.erase(it); continue; }
+        if ((fld<uint8_t>(*it, VOB_SLEEPMODE) & 3) != 0) SetSleeping(*it, true);
+        ++it;
+    }
+    if (void* t = Target()) s.tInst2 = g_tFrozen.count(t) ? "1" : "";
     for (void* n : g_savedTargets) {
         s.savedTargets.push_back(U(NpcName(n)));
         SavedInfo si{};
@@ -102,6 +129,7 @@ void Target_Tick(TickCtx& c) {
         si.group = kNpcGroupNames[NpcGroupOfGuild(fld<int>(n, K.offGuild))];
         zVEC3 p = Pos(n); si.x = p.x; si.y = p.y; si.z = p.z; si.dist = Dist(p, hp) / 100.f;
         si.hp = Attr(n, 0); si.hpmax = Attr(n, 1); si.level = fld<int>(n, K.offLevel); si.dead = NpcDead(n); si.monster = IsMonster(n);
+        si.frozen = g_tFrozen.count(n) != 0;
         // head on screen (for the portrait): top of the bounding box
         const float* b = &fld<float>(n, VOB_BBOX);
         float x0, y0, x1, y1;
@@ -132,7 +160,7 @@ void Target_Register() {
     NoVal(); Icon(ICN_EYE); St(ST_OK, "działa"); Hidden();
 
     CardTitle("Akcje");
-    T.Add(MkRow("mind", "Kontrola umysłu", "cel walczy po twojej stronie i idzie za tobą", C, S, K_ACTION, 0, 0, 0,
+    T.Add(MkRow("mind", "Dodaj do drużyny", "cel walczy po twojej stronie i idzie za tobą (kontrola umysłu)", C, S, K_ACTION, 0, 0, 0,
         NeedT([](void* t) { MakeAlly(t); T.Toast(U(NpcName(t)) + " jest teraz twój"); }))); NoVal(); Icon(ICN_MAGIC); Hidden();
     St(ST_OK, "build 3: działa (ta sama logika co drużyna)");
     T.Add(MkRow("swap", "Zamiana ciał", "grasz celem; powrót przyciskiem w nagłówku menu", C, S, K_ACTION, 0, 0, 0,
@@ -175,25 +203,16 @@ void Target_Register() {
     T.Add(MkRow("tremove", "Usuń ze świata", "", C, S, K_ACTION, 0, 0, 0, NeedT([](void* t) {
         ReplaceTargetRef(t, nullptr); RemoveVob(t); T.Toast("Puf."); }))); NoVal(); Icon(ICN_TRASH); Hidden();
 
+    T.Add(MkRow("tcast", "Rzuć zaznaczone zaklęcia", "losowe z zaznaczonych w karcie Magia na celu; tylko w ten jeden cel", C, S, K_ACTION, 0, 0, 0,
+        [](Row&) { Act_CastOnTarget(); })); NoVal(); Icon(ICN_FIRE); Hidden(); St(ST_NEW, "build 6: zamiast trzech osobnych przycisków");
+    T.Add(MkRow("tfreeze", "Zamroź / odmroź cel", "tylko ten jeden cel stoi w miejscu", C, S, K_ACTION, 0, 0, 0, NeedT([](void* t) {
+        if (g_tFrozen.count(t)) { g_tFrozen.erase(t); SetSleeping(t, false); T.Toast("Odmrożono: " + U(NpcName(t))); }
+        else { g_tFrozen.insert(t); SetSleeping(t, true); T.Toast("Zamrożono: " + U(NpcName(t))); } })));
+    NoVal(); Icon(ICN_SNOW); Hidden(); St(ST_NEW, "nowe w build 6");
     CardTitle("Magia na celu");
-    T.Add(MkRow("tstorm", "Burza ognia", "obrażenia; zaklęcie pojawia się na celu, nie jest twoje", C, S, K_ACTION, 0, 0, 0,
-        NeedT([](void* t) { SpellOn(t, "SPELLFX_FIRESTORM", (int)Val("stormdmg")); })));
-    Icon(ICN_FIRE); Hidden(); NoVal(); St(ST_NEW, "build 3: działało, ale rzucał bohater (pudła, agresja na ciebie); build 4: efekt na celu + bezpośrednie obrażenia");
-    T.Add(MkRow("tlight", "Piorun", "obrażenia", C, S, K_ACTION, 0, 0, 0, NeedT([](void* t) { SpellOn(t, "SPELLFX_THUNDERBOLT", (int)Val("lightdmg")); })));
-    Icon(ICN_BOLT); Hidden(); NoVal(); St(ST_NEW, "jak wyżej (build 4)");
-    T.Add(MkRow("tice", "Zamroź w lodzie", "4 sekundy", C, S, K_ACTION, 0, 0, 0, NeedT([](void* t) { SpellOn(t, "SPELLFX_ICECUBE", 0); })));
-    NoVal(); Icon(ICN_SNOW); Hidden(); St(ST_NEW, "jak wyżej (build 4)");
-
+    T.Add(MkRow("tspells", "Zaklęcia", "", C, S, K_VALUE, 3, 0, 31)); Hidden(); St(ST_NEW, "nowe w build 6");
+    T.Add(MkRow("tspelldmg", "Obrażenia", "", C, S, K_VALUE, 9999, 1, 99999)); St(ST_NEW, "build 6: domyślnie 9999 (zabija od razu)");
+    T.Add(MkRow("tspellimm", "Działa też na nieśmiertelnych", "", C, S, K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 6");
     CardTitle("Ustawienia akcji");
     T.Add(MkRow("yeetv", "Wysokość lotu", "m", C, S, K_VALUE, 15, 1, 200)); St(ST_OK, "działa");
-    T.Add(MkRow("stormdmg", "Obrażenia burzy ognia", "", C, S, K_VALUE, 200, 1, 2000)); St(ST_NEW, "build 4");
-    T.Add(MkRow("lightdmg", "Obrażenia pioruna", "", C, S, K_VALUE, 150, 1, 2000)); St(ST_NEW, "build 4");
-    CardTitle("Wygląd celu");
-    T.Add(MkRow("tscale", "Skala modelu", "1 = normalnie", C, S, K_ACTION, 2, 0.1f, 10, NeedT([](void* t) {
-        float v = Val("tscale");
-        CallExt("Mdl_SetModelScale", { Arg::Npc(t), Arg::Flt(v), Arg::Flt(v), Arg::Flt(v) }); }), true));
-    Icon(ICN_EXPAND); St(ST_OK, "build 3: działa");
-    T.Add(MkRow("tfat", "Grubość", "0 = normalnie, ujemne = chudy", C, S, K_ACTION, 3, -3, 10, NeedT([](void* t) {
-        CallExt("Mdl_SetModelFatness", { Arg::Npc(t), Arg::Flt(Val("tfat")) }); }), true));
-    St(ST_OK, "build 3: działa");
 }

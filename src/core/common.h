@@ -71,6 +71,9 @@ std::string RegionOfWp(const std::string& wpName);         // waypoint prefix ->
 std::string InstName(void* npc);                           // script instance id (e.g. GRD_212_TORWACHE)
 struct WpLabel { std::string title, region; std::vector<std::string> tags; };
 WpLabel DescribeWp(const std::string& wpName);              // readable Polish name + tags for a waypoint
+struct ModelNode { zVEC3 pos; int parent; std::string name; };   // parent -1 root, -2 = skip (slot/invalid)
+bool ModelNodes(void* npc, std::vector<ModelNode>& out);          // skeleton in world space (guarded reads)
+bool HeadPos(void* npc, zVEC3& out);
 bool GameFocused();
 bool On(const char* id);
 float Val(const char* id);

@@ -6,7 +6,7 @@
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 5
+#define TRAINER_BUILD 6
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]
@@ -33,6 +33,8 @@ struct Row {
     Status status = ST_NEW;
     std::string hist;
     std::string icon;                            // Fork Awesome glyph (utf8)
+    bool live = false;                           // value applies immediately (no button)
+    std::vector<std::string> excl;               // rows that cannot be on together with this one
 };
 
 struct Label {
@@ -42,6 +44,7 @@ struct Label {
     float bx0, by0, bx1, by1;
     float corners[16];        // 3d box: 8 projected points (x,y)
     std::vector<float> bones; // skeleton segments x0,y0,x1,y1 (normalized)
+    bool anchor = false; float ax = 0, ay = 0;   // where the ground line ends (feet of the skeleton)
     std::string text, sub;
     std::vector<std::string> lines;   // equipment / chest contents
     unsigned color;
@@ -54,7 +57,7 @@ struct NearNpc {                  // npc list for pickers (ally picker etc.)
     int pstate = 0;   // party: 0 follows, 1 waits, 2 back at post
 };
 struct SavedInfo {                // saved target details for the target panel
-    uintptr_t ptr; std::string name, inst, guild, group, place; float x, y, z, dist; int hp, hpmax, level; bool dead, monster;
+    uintptr_t ptr; std::string name, inst, guild, group, place; float x, y, z, dist; int hp, hpmax, level; bool dead, monster, frozen;
     bool onScreen; float headX, headY, headR;   // normalized screen pos/size of the head (portrait capture)
 };
 
@@ -71,6 +74,9 @@ struct Snapshot {
     std::vector<NearNpc> nearby, party;
     std::string subjectName; uintptr_t subjectPtr = 0;
     bool quicksilver = false;
+    std::string subjectInst, tInst2, heroInst;
+    bool photoBusy = false, photoBatch = false; int photoDone = 0, photoTotal = 0; std::string photoLabel;
+    int espHidden = 0;
     bool swapped = false;
     bool arena = false; int arenaWave = 0, arenaAlive = 0;
     std::vector<Label> labels;
@@ -103,6 +109,7 @@ struct Trainer {
     bool testerMode = false;
     double gameClock = 0;                // seconds of unpaused game time (pause-safe scheduling)
     volatile double lastTick = 0;        // real time of the last game frame (game menu open = stale)
+    volatile bool inGameMenu = false;    // the game's own Esc/main menu is running
     bool dirty = false; double lastSave = 0;
     void SaveNow();
 
@@ -147,7 +154,12 @@ void Act_RemoveSavedTarget(int idx);
 void Act_Unswap();
 void Act_MakeAllies(const std::vector<uintptr_t>& npcs);
 void Act_PartyCmd(uintptr_t npc, int cmd);   // 0 follow 1 wait 2 to post 3 summon 4 tp to 5 kick
-void Act_Photo(uintptr_t npc);               // portrait request (0 = current subject)
+void Act_Photo(uintptr_t npc, bool force = false);   // portrait request (0 = current subject)
+void Act_PhotoItem(int sym);                          // item icon request
+void Act_PhotoBatch(int what);                        // 0 all npcs in world, 1 all items
+void Act_PhotoCancel();
+void Act_CastOnTarget();
+void Act_SelectTargetFor(int savedIdx);              // -1 = npc under crosshair
 void Act_SetName(const std::string& utf8);
 void Act_ApplyLook();
 void Act_UpdatePos(int idx, const SavedPos& p);
