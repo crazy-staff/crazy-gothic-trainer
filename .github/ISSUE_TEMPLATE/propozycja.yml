@@ -1,0 +1,41 @@
+name: Propozycja
+description: Pomysł na nową opcję albo zmianę istniejącej.
+title: "[Propozycja] "
+labels: ["propozycja"]
+body:
+  - type: markdown
+    attributes:
+      value: Podobne pomysły? Daj 👍 pod istniejącą propozycją zamiast pisać nową — tak ustalamy, co robić najpierw.
+  - type: input
+    id: opcja
+    attributes:
+      label: Czego dotyczy
+      description: Istniejąca opcja (z ID) albo „nowa funkcja”.
+  - type: textarea
+    id: opis
+    attributes:
+      label: Opis pomysłu
+      description: Co ma robić i jak ma wyglądać w menu.
+    validations:
+      required: true
+  - type: textarea
+    id: dlaczego
+    attributes:
+      label: Po co / dla kogo
+  - type: input
+    id: build
+    attributes:
+      label: Build trainera
+  - type: input
+    id: tester
+    attributes:
+      label: Twój nick
+  - type: textarea
+    id: kontekst
+    attributes:
+      label: Kontekst z gry (automatycznie)
+      render: text
+  - type: input
+    id: uid
+    attributes:
+      label: ID zgłoszenia (z gry)

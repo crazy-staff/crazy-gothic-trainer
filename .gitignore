@@ -2,3 +2,4 @@ obj/
 out/
 *.dll
 *.o
+__pycache__/

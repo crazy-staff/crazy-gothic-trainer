@@ -1,0 +1,73 @@
+name: Błąd
+description: Coś nie działa albo działa źle. Najwygodniej zgłaszać z gry (Centrum testera → flaga przy opcji).
+title: ""
+labels: ["błąd", "do-sprawdzenia"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Dzięki za zgłoszenie! Jeśli wysyłasz z gry, pola są już wypełnione — sprawdź je i kliknij **Submit new issue**.
+        Zanim napiszesz, rzuć okiem na [otwarte zgłoszenia](https://github.com/dawidseipold/gothic1-crazy-trainer/issues), może ktoś już to opisał (wtedy daj 👍 i dopisz komentarz).
+  - type: input
+    id: opcja
+    attributes:
+      label: Czego dotyczy
+      description: Nazwa opcji z menu (w nawiasie jej ID, np. `rain`) albo „ogólne”.
+    validations:
+      required: true
+  - type: textarea
+    id: kroki
+    attributes:
+      label: Kroki — co robiłeś po kolei
+      placeholder: |
+        1. Wczytałem zapis w Starym Obozie
+        2. Włączyłem ...
+    validations:
+      required: true
+  - type: textarea
+    id: oczekiwane
+    attributes:
+      label: Co powinno się stać
+  - type: textarea
+    id: faktyczne
+    attributes:
+      label: Co się stało
+    validations:
+      required: true
+  - type: input
+    id: waga
+    attributes:
+      label: Waga
+      placeholder: drobne / przeszkadza / blokuje grę
+  - type: input
+    id: powtarzalnosc
+    attributes:
+      label: Jak często
+      placeholder: zawsze / często / czasem / raz
+  - type: input
+    id: build
+    attributes:
+      label: Build trainera
+      description: Numer widoczny w menu (Konfiguracja) albo w nazwie pliku z wydania.
+    validations:
+      required: true
+  - type: input
+    id: tester
+    attributes:
+      label: Twój nick
+  - type: textarea
+    id: kontekst
+    attributes:
+      label: Kontekst z gry (automatycznie)
+      description: Stan gry, włączone opcje i ostatnie zdarzenia — wypełnia się samo przy wysyłaniu z gry.
+      render: text
+  - type: textarea
+    id: zalaczniki
+    attributes:
+      label: Raport / zrzuty ekranu
+      description: Przeciągnij tutaj plik raportu z folderu `G1CrazyTrainer_raporty` (Centrum testera → Wyślij → Eksportuj) i ewentualne screeny.
+  - type: input
+    id: uid
+    attributes:
+      label: ID zgłoszenia (z gry)
+      description: Nie zmieniaj — pozwala połączyć to zgłoszenie z raportem.

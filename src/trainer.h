@@ -6,7 +6,7 @@
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 7
+#define TRAINER_BUILD 8
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]

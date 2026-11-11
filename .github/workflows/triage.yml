@@ -1,0 +1,42 @@
+# Labels new issues from the in-game / web forms and points at likely duplicates.
+#   "Czego dotyczy: Deszcz zaklęć (rain)"  -> label opcja:rain
+#   "Build trainera: 8"                    -> label build-8
+#   "ID zgłoszenia (z gry)" filled         -> label z-gry
+name: Triage zgłoszeń
+on:
+  issues:
+    types: [opened, edited]
+permissions:
+  issues: write
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const field = (name) => {
+              const m = body.match(new RegExp('### ' + name + '\\s*\\n+([\\s\\S]*?)(?=\\n### |$)'));
+              if (!m) return '';
+              const v = m[1].trim();
+              return v === '_No response_' ? '' : v;
+            };
+            const labels = [];
+            const target = field('Czego dotyczy') || field('Co było włączone / co robiłeś w chwili crasha');
+            const id = (target.match(/\(([A-Za-z0-9_-]+)\)\s*$/) || [])[1];
+            if (id) labels.push('opcja:' + id);
+            const build = (field('Build trainera').match(/\d+/) || [])[0];
+            if (build) labels.push('build-' + build);
+            if (field('ID zgłoszenia \\(z gry\\)')) labels.push('z-gry');
+            if (labels.length) await github.rest.issues.addLabels({ ...context.repo, issue_number: issue.number, labels });
+            if (context.payload.action !== 'opened' || !id) return;
+            // other open issues about the same option -> one comment so testers can join an existing thread
+            const others = await github.paginate(github.rest.issues.listForRepo, { ...context.repo, state: 'open', labels: 'opcja:' + id, per_page: 100 });
+            const dup = others.filter(o => o.number !== issue.number && !o.pull_request);
+            if (dup.length) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: issue.number,
+                body: 'Inne otwarte zgłoszenia o tej opcji (`' + id + '`) — sprawdź, czy to nie to samo:\n' +
+                      dup.slice(0, 10).map(o => '- #' + o.number + ' ' + o.title).join('\n') });
+            }

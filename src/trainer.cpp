@@ -1,5 +1,6 @@
 // Trainer core: queue, crash guard, self test, persistence, frame dispatch to modules.
 #include "trainer.h"
+#include "tester.h"
 #include "mods/mods.h"
 #include "MinHook.h"
 #include <algorithm>
@@ -94,6 +95,12 @@ static LONG CALLBACK Veh(EXCEPTION_POINTERS* e) {
     Log("!! WYJATEK %08lx @ %p (%s+0x%lx) akcja=[%s] stan=[%s] adres=%p", c, addr, base ? base + 1 : mod,
         (unsigned long)((uintptr_t)addr - (uintptr_t)m), g_crumbDyn.c_str(), g_crumb,
         (void*)(c == EXCEPTION_ACCESS_VIOLATION ? e->ExceptionRecord->ExceptionInformation[1] : 0));
+    {   // per-option event log for testers (crumb "row:<id>[:...]")
+        std::string k = g_crumbDyn, id;
+        if (k.rfind("row:", 0) == 0) { size_t p = k.find(':', 4); id = k.substr(4, p == std::string::npos ? std::string::npos : p - 4); }
+        char b[160]; snprintf(b, sizeof b, "WYJĄTEK %08lx w %s+0x%lx", c, base ? base + 1 : mod, (unsigned long)((uintptr_t)addr - (uintptr_t)m));
+        tst::Event(id, b);
+    }
     return EXCEPTION_CONTINUE_SEARCH;
 }
 void CrashGuardInit() {
@@ -102,6 +109,7 @@ void CrashGuardInit() {
     { std::ifstream pf(pend); if (pf) std::getline(pf, key); }
     if (!key.empty()) {
         Log("Poprzednia sesja padla podczas: %s", key.c_str());
+        tst::NoteCrash(key);
         std::ofstream cf(DataPath("G1CrazyTrainer_crashes.txt"), std::ios::app);
         cf << key << "\n";
     }
@@ -257,6 +265,7 @@ void Trainer::Init() {
     Player_Register(); Items_Register(); Npcs_Register(); Target_Register(); Chaos_Register(); World_Register();
     Esp_Register(); Teleport_Register(); Marvin_Register(); Photo_Register();
     for (auto& r : rows) if (Crashed("row:" + r.id)) { r.status = ST_CRASH; r.hist = "crashowało w poprzedniej sesji (wykryte automatycznie)"; }
+    tst::Load();   // tester history (also turns a crash from the previous session into a draft report)
 }
 void ApplyRow(Row& r) {
     Row* rp = &r;
@@ -271,13 +280,16 @@ void ApplyRow(Row& r) {
         r.on = !r.on;
         if (r.act) T.Queue("row:" + r.id, [rp] { if (InGame()) rp->act(*rp); });
         T.Toast(r.name + ": " + (r.on ? "ON" : "OFF"));
+        tst::Event(r.id, r.on ? (r.kind == K_SLIDER ? "włączono (wartość " + std::to_string(r.val).substr(0, 6) + ")" : std::string("włączono")) : std::string("wyłączono"));
         break;
     case K_SET:
         r.on = !r.on;
         T.Toast(r.on ? r.name + " = " + std::to_string((int)r.val) : r.name + ": przywrócono wartość gry");
+        tst::Event(r.id, r.on ? "ustawiono " + std::to_string((int)r.val) : std::string("przywrócono wartość gry"));
         break;
     case K_ACTION: case K_CHOICE:
         if (r.act) T.Queue("row:" + r.id, [rp] { if (InGame()) rp->act(*rp); });
+        tst::Event(r.id, "wykonano (wartość " + std::to_string(r.val).substr(0, 6) + ")" + (InGame() ? "" : " - poza grą, zignorowane"));
         break;
     case K_VALUE: break;
     }

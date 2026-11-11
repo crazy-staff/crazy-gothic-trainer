@@ -1,0 +1,68 @@
+name: Crash (gra się wyłączyła)
+description: Gra się zamknęła albo zawiesiła. Po crashu trainer sam przygotowuje szkic zgłoszenia w Centrum testera.
+title: "[Crash] "
+labels: ["crash", "do-sprawdzenia"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Najważniejsze przy crashu: plik raportu.** W grze: Centrum testera → Wyślij → *Eksportuj niewysłane*, potem przeciągnij plik z folderu `G1CrazyTrainer_raporty` do pola „Raport” niżej.
+        Bez gry: dołącz `G1CrazyTrainer.log` i `G1CrazyTrainer_crashes.txt` z folderu `Gothic\system\Autorun`.
+  - type: input
+    id: opcja
+    attributes:
+      label: Co było włączone / co robiłeś w chwili crasha
+    validations:
+      required: true
+  - type: textarea
+    id: kroki
+    attributes:
+      label: Kroki
+      placeholder: |
+        1. ...
+        2. ...
+  - type: textarea
+    id: faktyczne
+    attributes:
+      label: Co się stało
+      placeholder: gra zamknęła się bez komunikatu / zawiesiła / komunikat o błędzie ...
+  - type: input
+    id: powtarzalnosc
+    attributes:
+      label: Jak często
+      placeholder: zawsze / często / czasem / raz
+  - type: input
+    id: build
+    attributes:
+      label: Build trainera
+    validations:
+      required: true
+  - type: input
+    id: tester
+    attributes:
+      label: Twój nick
+  - type: textarea
+    id: kontekst
+    attributes:
+      label: Kontekst z gry (automatycznie)
+      render: text
+  - type: textarea
+    id: zalaczniki
+    attributes:
+      label: Raport
+      description: Przeciągnij tutaj plik raportu (wymagany przy crashu).
+    validations:
+      required: true
+  - type: input
+    id: oczekiwane
+    attributes:
+      label: (opcjonalnie) co powinno się stać
+  - type: input
+    id: waga
+    attributes:
+      label: Waga
+      value: blokuje grę
+  - type: input
+    id: uid
+    attributes:
+      label: ID zgłoszenia (z gry)
