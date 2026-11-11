@@ -1,0 +1,52 @@
+# Push a tag "b<number>" (e.g. b9) -> builds the DLL on Linux (MinGW) and publishes a GitHub release with the zip.
+# Dependency commits are pinned to what the trainer is developed against.
+name: Release
+on:
+  push:
+    tags: ["b*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag do wydania (np. b8)"
+        required: true
+permissions:
+  contents: write
+  issues: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      IMGUI_COMMIT: d3b36a875f0f7e7446b99606ca3d6df27b7dad7a
+      MINHOOK_COMMIT: 8af6b4acae5a9388fd742b56fa79ece89d96f823
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: MinGW
+        run: sudo apt-get update -q && sudo apt-get install -y -q g++-mingw-w64-i686-posix gcc-mingw-w64-i686-posix zip
+      - name: ImGui + MinHook
+        run: |
+          git clone -q https://github.com/ocornut/imgui ext/imgui && git -C ext/imgui checkout -q $IMGUI_COMMIT
+          git clone -q https://github.com/TsudaKageyu/minhook ext/minhook && git -C ext/minhook checkout -q $MINHOOK_COMMIT
+      - name: Build
+        run: IMGUI_DIR=$PWD/ext/imgui MINHOOK_DIR=$PWD/ext/minhook ./build.sh
+      - name: Package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          N=${TAG#b}
+          mkdir pkg && cp out/G1CrazyTrainer.dll pkg/
+          python3 tools/known_issues.py pkg/G1CrazyTrainer_znane.txt
+          sed "s/{BUILD}/$N/" tools/INSTRUKCJA.txt | sed 's/$/\r/' > pkg/INSTRUKCJA.txt
+          (cd pkg && zip -q ../G1CrazyTrainer_build$N.zip *)
+          ls -l G1CrazyTrainer_build$N.zip
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          N=${TAG#b}
+          NOTES=docs/release/$TAG.md
+          [ -f "$NOTES" ] || NOTES=docs/release/default.md
+          gh release create "$TAG" G1CrazyTrainer_build$N.zip --title "Build $N" --notes-file "$NOTES" --prerelease \
+            || gh release upload "$TAG" G1CrazyTrainer_build$N.zip --clobber

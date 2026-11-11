@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
-cd /root/g1t
-I=/root/ext/imgui; M=/root/ext/minhook
+cd "$(dirname "$0")"
+I=${IMGUI_DIR:-/root/ext/imgui}; M=${MINHOOK_DIR:-/root/ext/minhook}
 mkdir -p obj out
 CXX="i686-w64-mingw32-g++-posix"; CC="i686-w64-mingw32-gcc-posix"
 FL="-O2 -DNDEBUG -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS -I$I -I$I/backends -I$M/include -Isrc"

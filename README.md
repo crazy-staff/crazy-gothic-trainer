@@ -85,4 +85,5 @@ Struktura:
 - `src/trainer.cpp` – kolejka akcji, ochrona przed crashami, zapis ustawień
 - `tools/reports.py` – łączy raporty testerów w jedno podsumowanie i zakłada z nich issues (`--github`)
 - `tools/known_issues.py` – generuje `G1CrazyTrainer_znane.txt` (znane problemy pokazywane w grze) z issues na GitHubie
+- `.github/workflows/release.yml` – push taga `bN` buduje DLL i publikuje release (opis z `docs/release/bN.md`)
 - `.github/ISSUE_TEMPLATE` – formularze zgłoszeń (gra wypełnia je przez URL), `.github/workflows/triage.yml` – automatyczne etykiety `opcja:<id>`, `build-N` i wskazywanie duplikatów
