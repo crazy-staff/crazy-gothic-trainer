@@ -1,14 +1,12 @@
-# Push a tag "b<number>" (e.g. b9) -> builds the DLL on Linux (MinGW) and publishes a GitHub release with the zip.
+# Adding docs/release/bN.md on main (N = TRAINER_BUILD in src/trainer.h) -> builds the DLL on Linux (MinGW)
+# and publishes release "bN" with the zip. Skipped when that release already exists. Can also be run by hand.
 # Dependency commits are pinned to what the trainer is developed against.
 name: Release
 on:
   push:
-    tags: ["b*"]
+    branches: [main]
+    paths: ["docs/release/b*.md"]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag do wydania (np. b8)"
-        required: true
 permissions:
   contents: write
   issues: read
@@ -16,22 +14,32 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     env:
-      TAG: ${{ github.event.inputs.tag || github.ref_name }}
       IMGUI_COMMIT: d3b36a875f0f7e7446b99606ca3d6df27b7dad7a
       MINHOOK_COMMIT: 8af6b4acae5a9388fd742b56fa79ece89d96f823
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG }}
+      - name: Which build
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          N=$(grep -oP '#define TRAINER_BUILD \K[0-9]+' src/trainer.h)
+          echo "TAG=b$N" >> $GITHUB_ENV
+          if gh release view "b$N" >/dev/null 2>&1; then echo "skip=1" >> $GITHUB_OUTPUT; echo "release b$N already exists"; fi
+          [ -f docs/release/b$N.md ] || echo "uwaga: brak docs/release/b$N.md - użyję default.md"
       - name: MinGW
+        if: steps.v.outputs.skip != '1'
         run: sudo apt-get update -q && sudo apt-get install -y -q g++-mingw-w64-i686-posix gcc-mingw-w64-i686-posix zip
       - name: ImGui + MinHook
+        if: steps.v.outputs.skip != '1'
         run: |
           git clone -q https://github.com/ocornut/imgui ext/imgui && git -C ext/imgui checkout -q $IMGUI_COMMIT
           git clone -q https://github.com/TsudaKageyu/minhook ext/minhook && git -C ext/minhook checkout -q $MINHOOK_COMMIT
       - name: Build
+        if: steps.v.outputs.skip != '1'
         run: IMGUI_DIR=$PWD/ext/imgui MINHOOK_DIR=$PWD/ext/minhook ./build.sh
       - name: Package
+        if: steps.v.outputs.skip != '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -42,11 +50,11 @@ jobs:
           (cd pkg && zip -q ../G1CrazyTrainer_build$N.zip *)
           ls -l G1CrazyTrainer_build$N.zip
       - name: Publish release
+        if: steps.v.outputs.skip != '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           N=${TAG#b}
           NOTES=docs/release/$TAG.md
           [ -f "$NOTES" ] || NOTES=docs/release/default.md
-          gh release create "$TAG" G1CrazyTrainer_build$N.zip --title "Build $N" --notes-file "$NOTES" --prerelease \
-            || gh release upload "$TAG" G1CrazyTrainer_build$N.zip --clobber
+          gh release create "$TAG" G1CrazyTrainer_build$N.zip --target "$GITHUB_SHA" --title "Build $N" --notes-file "$NOTES" --prerelease
