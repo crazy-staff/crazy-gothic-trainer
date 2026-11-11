@@ -6,7 +6,7 @@
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 3
+#define TRAINER_BUILD 4
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]
@@ -19,7 +19,7 @@ enum Kind {
 enum Status { ST_NEW, ST_OK, ST_BUG, ST_CRASH };
 
 struct Row {
-    std::string id, name, note, cat, sub;
+    std::string id, name, note, cat, sub, group;   // group = card title inside the subsection
     Kind kind;
     float val = 0, vmin = 0, vmax = 0;
     bool isFloat = false;
@@ -40,6 +40,7 @@ struct Label {
     int box;                  // 0 none 1 rect 2 3d
     float bx0, by0, bx1, by1;
     float corners[16];        // 3d box: 8 projected points (x,y)
+    std::vector<float> bones; // skeleton segments x0,y0,x1,y1 (normalized)
     std::string text, sub;
     std::vector<std::string> lines;   // equipment / chest contents
     unsigned color;
@@ -47,6 +48,13 @@ struct Label {
 };
 
 struct DiagLine { std::string text; bool ok; };
+struct NearNpc {                  // npc list for pickers (ally picker etc.)
+    uintptr_t ptr; std::string name, guild, inst; int group, hp, hpmax, level; float dist; bool ally, dead, monster, hostile;
+};
+struct SavedInfo {                // saved target details for the target panel
+    uintptr_t ptr; std::string name, inst, guild, group, place; float x, y, z, dist; int hp, hpmax, level; bool dead, monster;
+    bool onScreen; float headX, headY, headR;   // normalized screen pos/size of the head (portrait capture)
+};
 
 struct Snapshot {
     bool inGame = false;
@@ -56,6 +64,10 @@ struct Snapshot {
     std::string world, bodyName, guildName;
     bool tValid = false, tSaved = false; std::string tName, tGuild, tGroup; int tHp = 0, tHpMax = 0, tLevel = 0; bool tDead = false, tMonster = false;
     std::vector<std::string> savedTargets; int activeSaved = -1;
+    std::vector<SavedInfo> saved;
+    std::string tInst, tPlace; float tx = 0, ty = 0, tz = 0; uintptr_t tPtr = 0;
+    std::vector<NearNpc> nearby;
+    bool quicksilver = false;
     bool swapped = false;
     bool arena = false; int arenaWave = 0, arenaAlive = 0;
     std::vector<Label> labels;
@@ -85,6 +97,8 @@ struct Trainer {
     ItemSet editSet;                     // set being built in the UI
     std::vector<Macro> macros;
     float accent[3] = { 0.66f, 0.55f, 1.00f };
+    bool testerMode = false;
+    double gameClock = 0;                // seconds of unpaused game time (pause-safe scheduling)
 
     void Init();
     Row* Get(const std::string& id);
@@ -125,5 +139,8 @@ void Act_RunScript(const std::string& fn);
 void Act_SelectSavedTarget(int idx);
 void Act_RemoveSavedTarget(int idx);
 void Act_Unswap();
+void Act_MakeAllies(const std::vector<uintptr_t>& npcs);
+void Act_SelectSavedPtr(uintptr_t p);
+void CardTitle(const char* t);       // following rows of the module go into this card
 
 void InstallGameHooks();

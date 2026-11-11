@@ -1,58 +1,63 @@
-// Menu (Dear ImGui over GD3D11). The user's trainer design: dark/purple(accent), tabs,
-// 4-column rows, rounded corners, status pills; plus cards for target/player/ESP.
+// Menu (Dear ImGui over GD3D11), build 4 layout: left sidebar with sections and expandable
+// subsections (Konfiguracja pinned to the bottom), content as two-column cards with
+// switches, sliders (value on the right), dropdowns and buttons. Status dots only in tester mode.
 #include "ui.h"
 #include "trainer.h"
+#include "portrait.h"
 #include "core/catalog.h"
+#include "core/common.h"
+#include "mods/mods.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <set>
 
 extern unsigned g_espColors[7];
 
-#define ICO_SEARCH "\xef\x80\x82"
-#define ICO_COG "\xef\x80\x93"
-#define ICO_HOME "\xef\x80\x95"
-#define ICO_USER "\xef\x80\x87"
-#define ICO_PAW "\xef\x86\xb0"
-#define ICO_TIMES "\xef\x80\x8d"
-#define ICO_PLUS "\xef\x81\xa7"
-#define ICO_PLAY "\xef\x81\x8b"
-#define ICO_TRASH "\xef\x87\xb8"
-#define ICO_BOOKMARK "\xef\x80\xae"
 #define ICO_EDIT "\xef\x81\x84"
-#define ICO_SAVE "\xef\x83\x87"
+#define ICO_CHEVR "\xef\x81\x94"
+#define ICO_CHEVD "\xef\x81\xb8"
 
 static inline void PF(ImFont* f) { ImGui::PushFont(f, f->LegacySize); }
 namespace {
-const ImVec4 C_BG(0.07f, 0.07f, 0.10f, 0.95f), C_ROW1(0.12f, 0.12f, 0.17f, 1), C_ROW2(0.10f, 0.10f, 0.14f, 1),
-    C_HOVER(0.18f, 0.17f, 0.27f, 1), C_TEXT(0.93f, 0.93f, 0.97f, 1), C_DIM(0.60f, 0.60f, 0.68f, 1),
-    C_ON(0.45f, 0.95f, 0.55f, 1), C_OFF(0.85f, 0.85f, 0.90f, 1), C_NUM(0.40f, 0.85f, 1.00f, 1),
-    C_TRACK(0.25f, 0.25f, 0.33f, 1), C_BTN(0.16f, 0.15f, 0.23f, 1), C_BTNH(0.24f, 0.21f, 0.38f, 1), C_CARD(0.11f, 0.11f, 0.155f, 1),
-    C_ST_OK(0.45f, 0.95f, 0.55f, 1), C_ST_BUG(0.98f, 0.80f, 0.30f, 1), C_ST_CRASH(1.0f, 0.38f, 0.38f, 1), C_ST_NEW(0.42f, 0.70f, 1.0f, 1);
-ImVec4 C_ACC(0.66f, 0.55f, 1.00f, 1), C_EDIT(0.25f, 0.20f, 0.45f, 1);
+const ImVec4 C_WIN(0.075f, 0.075f, 0.10f, 0.97f), C_SIDE(0.055f, 0.055f, 0.075f, 1), C_CARD(0.105f, 0.105f, 0.14f, 1),
+    C_CARD2(0.125f, 0.125f, 0.165f, 1), C_HOVER(0.16f, 0.155f, 0.22f, 1), C_TEXT(0.92f, 0.92f, 0.96f, 1), C_DIM(0.55f, 0.55f, 0.63f, 1),
+    C_FAINT(0.36f, 0.36f, 0.43f, 1), C_ON(0.45f, 0.92f, 0.55f, 1), C_TRACK(0.22f, 0.22f, 0.29f, 1), C_BTN(0.15f, 0.15f, 0.20f, 1),
+    C_BTNH(0.21f, 0.20f, 0.29f, 1), C_LINE(0.17f, 0.17f, 0.22f, 1), C_HP(0.92f, 0.36f, 0.40f, 1), C_MANA(0.40f, 0.62f, 1.0f, 1),
+    C_ST_OK(0.45f, 0.92f, 0.55f, 1), C_ST_BUG(0.98f, 0.80f, 0.30f, 1), C_ST_CRASH(1.0f, 0.40f, 0.40f, 1), C_ST_NEW(0.42f, 0.70f, 1.0f, 1);
+ImVec4 C_ACC(0.66f, 0.55f, 1.00f, 1), C_ACCD(0.25f, 0.20f, 0.45f, 1);
 inline ImU32 U32(const ImVec4& c, float a = -1) { return ImGui::GetColorU32(ImVec4(c.x, c.y, c.z, a < 0 ? c.w : a)); }
 inline ImVec4 Mix(const ImVec4& a, const ImVec4& b, float t) { return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, 1); }
 
-ImFont *fReg, *fBold, *fBig, *fSmall, *fIcon;
+ImFont *fReg, *fBold, *fBig, *fTitle, *fSmall, *fIcon;
 float S = 1.f;
-int tab = 0;
-const char* kTabs[] = { "Gracz", "Przedmioty", "Potwory i NPC", "Cel", "Chaos", "Świat", "Render", "Teleport", "Marvin" };
-const int kTabCount = sizeof(kTabs) / sizeof(*kTabs);
+bool iconsOk = false;
+
+struct Sec { const char* name; const char* icon; std::vector<const char*> subs; };
+const std::vector<Sec> kSecs = {
+    { "Bohater", ICN_USER, { "Przetrwanie", "Statystyki", "Umiejętności", "Ruch", "Tożsamość" } },
+    { "Ekwipunek", ICN_BAG, { "Spawner", "Zestawy", "Ruda i PD" } },
+    { "Postacie", ICN_USERS, { "Cel", "Spawner", "Drużyna", "Arena" } },
+    { "Fun", ICN_FIRE, { "Wojna", "Zagłada", "Magia", "Inwazja", "Fizyka", "Czas" } },
+    { "Świat", ICN_MAP, { "Czas i fabuła", "Teleport" } },
+    { "Wizualia", ICN_EYE, { "ESP postaci", "ESP przedmiotów", "Kolory" } },
+    { "Narzędzia", ICN_TERMINAL, { "Marvin", "Konsola", "Diagnostyka" } },
+};
+int curSec = 0, curSub = 0; bool cfgPage = false;
 Row* editRow = nullptr; char editBuf[32]; bool editFirst = false;
 Row* bindRow = nullptr;
 char search[96] = "", gsearch[96] = "";
-bool globalSearch = false, gsearchFocus = false, settingsOpen = false;
 int itemCat = -1, npcGroup = -1, itemSort = 0; std::string itemSub;
-char consoleBuf[2048] = "", scriptBuf[96] = "", posName[64] = "", macroName[64] = "", setName[64] = "";
-int macroRepeat = 1;
+char consoleBuf[2048] = "", scriptBuf[96] = "", posName[64] = "", macroName[64] = "", setName[64] = "", allySearch[64] = "";
+int macroRepeat = 1, allyFilter = 0;
 float manX = 0, manY = 0, manZ = 0;
-bool iconsOk = false;
+std::set<uintptr_t> allyPick;
 
 std::string KeyName(int vk) {
-    if (!vk) return "-";
+    if (!vk) return "";
     UINT sc = MapVirtualKeyA(vk, MAPVK_VK_TO_VSC);
     switch (vk) {
     case VK_INSERT: case VK_DELETE: case VK_HOME: case VK_END: case VK_PRIOR: case VK_NEXT:
@@ -63,60 +68,127 @@ std::string KeyName(int vk) {
     snprintf(b, sizeof b, "VK %d", vk);
     return b;
 }
-
-bool TextButton(const char* id, const char* label, const ImVec4& col, ImFont* font, ImVec2 pos, bool pill = true) {
-    PF(font);
-    ImVec2 ts = ImGui::CalcTextSize(label);
-    ImVec2 pad(8 * S, 4 * S);
-    ImGui::SetCursorScreenPos(pos);
-    bool clicked = ImGui::InvisibleButton(id, ImVec2(ts.x + pad.x * 2, ts.y + pad.y * 2));
-    bool hov = ImGui::IsItemHovered();
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    if (pill) dl->AddRectFilled(pos, ImVec2(pos.x + ts.x + pad.x * 2, pos.y + ts.y + pad.y * 2), U32(hov ? C_BTNH : C_BTN), 6 * S);
-    dl->AddText(ImVec2(pos.x + pad.x, pos.y + pad.y), U32(col), label);
-    ImGui::PopFont();
-    return clicked;
+float TextW(const char* t, ImFont* f) { PF(f); float w = ImGui::CalcTextSize(t).x; ImGui::PopFont(); return w; }
+ImDrawList* DL() { return ImGui::GetWindowDrawList(); }
+void Text(ImVec2 p, ImFont* f, const ImVec4& c, const char* t) { PF(f); DL()->AddText(p, U32(c), t); ImGui::PopFont(); }
+void TextClip(ImVec2 p, ImFont* f, const ImVec4& c, const std::string& t, float maxX) {
+    DL()->PushClipRect(ImVec2(p.x, p.y - 2), ImVec2(maxX, p.y + 40 * S), true);
+    Text(p, f, c, t.c_str());
+    DL()->PopClipRect();
 }
-float TextW(const char* label, ImFont* f) { PF(f); float w = ImGui::CalcTextSize(label).x; ImGui::PopFont(); return w; }
+std::string Lower(std::string s) { for (auto& c : s) c = (char)tolower((unsigned char)c); return s; }
+bool MatchQ(const char* q, const std::string& a, const std::string& b) {
+    if (!q[0]) return true;
+    std::string ql = Lower(q);
+    return Lower(a).find(ql) != std::string::npos || Lower(b).find(ql) != std::string::npos;
+}
 
-// square icon button (Fork Awesome glyph) with tooltip
-bool IconButton(const char* id, const char* glyph, const char* tip, ImVec2 pos, float size, const ImVec4& col, bool accentBg = false) {
+// ------------------------------------------------------------------ small widgets
+float ButtonW(const char* label, ImFont* f = nullptr) {
+    PF(f ? f : fBold); float w = ImGui::CalcTextSize(label, nullptr, true).x; ImGui::PopFont(); return w + 20 * S;
+}
+bool Button(const char* id, const char* label, ImVec2 pos, bool primary = true, ImFont* f = nullptr, float minW = 0) {
+    if (!f) f = fBold;
+    PF(f); ImVec2 ts = ImGui::CalcTextSize(label, nullptr, true); ImGui::PopFont();
+    ImVec2 sz(std::max(minW, ts.x + 20 * S), ts.y + 10 * S);
+    ImGui::SetCursorScreenPos(pos);
+    bool c = ImGui::InvisibleButton(id, sz);
+    bool hov = ImGui::IsItemHovered(), act = ImGui::IsItemActive();
+    ImVec4 bg = primary ? (act ? Mix(C_ACC, C_WIN, 0.25f) : hov ? Mix(C_ACC, ImVec4(1, 1, 1, 1), 0.12f) : C_ACC) : (hov ? C_BTNH : C_BTN);
+    DL()->AddRectFilled(pos, ImVec2(pos.x + sz.x, pos.y + sz.y), U32(bg), 6 * S);
+    PF(f);
+    DL()->AddText(nullptr, 0, ImVec2(pos.x + (sz.x - ts.x) * 0.5f, pos.y + 5 * S), primary ? IM_COL32(18, 16, 28, 255) : U32(C_TEXT), label,
+                  ImGui::FindRenderedTextEnd(label));
+    ImGui::PopFont();
+    return c;
+}
+bool IconButton(const char* id, const char* glyph, const char* tip, ImVec2 pos, float size, const ImVec4& col, bool active = false) {
     ImGui::SetCursorScreenPos(pos);
     bool c = ImGui::InvisibleButton(id, ImVec2(size, size));
     bool hov = ImGui::IsItemHovered();
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddRectFilled(pos, ImVec2(pos.x + size, pos.y + size), U32(accentBg ? C_EDIT : (hov ? C_BTNH : C_BTN)), 7 * S);
+    DL()->AddRectFilled(pos, ImVec2(pos.x + size, pos.y + size), U32(active ? C_ACCD : (hov ? C_BTNH : C_BTN)), 7 * S);
     if (iconsOk) {
         PF(fIcon);
         ImVec2 ts = ImGui::CalcTextSize(glyph);
-        dl->AddText(ImVec2(pos.x + (size - ts.x) * 0.5f, pos.y + (size - ts.y) * 0.5f), U32(hov ? C_TEXT : col), glyph);
+        DL()->AddText(ImVec2(pos.x + (size - ts.x) * 0.5f, pos.y + (size - ts.y) * 0.5f), U32(hov || active ? C_ACC : col), glyph);
         ImGui::PopFont();
-    } else {
-        PF(fSmall); ImVec2 ts = ImGui::CalcTextSize(tip); dl->AddText(ImVec2(pos.x + 3 * S, pos.y + (size - ts.y) * 0.5f), U32(col), tip); ImGui::PopFont();
     }
     if (hov && tip) ImGui::SetTooltip("%s", tip);
     return c;
 }
-
-void StatusPill(ImDrawList* dl, ImVec2 p, Status st, const std::string& hist, float* outW) {
-    const char* t; ImVec4 c;
-    switch (st) { case ST_OK: t = "OK"; c = C_ST_OK; break; case ST_BUG: t = "BUG"; c = C_ST_BUG; break;
-                  case ST_CRASH: t = "CRASH"; c = C_ST_CRASH; break; default: t = "TEST"; c = C_ST_NEW; }
-    PF(fSmall);
-    ImVec2 ts = ImGui::CalcTextSize(t);
-    ImVec2 a(p.x, p.y), b(p.x + ts.x + 10 * S, p.y + ts.y + 2 * S);
-    dl->AddRectFilled(a, b, U32(c, 0.18f), 4 * S);
-    dl->AddText(ImVec2(p.x + 5 * S, p.y + 1 * S), U32(c), t);
+bool Switch(const char* id, bool v, ImVec2 pos) {
+    float w = 36 * S, h = 19 * S;
+    ImGui::SetCursorScreenPos(pos);
+    bool c = ImGui::InvisibleButton(id, ImVec2(w, h));
+    bool hov = ImGui::IsItemHovered();
+    DL()->AddRectFilled(pos, ImVec2(pos.x + w, pos.y + h), U32(v ? C_ACC : (hov ? Mix(C_TRACK, C_TEXT, 0.12f) : C_TRACK)), h * 0.5f);
+    float kx = v ? pos.x + w - h * 0.5f : pos.x + h * 0.5f;
+    DL()->AddCircleFilled(ImVec2(kx, pos.y + h * 0.5f), h * 0.36f, v ? IM_COL32(255, 255, 255, 255) : U32(C_DIM), 16);
+    return c;
+}
+bool Check(const char* id, bool v, ImVec2 pos, float sz = 0) {
+    if (sz <= 0) sz = 17 * S;
+    ImGui::SetCursorScreenPos(pos);
+    bool c = ImGui::InvisibleButton(id, ImVec2(sz, sz));
+    bool hov = ImGui::IsItemHovered();
+    DL()->AddRectFilled(pos, ImVec2(pos.x + sz, pos.y + sz), U32(v ? C_ACC : (hov ? C_BTNH : C_TRACK)), 4 * S);
+    if (v) {
+        ImVec2 a(pos.x + sz * 0.22f, pos.y + sz * 0.52f), b(pos.x + sz * 0.42f, pos.y + sz * 0.72f), d(pos.x + sz * 0.78f, pos.y + sz * 0.28f);
+        DL()->AddLine(a, b, IM_COL32(20, 18, 30, 255), 2.f * S); DL()->AddLine(b, d, IM_COL32(20, 18, 30, 255), 2.f * S);
+    }
+    return c;
+}
+void Pill(ImVec2 p, const char* t, const ImVec4& c, float* w = nullptr) {
+    PF(fSmall); ImVec2 ts = ImGui::CalcTextSize(t);
+    DL()->AddRectFilled(p, ImVec2(p.x + ts.x + 12 * S, p.y + ts.y + 4 * S), U32(c, 0.16f), (ts.y + 4 * S) * 0.5f);
+    DL()->AddText(ImVec2(p.x + 6 * S, p.y + 2 * S), U32(c), t); ImGui::PopFont();
+    if (w) *w = ts.x + 12 * S;
+}
+bool Chip(const char* label, bool active, float right = 0) {
+    PF(active ? fBold : fReg);
+    ImVec2 ts = ImGui::CalcTextSize(label, nullptr, true);
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    ImVec2 sz(ts.x + 20 * S, ts.y + 9 * S);
+    if (right <= 0) right = ImGui::GetWindowPos().x + ImGui::GetWindowWidth() - 14 * S;
+    if (p.x + sz.x > right) { ImGui::NewLine(); p = ImGui::GetCursorScreenPos(); }
+    bool c = ImGui::InvisibleButton(label, sz);
+    bool hov = ImGui::IsItemHovered();
+    DL()->AddRectFilled(p, ImVec2(p.x + sz.x, p.y + sz.y), U32(active ? C_ACCD : (hov ? C_BTNH : C_BTN)), sz.y * 0.5f);
+    DL()->AddText(nullptr, 0, ImVec2(p.x + 10 * S, p.y + 4.5f * S), U32(active ? C_ACC : (hov ? C_TEXT : C_DIM)), label, ImGui::FindRenderedTextEnd(label));
     ImGui::PopFont();
-    if (ImGui::IsMouseHoveringRect(a, b) && !hist.empty()) ImGui::SetTooltip("%s", hist.c_str());
-    *outW = b.x - a.x;
+    ImGui::SameLine(0, 6 * S);
+    return c;
+}
+void InputBox(const char* id, char* buf, size_t n, const char* hint, float w) {
+    ImGui::SetNextItemWidth(w);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10 * S, 7 * S));
+    ImGui::InputTextWithHint(id, hint, buf, n);
+    ImGui::PopStyleVar(); ImGui::PopStyleColor();
+}
+void NumField(const char* id, int* v, int mn, int mx, float w) {
+    ImGui::SetNextItemWidth(w);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2); ImGui::PushStyleColor(ImGuiCol_Text, C_ACC);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8 * S, 7 * S));
+    ImGui::InputInt(id, v, 0, 0);
+    ImGui::PopStyleVar(); ImGui::PopStyleColor(2);
+    *v = std::max(mn, std::min(mx, *v));
+}
+void StatusDot(ImVec2 c, const Row& r) {
+    ImVec4 col; const char* t;
+    switch (r.status) { case ST_OK: col = C_ST_OK; t = "OK - sprawdzone"; break; case ST_BUG: col = C_ST_BUG; t = "BUG - działa źle"; break;
+                        case ST_CRASH: col = C_ST_CRASH; t = "CRASH - crashowało"; break; default: col = C_ST_NEW; t = "TEST - nowe / do sprawdzenia"; }
+    DL()->AddCircleFilled(c, 4 * S, U32(col), 12);
+    if (ImGui::IsMouseHoveringRect(ImVec2(c.x - 7 * S, c.y - 7 * S), ImVec2(c.x + 7 * S, c.y + 7 * S)))
+        ImGui::SetTooltip("%s%s%s", t, r.hist.empty() ? "" : "\n", r.hist.c_str());
 }
 
+// ------------------------------------------------------------------ value editing
 void BeginEdit(Row& r) { editRow = &r; editFirst = true; snprintf(editBuf, sizeof editBuf, r.isFloat ? "%.2f" : "%.0f", r.val); }
 void EditField(Row& r, ImVec2 pos, float w) {
     ImGui::SetCursorScreenPos(pos);
     ImGui::SetNextItemWidth(w);
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_EDIT);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_ACCD);
     if (editFirst) ImGui::SetKeyboardFocusHere();
     bool done = ImGui::InputText("##ed", editBuf, sizeof editBuf,
         ImGuiInputTextFlags_CharsDecimal | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
@@ -128,287 +200,285 @@ void EditField(Row& r, ImVec2 pos, float w) {
     editFirst = false;
 }
 void PushComboStyle() {
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_BTN); ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, C_BTNH);
-    ImGui::PushStyleColor(ImGuiCol_Text, C_NUM); ImGui::PushStyleColor(ImGuiCol_Button, C_BTN);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, C_BTNH); ImGui::PushStyleColor(ImGuiCol_Header, C_EDIT);
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, C_HOVER);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2); ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, C_BTNH);
+    ImGui::PushStyleColor(ImGuiCol_Button, C_CARD2); ImGui::PushStyleColor(ImGuiCol_ButtonHovered, C_BTNH);
+    ImGui::PushStyleColor(ImGuiCol_Header, C_ACCD); ImGui::PushStyleColor(ImGuiCol_HeaderHovered, C_HOVER);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10 * S, 5 * S));
 }
-bool Combo(Row& r, ImVec2 pos, float w) {
+void Combo(Row& r, ImVec2 pos, float w) {
     std::string cur;
     for (auto& o : r.options) if (o.first == (int)r.val) cur = o.second;
     ImGui::SetCursorScreenPos(pos);
     ImGui::SetNextItemWidth(w);
     PushComboStyle();
-    bool changed = false;
     if (ImGui::BeginCombo("##cmb", cur.c_str())) {
         for (auto& o : r.options) {
             bool sel = o.first == (int)r.val;
             ImGui::PushStyleColor(ImGuiCol_Text, sel ? C_ACC : C_TEXT);
-            if (ImGui::Selectable(o.second.c_str(), sel)) { r.val = (float)o.first; changed = true; T.Save(); }
+            if (ImGui::Selectable(o.second.c_str(), sel)) { r.val = (float)o.first; T.Save(); }
             ImGui::PopStyleColor();
         }
         ImGui::EndCombo();
     }
-    ImGui::PopStyleColor(7);
-    return changed;
+    ImGui::PopStyleVar(); ImGui::PopStyleColor(6);
 }
-void Slider(Row& r, float x0, float x1, float ty) {
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddRectFilled(ImVec2(x0, ty - 2 * S), ImVec2(x1, ty + 2 * S), U32(C_TRACK), 2 * S);
-    float t = (r.val - r.vmin) / (r.vmax - r.vmin);
-    float kx = x0 + (x1 - x0) * t;
-    dl->AddRectFilled(ImVec2(x0, ty - 2 * S), ImVec2(kx, ty + 2 * S), U32(C_ACC), 2 * S);
-    dl->AddCircleFilled(ImVec2(kx, ty), 6 * S, U32(C_TEXT), 16);
-    ImGui::SetCursorScreenPos(ImVec2(x0 - 6 * S, ty - 9 * S));
-    ImGui::InvisibleButton("##trk", ImVec2(x1 - x0 + 12 * S, 18 * S));
+bool UseSlider(const Row& r) { return r.isFloat || (r.vmax - r.vmin) <= 1000.f; }
+std::string ValStr(const Row& r) {
+    char b[32];
+    if (r.isFloat) snprintf(b, sizeof b, r.vmax <= 10 ? "%.2f" : "%.1f", r.val); else snprintf(b, sizeof b, "%.0f", r.val);
+    std::string s = b;
+    if (r.note == "m" || r.note == "metry") s += " m";
+    else if (r.note == "m/s (Shift x4)") s += " m/s";
+    else if (r.id.rfind("hc", 0) == 0) s += "%";
+    else if (r.kind == K_SLIDER && r.isFloat) s = "x" + s;
+    return s;
+}
+// slider line: track from x0 to x1, value label on the right (click = type exact)
+void SliderLine(Row& r, float x0, float x1, float y) {
+    float valW = 64 * S;
+    float tx1 = x1 - valW - 8 * S;
+    std::string v = ValStr(r);
+    if (editRow == &r) EditField(r, ImVec2(x1 - valW, y - 11 * S), valW);
+    else {
+        PF(fBold); ImVec2 ts = ImGui::CalcTextSize(v.c_str()); ImGui::PopFont();
+        ImVec2 tp(x1 - ts.x, y - ts.y * 0.5f);
+        ImGui::SetCursorScreenPos(ImVec2(x1 - valW, tp.y));
+        if (ImGui::InvisibleButton("##vl", ImVec2(valW, ts.y))) BeginEdit(r);
+        if (ImGui::IsItemHovered()) {
+            DL()->AddRectFilled(ImVec2(tp.x - 5 * S, tp.y - 2 * S), ImVec2(x1 + 3 * S, tp.y + ts.y + 2 * S), U32(C_ACCD), 4 * S);
+            ImGui::SetTooltip("kliknij, aby wpisać dokładną wartość");
+        }
+        Text(tp, fBold, C_TEXT, v.c_str());
+    }
+    float t = r.vmax > r.vmin ? (r.val - r.vmin) / (r.vmax - r.vmin) : 0;
+    t = std::max(0.f, std::min(1.f, t));
+    float kx = x0 + (tx1 - x0) * t;
+    DL()->AddRectFilled(ImVec2(x0, y - 2.5f * S), ImVec2(tx1, y + 2.5f * S), U32(C_TRACK), 3 * S);
+    DL()->AddRectFilled(ImVec2(x0, y - 2.5f * S), ImVec2(kx, y + 2.5f * S), U32(C_ACC), 3 * S);
+    ImGui::SetCursorScreenPos(ImVec2(x0 - 6 * S, y - 9 * S));
+    ImGui::InvisibleButton("##trk", ImVec2(tx1 - x0 + 12 * S, 18 * S));
+    bool hov = ImGui::IsItemHovered() || ImGui::IsItemActive();
+    DL()->AddCircleFilled(ImVec2(kx, y), (hov ? 7.f : 6.f) * S, IM_COL32(255, 255, 255, 255), 16);
     if (ImGui::IsItemActive()) {
-        float nt = std::max(0.f, std::min(1.f, (ImGui::GetIO().MousePos.x - x0) / (x1 - x0)));
+        float nt = std::max(0.f, std::min(1.f, (ImGui::GetIO().MousePos.x - x0) / (tx1 - x0)));
         float nv = r.vmin + nt * (r.vmax - r.vmin);
         r.val = r.isFloat ? std::round(nv * 100.f) / 100.f : std::round(nv);
     }
     if (ImGui::IsItemDeactivated()) T.Save();
 }
+// number box (big ranges like ore/xp): click to type
+void NumberBox(Row& r, float vx, float cy, float vw) {
+    std::string v = ValStr(r);
+    if (editRow == &r) { EditField(r, ImVec2(vx, cy - 12 * S), vw); return; }
+    ImGui::SetCursorScreenPos(ImVec2(vx, cy - 12 * S));
+    if (ImGui::InvisibleButton("##num", ImVec2(vw, 24 * S))) BeginEdit(r);
+    bool hv = ImGui::IsItemHovered();
+    DL()->AddRectFilled(ImVec2(vx, cy - 12 * S), ImVec2(vx + vw, cy + 12 * S), U32(hv ? C_BTNH : C_CARD2), 6 * S);
+    PF(fBold); ImVec2 ts = ImGui::CalcTextSize(v.c_str()); DL()->AddText(ImVec2(vx + vw - ts.x - 8 * S, cy - ts.y * 0.5f), U32(C_ACC), v.c_str()); ImGui::PopFont();
+    if (hv) ImGui::SetTooltip("kliknij, aby wpisać");
+}
+bool HasValueLine(const Row& r) {
+    switch (r.kind) {
+    case K_SLIDER: case K_SET: return UseSlider(r);
+    case K_ACTION: return !r.noValue && UseSlider(r);
+    case K_VALUE: return r.options.empty() && UseSlider(r);
+    default: return false;
+    }
+}
+float RowH(const Row& r) { return HasValueLine(r) ? 56 * S : 38 * S; }
 
-void ValueCell(Row& r, ImVec2 p, float w, float h) {
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    if (!r.options.empty()) { Combo(r, ImVec2(p.x, p.y + h * 0.5f - 13 * S), w * 0.95f); return; }
-    char b[32];
-    snprintf(b, sizeof b, r.isFloat ? "%.2f" : "%.0f", r.val);
-    if (r.kind == K_SLIDER) {
-        float x0 = p.x, x1 = p.x + w * 0.85f, ty = p.y + h * 0.68f;
-        char lb[40]; snprintf(lb, sizeof lb, r.isFloat ? "x%.2f" : "%.0f", r.val);
-        PF(fBold);
-        if (editRow == &r) EditField(r, ImVec2(x0, p.y + h * 0.08f), 80 * S);
-        else {
-            ImGui::SetCursorScreenPos(ImVec2(x0, p.y + h * 0.12f));
-            ImVec2 ts = ImGui::CalcTextSize(lb);
-            if (ImGui::InvisibleButton("##vl", ts)) BeginEdit(r);
-            dl->AddText(ImVec2(x0, p.y + h * 0.12f), U32(C_NUM), lb);
-        }
-        ImGui::PopFont();
-        Slider(r, x0, x1, ty);
-        return;
-    }
-    if (r.noValue || r.kind == K_TOGGLE) return;
-    PF(fBold);
-    if (editRow == &r) EditField(r, ImVec2(p.x, p.y + h * 0.5f - 13 * S), 110 * S);
-    else {
-        ImVec2 ts = ImGui::CalcTextSize(b);
-        ImVec2 tp(p.x, p.y + h * 0.5f - ts.y * 0.5f);
-        ImGui::SetCursorScreenPos(tp);
-        if (ImGui::InvisibleButton("##val", ImVec2(std::max(ts.x, 40 * S), ts.y))) BeginEdit(r);
-        if (ImGui::IsItemHovered()) dl->AddRectFilled(ImVec2(tp.x - 4 * S, tp.y - 2 * S), ImVec2(tp.x + ts.x + 4 * S, tp.y + ts.y + 2 * S), U32(C_EDIT, 0.6f), 4 * S);
-        dl->AddText(tp, U32(C_NUM), b);
-    }
-    ImGui::PopFont();
+// hotkey chip: shown when bound or when the row is hovered
+float HotkeyChip(Row& r, float right, float cy, bool rowHov) {
+    if (r.kind == K_VALUE) return 0;
+    bool binding = bindRow == &r;
+    std::string kn = binding ? "naciśnij klawisz..." : KeyName(r.hotkey);
+    if (kn.empty()) { if (!rowHov) return 0; kn = "+ klawisz"; }
+    PF(fSmall); ImVec2 ts = ImGui::CalcTextSize(kn.c_str()); ImGui::PopFont();
+    ImVec2 sz(ts.x + 14 * S, ts.y + 6 * S);
+    ImVec2 p(right - sz.x, cy - sz.y * 0.5f);
+    ImGui::SetCursorScreenPos(p);
+    if (ImGui::InvisibleButton("##hk", sz)) bindRow = &r;
+    bool hov = ImGui::IsItemHovered();
+    if (hov) ImGui::SetTooltip("Klik = przypisz klawisz (Backspace = usuń, Esc = anuluj)");
+    bool set = r.hotkey != 0 || binding;
+    if (hov) DL()->AddRectFilled(p, ImVec2(p.x + sz.x, p.y + sz.y), U32(C_ACCD, 0.6f), 5 * S);
+    DL()->AddRect(p, ImVec2(p.x + sz.x, p.y + sz.y), U32(set ? C_ACC : C_FAINT, set ? 0.7f : 1.f), 5 * S, 1.f * S);
+    Text(ImVec2(p.x + 7 * S, p.y + 3 * S), fSmall, binding ? C_ON : (set ? C_ACC : C_DIM), kn.c_str());
+    return sz.x + 8 * S;
 }
 
-void DrawRow(Row& r, int idx, float w, const char* tabHint = nullptr) {
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    float h = 50 * S;
-    ImVec2 p = ImGui::GetCursorScreenPos();
+// one setting inside a card
+void CardRow(Row& r, float x, float y, float w, bool last) {
     ImGui::PushID(r.id.c_str());
-    bool hov = ImGui::IsMouseHoveringRect(p, ImVec2(p.x + w, p.y + h)) && ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
-    dl->AddRectFilled(p, ImVec2(p.x + w, p.y + h), U32(hov ? C_HOVER : (idx & 1 ? C_ROW2 : C_ROW1)), 6 * S);
-    if (hov && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && r.kind == K_SET && r.on) { r.on = false; T.Toast(r.name + ": przywrócono wartość gry"); T.Save(); }
-    float x = p.x + 10 * S;
+    float h = RowH(r);
+    bool hov = ImGui::IsMouseHoveringRect(ImVec2(x, y), ImVec2(x + w, y + h)) && ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+    if (hov) DL()->AddRectFilled(ImVec2(x + 4 * S, y + 1 * S), ImVec2(x + w - 4 * S, y + h - 1 * S), U32(C_HOVER, 0.55f), 6 * S);
+    float lx = x + 14 * S, cy = y + 19 * S;
+    if (T.testerMode) { StatusDot(ImVec2(lx + 2 * S, cy), r); lx += 14 * S; }
     if (!r.icon.empty() && iconsOk) {
-        PF(fIcon); dl->AddText(ImVec2(x, p.y + 8 * S), U32(C_ACC), r.icon.c_str()); ImGui::PopFont();
+        PF(fIcon); ImVec2 ts = ImGui::CalcTextSize(r.icon.c_str()); DL()->AddText(ImVec2(lx, cy - ts.y * 0.5f), U32(C_ACC), r.icon.c_str()); ImGui::PopFont();
+        lx += 22 * S;
     }
-    x += 20 * S;
-    float pw;
-    StatusPill(dl, ImVec2(x, p.y + 9 * S), r.status, r.hist, &pw);
-    PF(fBold);
-    dl->AddText(ImVec2(x + pw + 6 * S, p.y + 7 * S), U32(C_TEXT), r.name.c_str());
-    float nameEnd = x + pw + 6 * S + ImGui::CalcTextSize(r.name.c_str()).x;
-    ImGui::PopFont();
-    if (r.kind == K_SET && r.on) {
-        PF(fSmall);
-        char a[40]; snprintf(a, sizeof a, "AKTYWNE: %.0f", r.val);
-        ImVec2 ts = ImGui::CalcTextSize(a);
-        ImVec2 ap(nameEnd + 8 * S, p.y + 9 * S);
-        dl->AddRectFilled(ap, ImVec2(ap.x + ts.x + 10 * S, ap.y + ts.y + 2 * S), U32(C_ON, 0.16f), 4 * S);
-        dl->AddText(ImVec2(ap.x + 5 * S, ap.y + 1 * S), U32(C_ON), a);
-        ImGui::PopFont();
+    PF(fReg); ImVec2 ns = ImGui::CalcTextSize(r.name.c_str()); ImGui::PopFont();
+    float right = x + w - 14 * S;
+    float ctrlW = 0;
+    switch (r.kind) {
+    case K_TOGGLE: case K_SLIDER: case K_SET:
+        ctrlW = 36 * S;
+        if (Switch("##sw", r.on, ImVec2(right - ctrlW, cy - 9.5f * S))) ApplyRow(r);
+        break;
+    case K_ACTION: {
+        const char* lbl = "Wykonaj";
+        ctrlW = ButtonW(lbl);
+        if (Button("##do", lbl, ImVec2(right - ctrlW, cy - 12.5f * S))) ApplyRow(r);
+        if (!r.noValue && !UseSlider(r)) { NumberBox(r, right - ctrlW - 98 * S, cy, 90 * S); ctrlW += 98 * S; }
+    } break;
+    case K_CHOICE: {
+        const char* lbl = "Ustaw";
+        float bw = ButtonW(lbl);
+        float cw = std::min(w * 0.42f, 190 * S);
+        if (Button("##do", lbl, ImVec2(right - bw, cy - 12.5f * S))) ApplyRow(r);
+        Combo(r, ImVec2(right - bw - 8 * S - cw, cy - 13 * S), cw);
+        ctrlW = bw + 8 * S + cw;
+    } break;
+    case K_VALUE:
+        if (!r.options.empty()) { float cw = std::min(w * 0.5f, 230 * S); Combo(r, ImVec2(right - cw, cy - 13 * S), cw); ctrlW = cw; }
+        else if (!UseSlider(r)) { NumberBox(r, right - 90 * S, cy, 90 * S); ctrlW = 90 * S; }
+        break;
     }
-    PF(fSmall);
-    std::string note = r.note.empty() ? r.sub : r.note;
-    if (tabHint) note = std::string(tabHint) + "  ›  " + note;
-    ImVec2 clipMax(p.x + w * 0.39f, p.y + h);
-    dl->PushClipRect(p, clipMax, true);
-    dl->AddText(ImVec2(p.x + 30 * S, p.y + 29 * S), U32(C_DIM), note.c_str());
-    dl->PopClipRect();
-    ImGui::PopFont();
-    if (hov && !r.note.empty() && ImGui::IsMouseHoveringRect(ImVec2(p.x, p.y + 26 * S), clipMax)) ImGui::SetTooltip("%s", r.note.c_str());
-    ValueCell(r, ImVec2(p.x + w * 0.40f, p.y), w * 0.26f, h);
-    if (r.kind != K_VALUE) {
-        std::string kn = bindRow == &r ? "naciśnij klawisz..." : KeyName(r.hotkey);
-        PF(fBold);
-        ImVec2 ts = ImGui::CalcTextSize(kn.c_str());
-        ImVec2 kp(p.x + w * 0.68f, p.y + h * 0.5f - ts.y * 0.5f);
-        ImGui::SetCursorScreenPos(kp);
-        if (ImGui::InvisibleButton("##hk", ImVec2(std::max(ts.x, 30 * S), ts.y))) bindRow = &r;
-        dl->AddText(kp, U32(bindRow == &r ? C_ON : C_ACC), kn.c_str());
-        ImGui::PopFont();
-        const char* lbl; ImVec4 col = C_OFF; ImFont* f = fReg;
-        if (r.kind == K_TOGGLE || r.kind == K_SLIDER) { lbl = r.on ? "[ ON ]" : "[ OFF ]"; if (r.on) { col = C_ON; f = fBold; } }
-        else if (r.kind == K_SET) { lbl = "[ Ustaw ]"; if (r.on) col = C_ON; }
-        else if (r.kind == K_CHOICE) lbl = "[ Ustaw ]";
-        else lbl = "[ Wykonaj ]";
-        PF(f); float bh = ImGui::CalcTextSize(lbl).y + 8 * S; ImGui::PopFont();
-        float bx = p.x + w * 0.84f;
-        if (TextButton("##btn", lbl, col, f, ImVec2(bx, p.y + h * 0.5f - bh * 0.5f))) ApplyRow(r);
-        if (r.kind == K_SET && r.on) {
-            float bw = TextW(lbl, f) + 16 * S;
-            if (TextButton("##off", "x", C_ST_CRASH, fBold, ImVec2(bx + bw + 4 * S, p.y + h * 0.5f - bh * 0.5f))) {
-                r.on = false; T.Toast(r.name + ": przywrócono wartość gry"); T.Save();
-            }
-        }
+    if ((r.kind == K_SLIDER || r.kind == K_SET) && !UseSlider(r)) { NumberBox(r, right - ctrlW - 98 * S, cy, 90 * S); ctrlW += 98 * S; }
+    float chipW = HotkeyChip(r, right - ctrlW - 8 * S, cy, hov);
+    float labelMax = right - ctrlW - chipW - 10 * S;
+    TextClip(ImVec2(lx, cy - ns.y * 0.5f), fReg, r.kind == K_SET && r.on ? C_ON : C_TEXT, r.name, labelMax);
+    if (ImGui::IsMouseHoveringRect(ImVec2(lx, y), ImVec2(std::min(lx + ns.x, labelMax), y + 34 * S)) && (!r.note.empty() || r.kind == K_SET)) {
+        std::string tip = r.note;
+        if (r.kind == K_SET) tip += std::string(tip.empty() ? "" : "\n") + "Włączone = ta wartość nadpisuje grę; wyłączone = wartość z gry.";
+        ImGui::SetTooltip("%s", tip.c_str());
     }
+    if (HasValueLine(r)) SliderLine(r, x + 14 * S, right, y + 41 * S);
+    if (!last) DL()->AddLine(ImVec2(x + 14 * S, y + h), ImVec2(x + w - 14 * S, y + h), U32(C_LINE));
     ImGui::PopID();
-    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 4 * S));
+}
+
+// ------------------------------------------------------------------ cards and masonry layout
+struct CardSpec { std::string title; std::vector<Row*> rows; std::function<float(float, float, float, bool)> custom; float customH = 0; };
+float CardHeight(const CardSpec& c) {
+    float h = 42 * S;
+    for (auto* r : c.rows) h += RowH(*r);
+    return h + c.customH + 8 * S;
+}
+void DrawCard(CardSpec& c, float x, float y, float w) {
+    float h = CardHeight(c);
+    DL()->AddRectFilled(ImVec2(x, y), ImVec2(x + w, y + h), U32(C_CARD), 10 * S);
+    TextClip(ImVec2(x + 14 * S, y + 12 * S), fBold, C_TEXT, c.title, x + w - 10 * S);
+    float yy = y + 42 * S;
+    DL()->AddLine(ImVec2(x + 14 * S, yy - 5 * S), ImVec2(x + w - 14 * S, yy - 5 * S), U32(C_LINE));
+    for (size_t i = 0; i < c.rows.size(); i++) { CardRow(*c.rows[i], x, yy, w, i + 1 == c.rows.size() && !c.custom); yy += RowH(*c.rows[i]); }
+    if (c.custom) c.custom(x, yy, w, true);
+}
+// two columns, each card goes into the shorter one
+void Masonry(std::vector<CardSpec>& cards, float w) {
+    if (cards.empty()) return;
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    float gap = 12 * S;
+    bool two = w > 560 * S;
+    float cw = two ? (w - gap) * 0.5f : w;
+    float colY[2] = { p.y, p.y };
+    for (auto& c : cards) {
+        int col = two && colY[1] < colY[0] - 1 ? 1 : 0;
+        DrawCard(c, p.x + col * (cw + gap), colY[col], cw);
+        colY[col] += CardHeight(c) + gap;
+    }
+    ImGui::SetCursorScreenPos(ImVec2(p.x, std::max(colY[0], colY[1])));
     ImGui::Dummy(ImVec2(w, 0));
 }
-
-void SubHeader(const std::string& t) {
-    ImGui::Dummy(ImVec2(0, 2 * S));
-    PF(fSmall); ImGui::TextColored(C_ACC, "%s", t.c_str()); ImGui::PopFont();
+std::vector<CardSpec> CardsFor(const std::string& cat, const std::string& sub, const char* q = nullptr) {
+    std::vector<CardSpec> out;
+    for (auto& r : T.rows) {
+        if (r.hidden) continue;
+        if (q) { if (!(MatchQ(q, r.name, r.note) || MatchQ(q, r.cat, r.sub) || MatchQ(q, r.group, r.id))) continue; }
+        else if (r.cat != cat || r.sub != sub) continue;
+        std::string title = q ? r.cat + "  ›  " + r.sub : r.group;
+        auto it = std::find_if(out.begin(), out.end(), [&](const CardSpec& c) { return c.title == title; });
+        if (it == out.end()) { out.push_back({ title, {}, nullptr, 0 }); it = out.end() - 1; }
+        it->rows.push_back(&r);
+    }
+    return out;
 }
-void SectionTitle(const char* t) { ImGui::Dummy(ImVec2(0, 6 * S)); PF(fBold); ImGui::TextColored(C_ACC, "%s", t); ImGui::PopFont(); }
-
-bool Chip(const char* label, bool active) {
-    PF(active ? fBold : fReg);
-    ImVec2 ts = ImGui::CalcTextSize(label, nullptr, true);
-    ImVec2 p = ImGui::GetCursorScreenPos();
-    ImVec2 sz(ts.x + 18 * S, ts.y + 8 * S);
-    float right = ImGui::GetWindowPos().x + ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - 8 * S;
-    if (p.x + sz.x > right) { ImGui::NewLine(); p = ImGui::GetCursorScreenPos(); }
-    bool c = ImGui::InvisibleButton(label, sz);
-    bool hov = ImGui::IsItemHovered();
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddRectFilled(p, ImVec2(p.x + sz.x, p.y + sz.y), U32(active ? C_EDIT : (hov ? C_BTNH : C_BTN)), sz.y * 0.5f);
-    dl->AddText(nullptr, 0, ImVec2(p.x + 9 * S, p.y + 4 * S), U32(active ? C_ACC : (hov ? C_TEXT : C_DIM)), label, ImGui::FindRenderedTextEnd(label));
-    ImGui::PopFont();
-    ImGui::SameLine(0, 6 * S);
-    return c;
+void SectionLabel(const char* t) {
+    ImGui::Dummy(ImVec2(0, 4 * S));
+    Text(ImGui::GetCursorScreenPos(), fBig, C_TEXT, t);
+    ImGui::Dummy(ImVec2(0, 30 * S));
 }
-void InputBox(const char* id, char* buf, size_t n, const char* hint, float w) {
-    ImGui::SetNextItemWidth(w);
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_ROW1);
-    ImGui::InputTextWithHint(id, hint, buf, n);
-    ImGui::PopStyleColor();
+// panel = full width card with normal ImGui layout inside
+void BeginPanel(const char* id, const char* title, float w) {
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, C_CARD);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10 * S);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14 * S, 12 * S));
+    ImGui::BeginChild(id, ImVec2(w, 0), ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysUseWindowPadding);
+    if (title) { PF(fBold); ImGui::TextColored(C_TEXT, "%s", title); ImGui::PopFont(); ImGui::Dummy(ImVec2(0, 2 * S)); }
 }
-std::string Lower(std::string s) { for (auto& c : s) c = (char)tolower((unsigned char)c); return s; }
-bool MatchQ(const char* q, const std::string& a, const std::string& b) {
-    if (!q[0]) return true;
-    std::string ql = Lower(q);
-    return Lower(a).find(ql) != std::string::npos || Lower(b).find(ql) != std::string::npos;
-}
+void EndPanel() { ImGui::EndChild(); ImGui::PopStyleVar(2); ImGui::PopStyleColor(); ImGui::Dummy(ImVec2(0, 6 * S)); }
 void ListRowBg(ImVec2 p, float w, float h, int i) {
     bool hov = ImGui::IsMouseHoveringRect(p, ImVec2(p.x + w, p.y + h)) && ImGui::IsWindowHovered();
-    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + w, p.y + h), U32(hov ? C_HOVER : (i & 1 ? C_ROW2 : C_ROW1)), 6 * S);
-}
-void NumField(const char* id, int* v, int mn, int mx, float w) {
-    ImGui::SetNextItemWidth(w);
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_ROW1); ImGui::PushStyleColor(ImGuiCol_Text, C_NUM);
-    ImGui::InputInt(id, v, 0, 0);
-    ImGui::PopStyleColor(2);
-    *v = std::max(mn, std::min(mx, *v));
-}
-void Pill(ImDrawList* dl, ImVec2 p, const char* t, const ImVec4& c, float* w = nullptr) {
-    PF(fSmall); ImVec2 ts = ImGui::CalcTextSize(t);
-    dl->AddRectFilled(p, ImVec2(p.x + ts.x + 10 * S, p.y + ts.y + 2 * S), U32(c, 0.18f), 4 * S);
-    dl->AddText(ImVec2(p.x + 5 * S, p.y + 1 * S), U32(c), t); ImGui::PopFont();
-    if (w) *w = ts.x + 10 * S;
+    DL()->AddRectFilled(p, ImVec2(p.x + w, p.y + h), U32(hov ? C_HOVER : (i & 1 ? C_CARD : C_CARD2)), 7 * S);
 }
 
-// ---------------------------------------------------------------------------- items
+// ------------------------------------------------------------------ avatars / portraits
+void Avatar(ImVec2 c, float r, bool monster, uintptr_t ptr) {
+    if (void* tex = ptr ? PortraitFor(ptr) : nullptr) {
+        DL()->AddImageRounded((ImTextureID)(intptr_t)tex, ImVec2(c.x - r, c.y - r), ImVec2(c.x + r, c.y + r), ImVec2(0, 0), ImVec2(1, 1), IM_COL32_WHITE, r);
+        DL()->AddCircle(c, r, U32(C_ACC), 40, 2 * S);
+        return;
+    }
+    DL()->AddCircleFilled(c, r, U32(Mix(C_CARD, C_ACC, 0.30f)), 40);
+    DL()->AddCircle(c, r, U32(C_ACC, 0.8f), 40, 1.5f * S);
+    if (iconsOk) {
+        const char* g = monster ? ICN_PAW : ICN_USER;
+        float sc = r / 15.f;
+        PF(fIcon); ImVec2 ts = ImGui::CalcTextSize(g); ImGui::PopFont();
+        DL()->AddText(fIcon, fIcon->LegacySize * sc, ImVec2(c.x - ts.x * sc * 0.5f, c.y - ts.y * sc * 0.5f), U32(C_TEXT, 0.85f), g);
+    }
+}
+void HpBar(float x0, float x1, float y, int v, int m, const ImVec4& c, float th = 5) {
+    float f = m > 0 ? std::max(0.f, std::min(1.f, (float)v / m)) : 0;
+    DL()->AddRectFilled(ImVec2(x0, y), ImVec2(x1, y + th * S), U32(C_TRACK), th * 0.5f * S);
+    DL()->AddRectFilled(ImVec2(x0, y), ImVec2(x0 + (x1 - x0) * f, y + th * S), U32(c), th * 0.5f * S);
+}
+
+// ================================================================== custom pages
 std::vector<std::string> SubsOf(int cat) {
     std::vector<std::string> subs;
     for (auto& e : g_cat.items) if (e.cat == cat && std::find(subs.begin(), subs.end(), e.sub) == subs.end()) subs.push_back(e.sub);
     std::sort(subs.begin(), subs.end());
     return subs;
 }
-void SetsPanel(float w) {
-    SectionTitle("Moje zestawy");
-    if (T.sets.empty()) ImGui::TextColored(C_DIM, "Nie masz jeszcze zestawów. Dodawaj przedmioty przyciskiem  +  na liście poniżej, potem zapisz zestaw.");
-    float h = 38 * S;
-    for (int i = 0; i < (int)T.sets.size(); i++) {
-        ItemSet& s = T.sets[i];
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        ListRowBg(p, w, h, i);
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        PF(fBold); dl->AddText(ImVec2(p.x + 10 * S, p.y + 3 * S), U32(C_TEXT), s.name.c_str()); ImGui::PopFont();
-        std::string sub; int n = 0;
-        for (auto& it : s.items) { if (n++ < 5) { if (!sub.empty()) sub += ", "; sub += it.first + " x" + std::to_string(it.second); } }
-        if (n > 5) sub += " ...";
-        PF(fSmall); dl->AddText(ImVec2(p.x + 10 * S, p.y + 21 * S), U32(C_DIM), sub.c_str()); ImGui::PopFont();
-        ImGui::PushID(i + 7000);
-        float bs = 26 * S, by = p.y + (h - bs) * 0.5f;
-        if (IconButton("##give", ICO_PLAY, "Daj zestaw", ImVec2(p.x + w - bs * 3 - 16 * S, by), bs, C_ON)) Act_GiveSet(s);
-        if (IconButton("##edit", ICO_EDIT, "Edytuj (wczytaj do edytora)", ImVec2(p.x + w - bs * 2 - 10 * S, by), bs, C_TEXT)) {
-            T.editSet = s; snprintf(setName, sizeof setName, "%s", s.name.c_str());
-        }
-        bool del = IconButton("##del", ICO_TRASH, "Usuń zestaw", ImVec2(p.x + w - bs - 4 * S, by), bs, C_ST_CRASH);
-        ImGui::PopID();
-        ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 3 * S)); ImGui::Dummy(ImVec2(w, 0));
-        if (del) { T.sets.erase(T.sets.begin() + i); T.SaveSets(); break; }
-    }
-    // editor
-    ImGui::Dummy(ImVec2(0, 4 * S));
-    ImVec2 p0 = ImGui::GetCursorScreenPos();
-    float eh = 40 * S + (float)T.editSet.items.size() * 26 * S;
-    ImGui::GetWindowDrawList()->AddRectFilled(p0, ImVec2(p0.x + w, p0.y + eh + 8 * S), U32(C_CARD), 8 * S);
-    ImGui::SetCursorScreenPos(ImVec2(p0.x + 8 * S, p0.y + 6 * S));
-    InputBox("##setname", setName, sizeof setName, "nazwa zestawu...", w * 0.45f);
-    ImGui::SameLine();
-    if (TextButton("##savez", "[ Zapisz zestaw ]", C_ON, fBold, ImGui::GetCursorScreenPos()) && setName[0] && !T.editSet.items.empty()) {
-        T.editSet.name = setName;
-        bool replaced = false;
-        for (auto& s : T.sets) if (s.name == T.editSet.name) { s = T.editSet; replaced = true; }
-        if (!replaced) T.sets.push_back(T.editSet);
-        T.SaveSets(); T.editSet = ItemSet(); setName[0] = 0;
-        T.Toast("Zapisano zestaw");
-    }
-    ImGui::SameLine();
-    if (TextButton("##clearz", "[ Wyczyść ]", C_OFF, fReg, ImGui::GetCursorScreenPos())) T.editSet = ItemSet();
-    ImGui::SetCursorScreenPos(ImVec2(p0.x + 10 * S, p0.y + 40 * S));
-    if (T.editSet.items.empty()) { PF(fSmall); ImGui::TextColored(C_DIM, "Edytor zestawu jest pusty - kliknij  +  przy przedmiocie na liście."); ImGui::PopFont(); }
-    for (int i = 0; i < (int)T.editSet.items.size(); i++) {
-        auto& it = T.editSet.items[i];
-        ImGui::PushID(i + 8000);
-        ImGui::SetCursorScreenPos(ImVec2(p0.x + 10 * S, p0.y + 40 * S + i * 26 * S));
-        ImGui::TextColored(C_TEXT, "%s", it.first.c_str()); ImGui::SameLine(w * 0.55f);
-        NumField("##cnt", &it.second, 1, 100000, 70 * S); ImGui::SameLine();
-        bool rm = TextButton("##rm", "x", C_ST_CRASH, fBold, ImGui::GetCursorScreenPos());
-        ImGui::PopID();
-        if (rm) { T.editSet.items.erase(T.editSet.items.begin() + i); break; }
-    }
-    ImGui::SetCursorScreenPos(ImVec2(p0.x, p0.y + eh + 14 * S)); ImGui::Dummy(ImVec2(w, 0));
-}
-void ItemsPanel(float w) {
-    SetsPanel(w);
-    SectionTitle("Spawner przedmiotów");
-    if (!g_cat.built) { ImGui::TextColored(C_DIM, "Wczytaj grę, żeby zobaczyć listę."); return; }
-    InputBox("##isearch", search, sizeof search, "Szukaj: nazwa albo ID (np. miecz, ITMW_)...", w - 140 * S);
-    ImGui::SameLine(); ImGui::TextColored(C_DIM, "Ilość"); ImGui::SameLine();
-    NumField("##amt", &T.itemAmount, 1, 100000, 70 * S);
+const ItemEntry* ItemById(const std::string& id) { for (auto& x : g_cat.items) if (x.id == id) return &x; return nullptr; }
+
+// ---- Ekwipunek / Spawner
+void ItemSpawner(float w) {
+    if (!g_cat.built) { ImGui::TextColored(C_DIM, "Wczytaj grę, żeby zobaczyć listę przedmiotów."); return; }
+    BeginPanel("##ispf", nullptr, w);
+    InputBox("##isearch", search, sizeof search, "Szukaj: nazwa albo ID (np. miecz, ITMW_)...", w - 210 * S);
+    ImGui::SameLine(); ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Ilość"); ImGui::SameLine();
+    NumField("##amt", &T.itemAmount, 1, 100000, 90 * S);
+    ImGui::Dummy(ImVec2(0, 2 * S));
     if (Chip("Wszystkie", itemCat < 0)) { itemCat = -1; itemSub.clear(); }
     for (int c = 0; c < IC_COUNT; c++) if (Chip(kItemCatNames[c], itemCat == c)) { itemCat = c; itemSub.clear(); }
     ImGui::NewLine();
     if (itemCat >= 0) {
         auto subs = SubsOf(itemCat);
         if (subs.size() > 1) {
-            ImGui::TextColored(C_DIM, "›"); ImGui::SameLine();
             if (Chip("wszystkie##sub", itemSub.empty())) itemSub.clear();
             for (auto& s : subs) if (Chip((s + "##s").c_str(), itemSub == s)) itemSub = s;
             ImGui::NewLine();
         }
     }
-    ImGui::TextColored(C_DIM, "Sortuj:"); ImGui::SameLine();
+    ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Sortuj:"); ImGui::SameLine();
     const char* sorts[] = { "Nazwa", "Wartość", "Obrażenia", "Ochrona" };
     for (int i = 0; i < 4; i++) if (Chip(sorts[i], itemSort == i)) itemSort = i;
     ImGui::NewLine();
+    EndPanel();
     std::vector<const ItemEntry*> v;
     for (auto& e : g_cat.items)
         if ((itemCat < 0 || e.cat == itemCat) && (itemSub.empty() || e.sub == itemSub) && (MatchQ(search, e.name, e.id) || MatchQ(search, e.info, e.sub))) v.push_back(&e);
@@ -416,378 +486,558 @@ void ItemsPanel(float w) {
     if (itemSort == 1) std::stable_sort(v.begin(), v.end(), [](auto a, auto b) { return a->value > b->value; });
     if (itemSort == 2) std::stable_sort(v.begin(), v.end(), [](auto a, auto b) { return a->damage > b->damage; });
     if (itemSort == 3) std::stable_sort(v.begin(), v.end(), [&](auto a, auto b) { return prot(a) > prot(b); });
-    ImGui::TextColored(C_DIM, "%d przedmiotów", (int)v.size());
-    float h = 44 * S;
-    ImGuiListClipper clip; clip.Begin((int)v.size(), h + 3 * S);
+    PF(fSmall); ImGui::TextColored(C_DIM, "%d przedmiotów  ·  + dodaje do edytora zestawu (Ekwipunek › Zestawy)", (int)v.size()); ImGui::PopFont();
+    float h = 50 * S;
+    ImGuiListClipper clip; clip.Begin((int)v.size(), h + 4 * S);
     while (clip.Step())
         for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
             const ItemEntry& e = *v[i];
             ImVec2 p = ImGui::GetCursorScreenPos();
             ListRowBg(p, w, h, i);
-            ImDrawList* dl = ImGui::GetWindowDrawList();
-            float x = p.x + 10 * S;
-            if (T.Crashed("item:" + e.id)) { float pw; StatusPill(dl, ImVec2(x, p.y + 5 * S), ST_CRASH, "crashowało grę w poprzedniej sesji", &pw); x += pw + 6 * S; }
-            PF(fBold); dl->AddText(ImVec2(x, p.y + 3 * S), U32(C_TEXT), e.name.c_str()); ImGui::PopFont();
-            char sub[300];
-            snprintf(sub, sizeof sub, "%s%s%s  ·  %d rudy  ·  %s", e.sub.empty() ? kItemCatNames[e.cat] : e.sub.c_str(),
-                     e.info.empty() ? "" : "  ·  ", e.info.c_str(), e.value, e.id.c_str());
-            dl->PushClipRect(p, ImVec2(p.x + w * 0.56f, p.y + h), true);
-            PF(fSmall); dl->AddText(ImVec2(p.x + 10 * S, p.y + 23 * S), U32(C_DIM), sub); ImGui::PopFont();
-            dl->PopClipRect();
-            if (ImGui::IsMouseHoveringRect(p, ImVec2(p.x + w * 0.56f, p.y + h)) && ImGui::IsWindowHovered()) {
-                std::string tip = e.name + "\n" + sub;
-                for (int k = 0; k < 6; k++) if (!e.text[k].empty()) tip += "\n" + e.text[k] + (e.count[k] ? " " + std::to_string(e.count[k]) : "");
-                ImGui::SetTooltip("%s", tip.c_str());
-            }
+            float x = p.x + 12 * S;
+            if (T.Crashed("item:" + e.id)) { float pw; Pill(ImVec2(x, p.y + 6 * S), "CRASH", C_ST_CRASH, &pw); x += pw + 6 * S; }
+            float bx = p.x + w - 12 * S;
             ImGui::PushID(e.sym);
-            float by = p.y + h * 0.5f - 12 * S;
-            if (TextButton("##inv", "[ Do ekwipunku ]", C_ON, fReg, ImVec2(p.x + w * 0.57f, by))) Act_GiveItem(e.sym, T.itemAmount);
-            if (TextButton("##drop", "[ Pod nogi ]", C_OFF, fReg, ImVec2(p.x + w * 0.735f, by))) Act_DropItem(e.sym, T.itemAmount);
-            if (TextButton("##tgt", "[ Celowi ]", C_OFF, fReg, ImVec2(p.x + w * 0.855f, by))) Act_GiveItemTarget(e.sym, T.itemAmount);
-            if (IconButton("##addset", ICO_PLUS, "Dodaj do edytowanego zestawu", ImVec2(p.x + w - 30 * S, p.y + (h - 24 * S) * 0.5f), 24 * S, C_ACC)) {
+            float b3 = ButtonW("Celowi", fReg), b2 = ButtonW("Pod nogi", fReg), b1 = ButtonW("Do ekwipunku", fReg), by = p.y + (h - 25 * S) * 0.5f;
+            if (IconButton("##addset", ICN_PLUS, "Dodaj do edytowanego zestawu", ImVec2(bx - 26 * S, p.y + (h - 26 * S) * 0.5f), 26 * S, C_ACC)) {
                 bool found = false;
                 for (auto& it : T.editSet.items) if (it.first == e.id) { it.second += T.itemAmount; found = true; }
                 if (!found) T.editSet.items.push_back({ e.id, T.itemAmount });
                 T.Toast("Do zestawu: " + e.name);
             }
+            bx -= 26 * S + 8 * S;
+            if (Button("##tgt", "Celowi", ImVec2(bx - b3, by), false, fReg)) Act_GiveItemTarget(e.sym, T.itemAmount);
+            bx -= b3 + 6 * S;
+            if (Button("##drop", "Pod nogi", ImVec2(bx - b2, by), false, fReg)) Act_DropItem(e.sym, T.itemAmount);
+            bx -= b2 + 6 * S;
+            if (Button("##inv", "Do ekwipunku", ImVec2(bx - b1, by), true, fReg)) Act_GiveItem(e.sym, T.itemAmount);
+            bx -= b1 + 10 * S;
             ImGui::PopID();
-            ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 3 * S)); ImGui::Dummy(ImVec2(w, 0));
+            TextClip(ImVec2(x, p.y + 7 * S), fBold, C_TEXT, e.name, bx);
+            char sub[300];
+            snprintf(sub, sizeof sub, "%s%s%s  ·  %d rudy  ·  %s", e.sub.empty() ? kItemCatNames[e.cat] : e.sub.c_str(), e.info.empty() ? "" : "  ·  ",
+                     e.info.c_str(), e.value, e.id.c_str());
+            TextClip(ImVec2(p.x + 12 * S, p.y + 28 * S), fSmall, C_DIM, sub, bx);
+            if (ImGui::IsMouseHoveringRect(p, ImVec2(bx, p.y + h)) && ImGui::IsWindowHovered()) {
+                std::string tip = e.name + "\n" + sub;
+                for (int k = 0; k < 6; k++) if (!e.text[k].empty()) tip += "\n" + e.text[k] + (e.count[k] ? " " + std::to_string(e.count[k]) : "");
+                ImGui::SetTooltip("%s", tip.c_str());
+            }
+            ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 4 * S)); ImGui::Dummy(ImVec2(w, 0));
         }
 }
-
-// ---------------------------------------------------------------------------- npcs
-void NpcPanel(float w) {
-    SectionTitle("Spawner NPC i potworów");
+// ---- Ekwipunek / Zestawy
+void SetsPage(float w) {
+    SectionLabel("Moje zestawy");
+    BeginPanel("##setedit", "Edytor zestawu", w);
+    InputBox("##setname", setName, sizeof setName, "nazwa zestawu...", w * 0.45f);
+    ImGui::SameLine();
+    ImVec2 bp = ImGui::GetCursorScreenPos();
+    if (Button("##savez", "Zapisz zestaw", bp) && setName[0] && !T.editSet.items.empty()) {
+        T.editSet.name = setName;
+        bool replaced = false;
+        for (auto& s : T.sets) if (s.name == T.editSet.name) { s = T.editSet; replaced = true; }
+        if (!replaced) T.sets.push_back(T.editSet);
+        T.SaveSets(); T.editSet = ItemSet(); setName[0] = 0;
+        T.Toast("Zapisano zestaw");
+    }
+    if (Button("##clearz", "Wyczyść", ImVec2(bp.x + ButtonW("Zapisz zestaw") + 8 * S, bp.y), false)) T.editSet = ItemSet();
+    ImGui::SetCursorScreenPos(ImVec2(ImGui::GetWindowPos().x + 14 * S, bp.y + 38 * S));
+    if (T.editSet.items.empty()) { PF(fSmall); ImGui::TextColored(C_DIM, "Pusty. Dodawaj przedmioty przyciskiem  +  w Ekwipunek › Spawner (ilość z pola Ilość)."); ImGui::PopFont(); }
+    for (int i = 0; i < (int)T.editSet.items.size(); i++) {
+        auto& it = T.editSet.items[i];
+        ImGui::PushID(i + 8000);
+        const ItemEntry* e = ItemById(it.first);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(C_TEXT, "%s", e ? e->name.c_str() : it.first.c_str());
+        ImGui::SameLine(w * 0.55f);
+        NumField("##cnt", &it.second, 1, 100000, 80 * S); ImGui::SameLine();
+        bool rm = IconButton("##rm", ICN_TIMES, "Usuń z zestawu", ImGui::GetCursorScreenPos(), 26 * S, C_ST_CRASH);
+        ImGui::NewLine();
+        ImGui::PopID();
+        if (rm) { T.editSet.items.erase(T.editSet.items.begin() + i); break; }
+    }
+    EndPanel();
+    std::vector<int> idx;
+    for (int i = 0; i < (int)T.sets.size(); i++) if (!T.sets[i].preset) idx.push_back(i);
+    if (idx.empty()) { PF(fSmall); ImGui::TextColored(C_DIM, "Nie masz jeszcze zapisanych zestawów."); ImGui::PopFont(); return; }
+    ImVec2 p0 = ImGui::GetCursorScreenPos();
+    float gap = 12 * S, cw = (w - gap) * 0.5f, ch = 108 * S;
+    int del = -1;
+    for (size_t k = 0; k < idx.size(); k++) {
+        ItemSet& s = T.sets[idx[k]];
+        float x = p0.x + (k % 2) * (cw + gap), y = p0.y + (k / 2) * (ch + gap);
+        DL()->AddRectFilled(ImVec2(x, y), ImVec2(x + cw, y + ch), U32(C_CARD), 10 * S);
+        char cnt[32]; snprintf(cnt, sizeof cnt, "%d pozycji", (int)s.items.size());
+        float tw = TextW(cnt, fSmall);
+        Pill(ImVec2(x + cw - tw - 26 * S, y + 12 * S), cnt, C_ACC);
+        TextClip(ImVec2(x + 14 * S, y + 12 * S), fBold, C_TEXT, s.name, x + cw - tw - 34 * S);
+        std::string list;
+        for (size_t j = 0; j < s.items.size() && j < 6; j++) {
+            const ItemEntry* e = ItemById(s.items[j].first);
+            if (!list.empty()) list += ", ";
+            list += (e ? e->name : s.items[j].first) + " x" + std::to_string(s.items[j].second);
+        }
+        if (s.items.size() > 6) list += " ...";
+        DL()->PushClipRect(ImVec2(x, y), ImVec2(x + cw - 10 * S, y + ch - 40 * S), true);
+        PF(fSmall); DL()->AddText(nullptr, 0, ImVec2(x + 14 * S, y + 38 * S), U32(C_DIM), list.c_str(), nullptr, cw - 28 * S); ImGui::PopFont();
+        DL()->PopClipRect();
+        ImGui::PushID(idx[k] + 7000);
+        float by = y + ch - 36 * S;
+        if (Button("##give", "Daj", ImVec2(x + 14 * S, by))) Act_GiveSet(s);
+        if (Button("##edit", "Edytuj", ImVec2(x + 14 * S + ButtonW("Daj") + 6 * S, by), false)) { T.editSet = s; snprintf(setName, sizeof setName, "%s", s.name.c_str()); }
+        if (IconButton("##del", ICN_TRASH, "Usuń zestaw", ImVec2(x + cw - 40 * S, by), 26 * S, C_ST_CRASH)) del = idx[k];
+        ImGui::PopID();
+    }
+    ImGui::SetCursorScreenPos(ImVec2(p0.x, p0.y + ((idx.size() + 1) / 2) * (ch + gap)));
+    ImGui::Dummy(ImVec2(w, 0));
+    if (del >= 0) { T.sets.erase(T.sets.begin() + del); T.SaveSets(); }
+}
+// ---- Postacie / Spawner
+void NpcSpawner(float w) {
     if (!g_cat.built) { ImGui::TextColored(C_DIM, "Wczytaj grę, żeby zobaczyć listę."); return; }
-    InputBox("##nsearch", search, sizeof search, "Szukaj: Gomez, troll, ORCWARRIOR...", w - 150 * S);
-    ImGui::SameLine(); ImGui::TextColored(C_DIM, "Ile"); ImGui::SameLine();
-    NumField("##cnt", &T.spawnCount, 1, 30, 70 * S);
-    ImGui::TextColored(C_DIM, "Tryb:"); ImGui::SameLine();
+    BeginPanel("##nspf", nullptr, w);
+    InputBox("##nsearch", search, sizeof search, "Szukaj: Gomez, troll, ORCWARRIOR...", w - 190 * S);
+    ImGui::SameLine(); ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Ile"); ImGui::SameLine();
+    NumField("##cnt", &T.spawnCount, 1, 30, 80 * S);
+    ImGui::Dummy(ImVec2(0, 2 * S));
+    ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Tryb:"); ImGui::SameLine();
     const char* modes[] = { "Wrogi (od razu atakuje)", "Sojusznik", "Zamrożony", "Neutralny" };
     for (int m = 0; m < 4; m++) if (Chip(modes[m], T.spawnMode == m)) T.spawnMode = m;
     ImGui::NewLine();
     if (Chip("Wszyscy##g", npcGroup < 0)) npcGroup = -1;
     for (int g = 0; g < NG_COUNT; g++) if (Chip(kNpcGroupNames[g], npcGroup == g)) npcGroup = g;
     ImGui::NewLine();
+    EndPanel();
     std::vector<const NpcEntry*> v;
     for (auto& e : g_cat.npcs) if ((npcGroup < 0 || e.group == npcGroup) && MatchQ(search, e.name, e.id)) v.push_back(&e);
-    ImGui::TextColored(C_DIM, "%d instancji", (int)v.size());
-    float h = 40 * S;
-    ImGuiListClipper clip; clip.Begin((int)v.size(), h + 3 * S);
+    PF(fSmall); ImGui::TextColored(C_DIM, "%d instancji", (int)v.size()); ImGui::PopFont();
+    float h = 46 * S;
+    ImGuiListClipper clip; clip.Begin((int)v.size(), h + 4 * S);
     while (clip.Step())
         for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
             const NpcEntry& e = *v[i];
             ImVec2 p = ImGui::GetCursorScreenPos();
             ListRowBg(p, w, h, i);
-            ImDrawList* dl = ImGui::GetWindowDrawList();
-            float x = p.x + 10 * S;
-            if (T.Crashed("npc:" + e.id)) { float pw; StatusPill(dl, ImVec2(x, p.y + 5 * S), ST_CRASH, "spawn tej instancji crashował grę", &pw); x += pw + 6 * S; }
-            PF(fBold); dl->AddText(ImVec2(x, p.y + 3 * S), U32(C_TEXT), e.name.c_str()); ImGui::PopFont();
-            char sub[220]; snprintf(sub, sizeof sub, "%s  ·  %s  ·  poziom %d  ·  %s", kNpcGroupNames[e.group], GuildName(e.guild).c_str(), e.level, e.id.c_str());
-            PF(fSmall); dl->AddText(ImVec2(p.x + 10 * S, p.y + 22 * S), U32(C_DIM), sub); ImGui::PopFont();
+            float x = p.x + 12 * S;
+            if (T.Crashed("npc:" + e.id)) { float pw; Pill(ImVec2(x, p.y + 6 * S), "CRASH", C_ST_CRASH, &pw); x += pw + 6 * S; }
             ImGui::PushID(e.sym);
-            if (TextButton("##sp", "[ Spawn ]", C_ON, fBold, ImVec2(p.x + w * 0.84f, p.y + h * 0.5f - 12 * S))) Act_SpawnNpc(e.sym, T.spawnCount, T.spawnMode);
+            float bw = ButtonW("Spawn");
+            if (Button("##sp", "Spawn", ImVec2(p.x + w - bw - 12 * S, p.y + (h - 25 * S) * 0.5f))) Act_SpawnNpc(e.sym, T.spawnCount, T.spawnMode);
             ImGui::PopID();
-            ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 3 * S)); ImGui::Dummy(ImVec2(w, 0));
+            Text(ImVec2(x, p.y + 6 * S), fBold, C_TEXT, e.name.c_str());
+            char sub[220]; snprintf(sub, sizeof sub, "%s  ·  %s  ·  poziom %d  ·  %s", kNpcGroupNames[e.group], GuildName(e.guild).c_str(), e.level, e.id.c_str());
+            Text(ImVec2(p.x + 12 * S, p.y + 26 * S), fSmall, C_DIM, sub);
+            ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 4 * S)); ImGui::Dummy(ImVec2(w, 0));
         }
 }
-
-// ---------------------------------------------------------------------------- target card
-void Avatar(ImDrawList* dl, ImVec2 c, float r, bool monster, const std::string& name) {
-    dl->AddCircleFilled(c, r, U32(Mix(C_CARD, C_ACC, 0.35f)), 40);
-    dl->AddCircle(c, r, U32(C_ACC), 40, 2 * S);
-    if (iconsOk) {
-        PF(fIcon);
-        const char* g = monster ? ICO_PAW : ICO_USER;
-        float sc = r / 14.f;
-        ImVec2 ts = ImGui::CalcTextSize(g);
-        dl->AddText(fIcon, fIcon->LegacySize * sc, ImVec2(c.x - ts.x * sc * 0.5f, c.y - ts.y * sc * 0.5f), U32(C_TEXT), g);
-        ImGui::PopFont();
-    } else {
-        std::string ini = name.substr(0, 1);
-        PF(fBig); ImVec2 ts = ImGui::CalcTextSize(ini.c_str()); dl->AddText(ImVec2(c.x - ts.x / 2, c.y - ts.y / 2), U32(C_TEXT), ini.c_str()); ImGui::PopFont();
-    }
-}
-void TargetCard(const Snapshot& s, float w) {
+// ---- Postacie / Cel
+void TargetPage(const Snapshot& s, float w) {
     ImVec2 p = ImGui::GetCursorScreenPos();
-    float h = 132 * S;
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    ImU32 left = U32(Mix(C_CARD, C_ACC, 0.22f)), right = U32(C_CARD);
-    dl->AddRectFilledMultiColor(ImVec2(p.x + 6 * S, p.y), ImVec2(p.x + w, p.y + h), left, right, right, left);
-    dl->AddRectFilled(p, ImVec2(p.x + 12 * S, p.y + h), left, 8 * S, ImDrawFlags_RoundTopLeft | ImDrawFlags_RoundBottomLeft);
-    dl->AddRect(p, ImVec2(p.x + w, p.y + h), U32(C_ACC, 0.25f), 8 * S);
-    float ax = p.x + 52 * S, ay = p.y + 50 * S;
-    Avatar(dl, ImVec2(ax, ay), 34 * S, s.tMonster, s.tName);
-    float ix = p.x + 100 * S;
+    float h = 160 * S;
+    ImU32 l = U32(Mix(C_CARD, C_ACC, 0.20f)), r = U32(C_CARD);
+    DL()->AddRectFilled(p, ImVec2(p.x + w, p.y + h), r, 10 * S);
+    DL()->AddRectFilledMultiColor(ImVec2(p.x + 10 * S, p.y), ImVec2(p.x + w * 0.6f, p.y + h), l, r, r, l);
+    DL()->AddRectFilled(p, ImVec2(p.x + 12 * S, p.y + h), l, 10 * S, ImDrawFlags_RoundTopLeft | ImDrawFlags_RoundBottomLeft);
+    float ar = 46 * S;
+    Avatar(ImVec2(p.x + 24 * S + ar, p.y + 18 * S + ar), ar, s.tMonster, s.tValid ? s.tPtr : 0);
+    float ix = p.x + 44 * S + ar * 2;
+    float bs = 32 * S, gap = 6 * S; int perRow = 6;
+    float iconsX = p.x + w - perRow * (bs + gap) - 10 * S;
     if (!s.tValid) {
-        PF(fBold); dl->AddText(ImVec2(ix, p.y + 18 * S), U32(C_TEXT), "Brak celu"); ImGui::PopFont();
-        PF(fSmall); dl->AddText(ImVec2(ix, p.y + 42 * S), U32(C_DIM), "Spójrz na NPC (pojawi się jego imię) albo zapisz cel przyciskiem z zakładką."); ImGui::PopFont();
+        Text(ImVec2(ix, p.y + 24 * S), fBig, C_TEXT, "Brak celu");
+        TextClip(ImVec2(ix, p.y + 54 * S), fSmall, C_DIM, "Spójrz na postać (pojawi się jej imię) albo wybierz zapisany cel poniżej.", iconsX - 8 * S);
     } else {
-        PF(fBig); dl->AddText(ImVec2(ix, p.y + 12 * S), U32(C_TEXT), s.tName.c_str());
-        float nx = ix + ImGui::CalcTextSize(s.tName.c_str()).x + 8 * S; ImGui::PopFont();
-        float pw; Pill(dl, ImVec2(nx, p.y + 17 * S), s.tSaved ? "ZAPISANY" : "POD WZROKIEM", s.tSaved ? C_ON : C_DIM, &pw);
-        if (s.tDead) Pill(dl, ImVec2(nx + pw + 6 * S, p.y + 17 * S), "MARTWY", C_ST_CRASH);
-        char b[200]; snprintf(b, sizeof b, "%s  ·  %s  ·  poziom %d", s.tGroup.c_str(), s.tGuild.c_str(), s.tLevel);
-        PF(fSmall); dl->AddText(ImVec2(ix, p.y + 40 * S), U32(C_DIM), b);
-        float bx0 = ix, bx1 = ix + (w - (ix - p.x)) * 0.42f, by = p.y + 62 * S;
-        float t = s.tHpMax > 0 ? std::max(0.f, std::min(1.f, (float)s.tHp / s.tHpMax)) : 0;
-        dl->AddRectFilled(ImVec2(bx0, by), ImVec2(bx1, by + 6 * S), U32(C_TRACK), 3 * S);
-        dl->AddRectFilled(ImVec2(bx0, by), ImVec2(bx0 + (bx1 - bx0) * t, by + 6 * S), U32(C_ON), 3 * S);
+        PF(fBig); float nw = ImGui::CalcTextSize(s.tName.c_str()).x; ImGui::PopFont();
+        TextClip(ImVec2(ix, p.y + 16 * S), fBig, C_TEXT, s.tName, iconsX - 8 * S);
+        float nx = ix + nw + 10 * S;
+        float pw = 0;
+        if (nx < iconsX - 120 * S) {
+            Pill(ImVec2(nx, p.y + 21 * S), s.tSaved ? "ZAPISANY" : "POD WZROKIEM", s.tSaved ? C_ON : C_DIM, &pw);
+            if (s.tDead) Pill(ImVec2(nx + pw + 6 * S, p.y + 21 * S), "MARTWY", C_ST_CRASH);
+        }
+        char b[260];
+        snprintf(b, sizeof b, "%s  ·  %s  ·  poziom %d", s.tGroup.c_str(), s.tGuild.c_str(), s.tLevel);
+        TextClip(ImVec2(ix, p.y + 48 * S), fReg, C_DIM, b, iconsX - 8 * S);
+        TextClip(ImVec2(ix, p.y + 70 * S), fSmall, C_ACC, s.tInst, iconsX - 8 * S);
+        snprintf(b, sizeof b, "%s   ·   X %.0f  Y %.0f  Z %.0f", s.tPlace.c_str(), s.tx, s.ty, s.tz);
+        TextClip(ImVec2(ix, p.y + 88 * S), fSmall, C_DIM, b, iconsX - 8 * S);
+        float bx1 = ix + std::max(60 * S, std::min(260 * S, iconsX - ix - 100 * S));
+        HpBar(ix, bx1, p.y + 116 * S, s.tHp, s.tHpMax, C_HP, 6);
         snprintf(b, sizeof b, "%d / %d HP", s.tHp, s.tHpMax);
-        dl->AddText(ImVec2(bx1 + 8 * S, by - 4 * S), U32(C_NUM), b);
-        ImGui::PopFont();
+        Text(ImVec2(bx1 + 10 * S, p.y + 110 * S), fSmall, C_TEXT, b);
     }
-    // action icons (right side)
-    struct A { const char* id; } acts[] = { { "swap" }, { "mind" }, { "tpull" }, { "tpto" }, { "yeet" }, { "tkill" },
-                                            { "trevive" }, { "trob" }, { "tstorm" }, { "tlight" }, { "tice" }, { "tremove" } };
-    float bs = 30 * S, gap = 5 * S;
-    int perRow = 6;
-    float gx = p.x + w - perRow * (bs + gap) - 8 * S, gy = p.y + 10 * S;
+    const char* acts[] = { "swap", "mind", "tpull", "tpto", "yeet", "tkill", "trevive", "trob", "tstorm", "tlight", "tice", "tremove" };
     int i = 0;
-    for (auto& a : acts) {
-        Row* r = T.Get(a.id);
-        if (!r) continue;
-        ImGui::PushID(a.id);
-        ImVec2 bp(gx + (i % perRow) * (bs + gap), gy + (i / perRow) * (bs + gap));
-        std::string tip = r->name + (r->note.empty() ? "" : "\n" + r->note);
-        if (IconButton("##ta", r->icon.c_str(), tip.c_str(), bp, bs, a.id == std::string("swap") ? C_ACC : C_TEXT)) ApplyRow(*r);
+    for (auto a : acts) {
+        Row* rw = T.Get(a);
+        if (!rw) continue;
+        ImGui::PushID(a);
+        ImVec2 bp(iconsX + (i % perRow) * (bs + gap), p.y + 14 * S + (i / perRow) * (bs + gap));
+        std::string tip = rw->name + (rw->note.empty() ? "" : "\n" + rw->note);
+        if (IconButton("##ta", rw->icon.c_str(), tip.c_str(), bp, bs, std::string(a) == "swap" ? C_ACC : C_TEXT)) ApplyRow(*rw);
         ImGui::PopID();
         i++;
     }
-    // saved targets chips
-    ImGui::SetCursorScreenPos(ImVec2(p.x + 14 * S, p.y + h - 34 * S));
-    PF(fSmall); ImGui::TextColored(C_DIM, "Zapisane:"); ImGui::PopFont(); ImGui::SameLine();
-    if (TextButton("##tsave", ICO_BOOKMARK " zapisz", C_ACC, iconsOk ? fReg : fReg, ImGui::GetCursorScreenPos())) { if (Row* r = T.Get("tsave")) ApplyRow(*r); }
-    ImGui::SameLine();
-    if (Chip("pod wzrokiem##tw", s.activeSaved < 0)) { if (Row* r = T.Get("tforget")) ApplyRow(*r); }
-    for (int k = 0; k < (int)s.savedTargets.size(); k++) {
-        ImGui::PushID(k + 6000);
-        std::string lbl = s.savedTargets[k] + "##st";
-        if (Chip(lbl.c_str(), s.activeSaved == k)) Act_SelectSavedTarget(k);
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) Act_RemoveSavedTarget(k);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("klik = wybierz, prawy klik = usuń z listy");
-        ImGui::PopID();
-    }
-    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 8 * S)); ImGui::Dummy(ImVec2(w, 0));
-}
+    float by = p.y + h - 40 * S;
+    if (Button("##tsave", "Zapisz cel pod wzrokiem", ImVec2(iconsX, by))) { if (Row* rw = T.Get("tsave")) ApplyRow(*rw); }
+    if (s.activeSaved >= 0 && Button("##tw", "Użyj NPC pod wzrokiem", ImVec2(iconsX, by - 34 * S), false)) { if (Row* rw = T.Get("tforget")) ApplyRow(*rw); }
+    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 12 * S)); ImGui::Dummy(ImVec2(w, 0));
 
-// ---------------------------------------------------------------------------- teleport
-void TeleportPanel(const Snapshot& s, float w) {
-    SectionTitle("Twoje pozycje");
-    PF(fSmall); ImGui::TextColored(C_DIM, "Świat: %s   ·   teraz: X %.0f  Y %.0f  Z %.0f", s.world.c_str(), s.px, s.py, s.pz); ImGui::PopFont();
-    InputBox("##posname", posName, sizeof posName, "nazwa nowej pozycji (np. Kopalnia, Xardas)...", w - 190 * S);
+    if (!s.saved.empty()) {
+        SectionLabel("Zapisane cele");
+        PF(fSmall); ImGui::TextColored(C_DIM, "Portret robi się sam, gdy postać jest blisko na ekranie przy zamkniętym menu. Klik = wybierz, x = usuń z listy."); ImGui::PopFont();
+        ImGui::Dummy(ImVec2(0, 2 * S));
+        ImVec2 p0 = ImGui::GetCursorScreenPos();
+        float gp = 10 * S, cw = (w - gp) * 0.5f, ch = 92 * S;
+        for (size_t k = 0; k < s.saved.size(); k++) {
+            const SavedInfo& si = s.saved[k];
+            float x = p0.x + (k % 2) * (cw + gp), y = p0.y + (k / 2) * (ch + gp);
+            bool act = (int)k == s.activeSaved;
+            ImGui::PushID((int)k + 6000);
+            ImGui::SetCursorScreenPos(ImVec2(x, y));
+            if (ImGui::InvisibleButton("##sel", ImVec2(cw - 40 * S, ch))) Act_SelectSavedPtr(si.ptr);
+            bool hov = ImGui::IsItemHovered();
+            DL()->AddRectFilled(ImVec2(x, y), ImVec2(x + cw, y + ch), U32(hov ? C_HOVER : C_CARD), 10 * S);
+            if (act) DL()->AddRect(ImVec2(x, y), ImVec2(x + cw, y + ch), U32(C_ACC), 10 * S, 2 * S);
+            Avatar(ImVec2(x + 42 * S, y + ch * 0.5f), 30 * S, si.monster, si.ptr);
+            float tx = x + 84 * S, mx = x + cw - 40 * S;
+            TextClip(ImVec2(tx, y + 10 * S), fBold, si.dead ? C_ST_CRASH : C_TEXT, si.name + (si.dead ? "  (martwy)" : ""), mx);
+            TextClip(ImVec2(tx, y + 30 * S), fSmall, C_ACC, si.inst, mx);
+            char b[200]; snprintf(b, sizeof b, "%s  ·  %s  ·  %.0f m", si.guild.c_str(), si.place.c_str(), si.dist);
+            TextClip(ImVec2(tx, y + 47 * S), fSmall, C_DIM, b, mx);
+            HpBar(tx, mx - 6 * S, y + 70 * S, si.hp, si.hpmax, C_HP, 4);
+            if (hov) {
+                char t[400]; snprintf(t, sizeof t, "%s\n%s\n%s · %s · poziom %d\n%s\nX %.0f  Y %.0f  Z %.0f\n%d/%d HP", si.name.c_str(), si.inst.c_str(), si.group.c_str(),
+                                      si.guild.c_str(), si.level, si.place.c_str(), si.x, si.y, si.z, si.hp, si.hpmax);
+                ImGui::SetTooltip("%s", t);
+            }
+            if (IconButton("##rm", ICN_TIMES, "Usuń z listy", ImVec2(x + cw - 34 * S, y + 8 * S), 26 * S, C_DIM)) Act_RemoveSavedTarget((int)k);
+            ImGui::PopID();
+        }
+        ImGui::SetCursorScreenPos(ImVec2(p0.x, p0.y + ((s.saved.size() + 1) / 2) * (ch + gp)));
+        ImGui::Dummy(ImVec2(w, 4 * S));
+    }
+}
+// ---- Postacie / Drużyna: ally picker
+void AllyPicker(const Snapshot& s, float w) {
+    SectionLabel("Wybierz postacie do drużyny");
+    BeginPanel("##allyp", nullptr, w);
+    InputBox("##asearch", allySearch, sizeof allySearch, "Szukaj po imieniu, gildii albo ID...", w * 0.42f);
     ImGui::SameLine();
-    if (TextButton("##savepos", "[ Zapisz obecną ]", C_ON, fBold, ImGui::GetCursorScreenPos())) { Act_SavePos(posName); posName[0] = 0; }
+    const char* fl[] = { "Wszyscy", "Ludzie", "Potwory", "Wrodzy", "Nie-wrodzy" };
+    for (int i = 0; i < 5; i++) if (Chip(fl[i], allyFilter == i)) allyFilter = i;
     ImGui::NewLine();
-    std::vector<SavedPos> pos;
-    { std::lock_guard<std::mutex> l(T.mtx); pos = T.positions; }
-    if (pos.empty()) ImGui::TextColored(C_DIM, "Brak zapisanych pozycji w tym świecie.");
-    float h = 36 * S;
-    for (int i = 0; i < (int)pos.size(); i++) {
+    auto pass = [&](const NearNpc& n) {
+        if (n.dead) return false;
+        if (allyFilter == 1 && n.monster) return false;
+        if (allyFilter == 2 && !n.monster) return false;
+        if (allyFilter == 3 && !n.hostile) return false;
+        if (allyFilter == 4 && n.hostile) return false;
+        return MatchQ(allySearch, n.name, n.guild) || MatchQ(allySearch, n.inst, n.inst);
+    };
+    int vis = 0; for (auto& n : s.nearby) if (pass(n)) vis++;
+    ImVec2 bp = ImGui::GetCursorScreenPos();
+    if (Button("##all", "Zaznacz widocznych", bp, false)) for (auto& n : s.nearby) if (pass(n) && !n.ally) allyPick.insert(n.ptr);
+    float x2 = bp.x + ButtonW("Zaznacz widocznych") + 6 * S;
+    if (Button("##none", "Odznacz", ImVec2(x2, bp.y), false)) allyPick.clear();
+    x2 += ButtonW("Odznacz") + 6 * S;
+    char lbl[64]; snprintf(lbl, sizeof lbl, "Dodaj do drużyny (%d)", (int)allyPick.size());
+    if (Button("##add", lbl, ImVec2(x2, bp.y)) && !allyPick.empty()) { Act_MakeAllies(std::vector<uintptr_t>(allyPick.begin(), allyPick.end())); allyPick.clear(); }
+    ImGui::SetCursorScreenPos(ImVec2(bp.x, bp.y + 34 * S));
+    PF(fSmall); ImGui::TextColored(C_DIM, "%d postaci w promieniu (ustaw w karcie Zachowanie drużyny), %d pasuje do filtra", (int)s.nearby.size(), vis); ImGui::PopFont();
+    EndPanel();
+    float h = 42 * S; int i = 0;
+    for (auto& n : s.nearby) {
+        if (!pass(n)) continue;
         ImVec2 p = ImGui::GetCursorScreenPos();
-        ListRowBg(p, w, h, i);
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        PF(fBold); dl->AddText(ImVec2(p.x + 10 * S, p.y + 3 * S), U32(C_TEXT), pos[i].name.c_str()); ImGui::PopFont();
-        char c[96]; snprintf(c, sizeof c, "X %.0f  Y %.0f  Z %.0f", pos[i].x, pos[i].y, pos[i].z);
-        PF(fSmall); dl->AddText(ImVec2(p.x + 10 * S, p.y + 20 * S), U32(C_DIM), c); ImGui::PopFont();
-        ImGui::PushID(i + 9000);
-        if (TextButton("##go", "[ Teleport ]", C_ON, fBold, ImVec2(p.x + w * 0.66f, p.y + h * 0.5f - 12 * S))) Act_Teleport(pos[i].x, pos[i].y, pos[i].z, pos[i].name);
-        if (TextButton("##del", "[ Usuń ]", C_ST_CRASH, fReg, ImVec2(p.x + w * 0.84f, p.y + h * 0.5f - 12 * S))) Act_DeletePos(i);
+        ListRowBg(p, w, h, i++);
+        ImGui::PushID((int)(n.ptr & 0x7FFFFFFF));
+        bool on = allyPick.count(n.ptr) != 0;
+        float tx = p.x + 40 * S;
+        if (n.ally) { float pw; Pill(ImVec2(p.x + 10 * S, p.y + 12 * S), "W DRUŻYNIE", C_ON, &pw); tx = p.x + 20 * S + pw; }
+        else if (Check("##c", on, ImVec2(p.x + 12 * S, p.y + (h - 17 * S) * 0.5f))) { if (on) allyPick.erase(n.ptr); else allyPick.insert(n.ptr); }
+        Text(ImVec2(tx, p.y + 5 * S), fBold, n.hostile ? C_ST_CRASH : C_TEXT, n.name.c_str());
+        char b[220]; snprintf(b, sizeof b, "%s  ·  %s  ·  poziom %d  ·  %.0f m  ·  %s", kNpcGroupNames[n.group], n.guild.c_str(), n.level, n.dist, n.inst.c_str());
+        TextClip(ImVec2(tx, p.y + 23 * S), fSmall, C_DIM, b, p.x + w - 10 * S);
         ImGui::PopID();
         ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 3 * S)); ImGui::Dummy(ImVec2(w, 0));
     }
-    SectionTitle("Ręczne koordynaty");
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_ROW1); ImGui::PushStyleColor(ImGuiCol_Text, C_NUM);
-    float fw = (w - 260 * S) / 3;
+}
+// ---- Fun / Magia: spell checklist inside a card
+float RainSpellsCard(float x, float y, float w, bool draw) {
+    float rowH = 30 * S;
+    int cols = 2, n = RAIN_FX_COUNT;
+    float h = ((n + cols - 1) / cols) * rowH + 8 * S;
+    if (!draw) return h;
+    Row* m = T.Get("rainmask");
+    if (!m) return h;
+    int mask = (int)m->val;
+    float cw = (w - 28 * S) / cols;
+    for (int i = 0; i < n; i++) {
+        float cx = x + 14 * S + (i % cols) * cw, cy = y + 4 * S + (i / cols) * rowH;
+        ImGui::PushID(i + 3300);
+        bool on = (mask >> i) & 1;
+        if (Check("##sp", on, ImVec2(cx, cy + 5 * S))) { mask ^= (1 << i); m->val = (float)mask; T.Save(); }
+        Text(ImVec2(cx + 26 * S, cy + 4 * S), fReg, on ? C_TEXT : C_DIM, kRainNames[i]);
+        ImGui::PopID();
+    }
+    return h;
+}
+// ---- Świat / Teleport
+void TeleportPage(const Snapshot& s, float w) {
+    SectionLabel("Twoje pozycje");
+    BeginPanel("##tpadd", nullptr, w);
+    PF(fSmall); ImGui::TextColored(C_DIM, "Świat: %s   ·   teraz: X %.0f  Y %.0f  Z %.0f", s.world.c_str(), s.px, s.py, s.pz); ImGui::PopFont();
+    InputBox("##posname", posName, sizeof posName, "nazwa nowej pozycji (np. Kopalnia, Xardas)...", w - 200 * S);
+    ImGui::SameLine();
+    if (Button("##savepos", "Zapisz obecną", ImGui::GetCursorScreenPos())) { Act_SavePos(posName); posName[0] = 0; }
+    ImGui::NewLine();
+    EndPanel();
+    std::vector<SavedPos> pos;
+    { std::lock_guard<std::mutex> l(T.mtx); pos = T.positions; }
+    if (pos.empty()) { PF(fSmall); ImGui::TextColored(C_DIM, "Brak zapisanych pozycji w tym świecie."); ImGui::PopFont(); }
+    else {
+        ImVec2 p0 = ImGui::GetCursorScreenPos();
+        int cols = w > 700 * S ? 3 : 2;
+        float gp = 10 * S, cw = (w - gp * (cols - 1)) / cols, ch = 86 * S;
+        for (int i = 0; i < (int)pos.size(); i++) {
+            float x = p0.x + (i % cols) * (cw + gp), y = p0.y + (i / cols) * (ch + gp);
+            DL()->AddRectFilled(ImVec2(x, y), ImVec2(x + cw, y + ch), U32(C_CARD), 10 * S);
+            if (iconsOk) { PF(fIcon); DL()->AddText(ImVec2(x + 14 * S, y + 13 * S), U32(C_ACC), ICN_MAP); ImGui::PopFont(); }
+            TextClip(ImVec2(x + 38 * S, y + 10 * S), fBold, C_TEXT, pos[i].name, x + cw - 10 * S);
+            char c[96]; snprintf(c, sizeof c, "X %.0f  Y %.0f  Z %.0f", pos[i].x, pos[i].y, pos[i].z);
+            TextClip(ImVec2(x + 38 * S, y + 30 * S), fSmall, C_DIM, c, x + cw - 10 * S);
+            ImGui::PushID(i + 9000);
+            if (Button("##go", "Teleport", ImVec2(x + 14 * S, y + ch - 36 * S))) Act_Teleport(pos[i].x, pos[i].y, pos[i].z, pos[i].name);
+            if (IconButton("##del", ICN_TRASH, "Usuń pozycję", ImVec2(x + cw - 40 * S, y + ch - 36 * S), 26 * S, C_ST_CRASH)) Act_DeletePos(i);
+            ImGui::PopID();
+        }
+        ImGui::SetCursorScreenPos(ImVec2(p0.x, p0.y + ((pos.size() + cols - 1) / cols) * (ch + gp)));
+        ImGui::Dummy(ImVec2(w, 0));
+    }
+    SectionLabel("Ręczne koordynaty");
+    BeginPanel("##tpman", nullptr, w);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2); ImGui::PushStyleColor(ImGuiCol_Text, C_ACC);
+    float fw = (w - 330 * S) / 3;
     ImGui::SetNextItemWidth(fw); ImGui::InputFloat("X##m", &manX, 0, 0, "%.0f"); ImGui::SameLine();
     ImGui::SetNextItemWidth(fw); ImGui::InputFloat("Y##m", &manY, 0, 0, "%.0f"); ImGui::SameLine();
     ImGui::SetNextItemWidth(fw); ImGui::InputFloat("Z##m", &manZ, 0, 0, "%.0f"); ImGui::SameLine();
     ImGui::PopStyleColor(2);
-    if (TextButton("##cur", "[ Obecna ]", C_OFF, fReg, ImGui::GetCursorScreenPos())) { manX = s.px; manY = s.py; manZ = s.pz; }
-    ImGui::SameLine();
-    if (TextButton("##mgo", "[ Teleport ]", C_ON, fBold, ImGui::GetCursorScreenPos())) Act_Teleport(manX, manY, manZ, "ręczne koordynaty");
+    ImVec2 bp = ImGui::GetCursorScreenPos();
+    if (Button("##cur", "Obecna", bp, false)) { manX = s.px; manY = s.py; manZ = s.pz; }
+    if (Button("##mgo", "Teleport", ImVec2(bp.x + ButtonW("Obecna") + 6 * S, bp.y))) Act_Teleport(manX, manY, manZ, "ręczne koordynaty");
     ImGui::NewLine();
-    SectionTitle("Waypointy świata");
+    EndPanel();
+    SectionLabel("Waypointy świata");
     if (g_cat.wps.empty()) { ImGui::TextColored(C_DIM, "Brak waypointów (wczytaj grę)."); return; }
-    InputBox("##wsearch", search, sizeof search, "Szukaj waypointa: OC, PSI, OW_, NC_...", w);
-    std::vector<const WpEntry*> v;
-    for (auto& e : g_cat.wps) if (MatchQ(search, e.name, e.name)) v.push_back(&e);
-    ImGui::TextColored(C_DIM, "%d waypointów", (int)v.size());
-    float wh = 32 * S;
+    InputBox("##wsearch", search, sizeof search, "Szukaj: miejsce (Stary Obóz, Bractwo...) albo waypoint (OCR_, PSI_...)", w);
+    std::vector<std::pair<const WpEntry*, std::string>> v;
+    for (auto& e : g_cat.wps) { std::string reg = gx::RegionOfWp(e.name); if (MatchQ(search, e.name, reg)) v.push_back({ &e, reg }); }
+    std::stable_sort(v.begin(), v.end(), [](auto& a, auto& b) { return a.second < b.second; });
+    PF(fSmall); ImGui::TextColored(C_DIM, "%d waypointów", (int)v.size()); ImGui::PopFont();
+    float wh = 40 * S;
     ImGuiListClipper clip; clip.Begin((int)v.size(), wh + 3 * S);
     while (clip.Step())
         for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
-            const WpEntry& e = *v[i];
+            const WpEntry& e = *v[i].first;
             ImVec2 p = ImGui::GetCursorScreenPos();
             ListRowBg(p, w, wh, i);
-            PF(fBold); ImGui::GetWindowDrawList()->AddText(ImVec2(p.x + 10 * S, p.y + 7 * S), U32(C_TEXT), e.name.c_str()); ImGui::PopFont();
+            Text(ImVec2(p.x + 12 * S, p.y + 4 * S), fBold, C_TEXT, v[i].second.empty() ? "Inne" : v[i].second.c_str());
+            Text(ImVec2(p.x + 12 * S, p.y + 22 * S), fSmall, C_DIM, e.name.c_str());
             ImGui::PushID(i);
-            if (TextButton("##tp", "[ Teleport ]", C_ON, fReg, ImVec2(p.x + w * 0.84f, p.y + wh * 0.5f - 12 * S))) Act_Teleport(e.x, e.y, e.z, e.name);
+            float bw = ButtonW("Teleport", fReg);
+            if (Button("##tp", "Teleport", ImVec2(p.x + w - bw - 12 * S, p.y + (wh - 25 * S) * 0.5f), true, fReg)) Act_Teleport(e.x, e.y, e.z, e.name);
             ImGui::PopID();
             ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + wh + 3 * S)); ImGui::Dummy(ImVec2(w, 0));
         }
 }
-
-// ---------------------------------------------------------------------------- marvin
-void MarvinPanel(const Snapshot& s, float w) {
-    SectionTitle("Konsola i makra");
+// ---- Wizualia / Kolory
+void ColorsPage(float w) {
+    static const char* names[7] = { "Wrogowie", "Drużyna", "Neutralni", "Potwory", "Martwi", "Przedmioty", "Skrzynie" };
+    CardSpec c{ "Kolory ESP", {}, nullptr, 7 * 36 * S };
+    c.custom = [](float x, float y, float cw, bool) -> float {
+        for (int i = 0; i < 7; i++) {
+            float yy = y + i * 36 * S, cy = yy + 18 * S;
+            Text(ImVec2(x + 14 * S, cy - 9 * S), fReg, C_TEXT, names[i]);
+            ImVec4 col = ImGui::ColorConvertU32ToFloat4(g_espColors[i]);
+            char hex[12]; snprintf(hex, sizeof hex, "#%02X%02X%02X", (int)(col.x * 255), (int)(col.y * 255), (int)(col.z * 255));
+            float tw = TextW(hex, fSmall);
+            Text(ImVec2(x + cw - 50 * S - tw, cy - 8 * S), fSmall, C_DIM, hex);
+            ImGui::SetCursorScreenPos(ImVec2(x + cw - 38 * S, cy - 11 * S));
+            ImGui::PushID(i + 4000);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 11 * S);
+            if (ImGui::ColorEdit3("##c", &col.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) {
+                g_espColors[i] = ImGui::ColorConvertFloat4ToU32(ImVec4(col.x, col.y, col.z, 1));
+                char k[16], v[16]; snprintf(k, sizeof k, "c%d", i); snprintf(v, sizeof v, "%u", g_espColors[i]);
+                WritePrivateProfileStringA("espcolors", k, v, IniPath().c_str());
+            }
+            ImGui::PopStyleVar();
+            ImGui::PopID();
+            if (i < 6) DL()->AddLine(ImVec2(x + 14 * S, yy + 36 * S), ImVec2(x + cw - 14 * S, yy + 36 * S), U32(C_LINE));
+        }
+        return 7 * 36 * S;
+    };
+    std::vector<CardSpec> v{ c };
+    Masonry(v, w);
+}
+// ---- Narzędzia / Konsola
+void ConsolePage(const Snapshot& s, float w) {
+    BeginPanel("##con", "Konsola i makra", w);
     PF(fSmall); ImGui::TextColored(C_DIM, "Jedna komenda w linii, np.: insert ITMW_2H_SWORD_HEAVY_04 / goto waypoint OCC_BARONS_GREATHALL_CENTER / cheat full"); ImGui::PopFont();
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_ROW1);
-    ImGui::InputTextMultiline("##con", consoleBuf, sizeof consoleBuf, ImVec2(w, 90 * S));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2);
+    ImGui::InputTextMultiline("##conin", consoleBuf, sizeof consoleBuf, ImVec2(w - 28 * S, 100 * S));
     ImGui::PopStyleColor();
-    ImGui::TextColored(C_DIM, "Powtórz x"); ImGui::SameLine(); NumField("##rep", &macroRepeat, 1, 500, 60 * S); ImGui::SameLine();
-    if (TextButton("##run", "[ Wykonaj ]", C_ON, fBold, ImGui::GetCursorScreenPos()) && consoleBuf[0]) Act_RunMacro({ "", consoleBuf, macroRepeat });
-    ImGui::SameLine();
+    ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Powtórz x"); ImGui::SameLine(); NumField("##rep", &macroRepeat, 1, 500, 70 * S); ImGui::SameLine();
+    ImVec2 bp = ImGui::GetCursorScreenPos();
+    if (Button("##run", "Wykonaj", bp) && consoleBuf[0]) Act_RunMacro({ "", consoleBuf, macroRepeat });
+    ImGui::SetCursorScreenPos(ImVec2(bp.x + ButtonW("Wykonaj") + 12 * S, bp.y));
     InputBox("##mname", macroName, sizeof macroName, "nazwa makra...", w * 0.25f); ImGui::SameLine();
-    if (TextButton("##msave", "[ Zapisz makro ]", C_ACC, fReg, ImGui::GetCursorScreenPos()) && macroName[0] && consoleBuf[0]) {
+    if (Button("##msave", "Zapisz makro", ImGui::GetCursorScreenPos(), false) && macroName[0] && consoleBuf[0]) {
         bool rep = false;
         for (auto& m : T.macros) if (m.name == macroName) { m.cmds = consoleBuf; m.repeat = macroRepeat; rep = true; }
         if (!rep) T.macros.push_back({ macroName, consoleBuf, macroRepeat });
         T.SaveMacros(); macroName[0] = 0; T.Toast("Zapisano makro");
     }
     ImGui::NewLine();
-    float h = 34 * S;
-    for (int i = 0; i < (int)T.macros.size(); i++) {
-        Macro& m = T.macros[i];
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        ListRowBg(p, w, h, i);
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        PF(fBold); dl->AddText(ImVec2(p.x + 10 * S, p.y + 3 * S), U32(C_TEXT), m.name.c_str()); ImGui::PopFont();
-        std::string first = m.cmds.substr(0, m.cmds.find('\n'));
-        char sub[200]; snprintf(sub, sizeof sub, "x%d  ·  %s%s", m.repeat, first.c_str(), m.cmds.find('\n') != std::string::npos ? " ..." : "");
-        PF(fSmall); dl->AddText(ImVec2(p.x + 10 * S, p.y + 19 * S), U32(C_DIM), sub); ImGui::PopFont();
-        ImGui::PushID(i + 5000);
-        float bs = 24 * S, by = p.y + (h - bs) * 0.5f;
-        if (IconButton("##run", ICO_PLAY, "Uruchom", ImVec2(p.x + w - bs * 3 - 16 * S, by), bs, C_ON)) Act_RunMacro(m);
-        if (IconButton("##edit", ICO_EDIT, "Wczytaj do edytora", ImVec2(p.x + w - bs * 2 - 10 * S, by), bs, C_TEXT)) {
-            snprintf(consoleBuf, sizeof consoleBuf, "%s", m.cmds.c_str()); snprintf(macroName, sizeof macroName, "%s", m.name.c_str()); macroRepeat = m.repeat;
-        }
-        bool del = IconButton("##del", ICO_TRASH, "Usuń", ImVec2(p.x + w - bs - 4 * S, by), bs, C_ST_CRASH);
-        ImGui::PopID();
-        ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 3 * S)); ImGui::Dummy(ImVec2(w, 0));
-        if (del) { T.macros.erase(T.macros.begin() + i); T.SaveMacros(); break; }
-    }
     if (!s.marvinOut.empty()) {
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, C_ROW2);
-        ImGui::BeginChild("##out", ImVec2(w, 110 * S), false);
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, C_CARD2);
+        ImGui::BeginChild("##out", ImVec2(w - 28 * S, 110 * S), false);
         PF(fSmall); ImGui::TextWrapped("%s", s.marvinOut.c_str()); ImGui::PopFont();
         ImGui::EndChild();
         ImGui::PopStyleColor();
     }
-    SectionTitle("Wywołaj funkcję skryptu (bez parametrów)");
-    InputBox("##scr", scriptBuf, sizeof scriptBuf, "nazwa funkcji Daedalusa...", w - 120 * S);
+    EndPanel();
+    if (!T.macros.empty()) SectionLabel("Zapisane makra");
+    float h = 46 * S;
+    for (int i = 0; i < (int)T.macros.size(); i++) {
+        Macro& m = T.macros[i];
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        ListRowBg(p, w, h, i);
+        Text(ImVec2(p.x + 12 * S, p.y + 5 * S), fBold, C_TEXT, m.name.c_str());
+        std::string first = m.cmds.substr(0, m.cmds.find('\n'));
+        char sub[200]; snprintf(sub, sizeof sub, "x%d  ·  %s%s", m.repeat, first.c_str(), m.cmds.find('\n') != std::string::npos ? " ..." : "");
+        Text(ImVec2(p.x + 12 * S, p.y + 25 * S), fSmall, C_DIM, sub);
+        ImGui::PushID(i + 5000);
+        float bs = 28 * S, by = p.y + (h - bs) * 0.5f;
+        if (IconButton("##run", ICN_PLAY, "Uruchom", ImVec2(p.x + w - bs * 3 - 22 * S, by), bs, C_ON)) Act_RunMacro(m);
+        if (IconButton("##edit", ICO_EDIT, "Wczytaj do edytora", ImVec2(p.x + w - bs * 2 - 16 * S, by), bs, C_TEXT)) {
+            snprintf(consoleBuf, sizeof consoleBuf, "%s", m.cmds.c_str()); snprintf(macroName, sizeof macroName, "%s", m.name.c_str()); macroRepeat = m.repeat;
+        }
+        bool del = IconButton("##del", ICN_TRASH, "Usuń", ImVec2(p.x + w - bs - 10 * S, by), bs, C_ST_CRASH);
+        ImGui::PopID();
+        ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 3 * S)); ImGui::Dummy(ImVec2(w, 0));
+        if (del) { T.macros.erase(T.macros.begin() + i); T.SaveMacros(); break; }
+    }
+    ImGui::Dummy(ImVec2(0, 6 * S));
+    BeginPanel("##scr", "Wywołaj funkcję skryptu (bez parametrów)", w);
+    InputBox("##scrn", scriptBuf, sizeof scriptBuf, "nazwa funkcji Daedalusa...", w - 140 * S);
     ImGui::SameLine();
-    if (TextButton("##run2", "[ Wywołaj ]", C_ON, fBold, ImGui::GetCursorScreenPos()) && scriptBuf[0]) Act_RunScript(scriptBuf);
+    if (Button("##run2", "Wywołaj", ImGui::GetCursorScreenPos()) && scriptBuf[0]) Act_RunScript(scriptBuf);
     ImGui::NewLine();
-    SectionTitle("Diagnostyka rdzenia (autotest przy wczytaniu świata)");
+    EndPanel();
+}
+// ---- Narzędzia / Diagnostyka
+void DiagPage(const Snapshot& s, float w) {
+    BeginPanel("##diag", "Autotest rdzenia (przy każdym wczytaniu świata)", w);
     if (s.diag.empty()) ImGui::TextColored(C_DIM, "Wczytaj grę - autotest uruchomi się sam.");
     for (auto& d : s.diag) {
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        ImVec2 p = ImGui::GetCursorScreenPos(); float pw;
-        StatusPill(dl, p, d.ok ? ST_OK : ST_CRASH, "", &pw);
-        ImGui::SetCursorScreenPos(ImVec2(p.x + pw + 8 * S, p.y));
-        PF(fSmall); ImGui::TextColored(d.ok ? C_TEXT : C_ST_CRASH, "%s", d.text.c_str()); ImGui::PopFont();
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        DL()->AddCircleFilled(ImVec2(p.x + 6 * S, p.y + 10 * S), 5 * S, U32(d.ok ? C_ST_OK : C_ST_CRASH), 12);
+        ImGui::SetCursorScreenPos(ImVec2(p.x + 20 * S, p.y));
+        ImGui::TextColored(d.ok ? C_TEXT : C_ST_CRASH, "%s", d.text.c_str());
     }
+    EndPanel();
+    BeginPanel("##crash", "Wykryte crashe (ta wersja)", w);
+    if (T.crashKeys.empty()) ImGui::TextColored(C_DIM, "Brak - nic nie wywaliło gry od instalacji tej wersji.");
+    for (auto& k : T.crashKeys) ImGui::TextColored(C_ST_CRASH, "%s", k.c_str());
+    PF(fSmall); ImGui::TextColored(C_DIM, "Log: %s", DataPath("G1CrazyTrainer.log").c_str()); ImGui::PopFont();
+    EndPanel();
 }
-
-// ---------------------------------------------------------------------------- render (ESP) cards
-bool Switch(const char* id, bool* v, ImVec2 pos) {
-    float wdt = 34 * S, hgt = 18 * S;
-    ImGui::SetCursorScreenPos(pos);
-    bool c = ImGui::InvisibleButton(id, ImVec2(wdt, hgt));
-    if (c) *v = !*v;
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddRectFilled(pos, ImVec2(pos.x + wdt, pos.y + hgt), U32(*v ? C_ACC : C_TRACK), hgt * 0.5f);
-    float kx = *v ? pos.x + wdt - hgt * 0.5f : pos.x + hgt * 0.5f;
-    dl->AddCircleFilled(ImVec2(kx, pos.y + hgt * 0.5f), hgt * 0.38f, U32(C_TEXT), 16);
-    return c;
-}
-float CardRow(Row* r, float x, float y, float w) {
-    if (!r) return 0;
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    float h = 34 * S;
-    ImGui::PushID(r->id.c_str());
-    PF(fReg); dl->AddText(ImVec2(x + 12 * S, y + 8 * S), U32(C_TEXT), r->name.c_str());
-    float tw = ImGui::CalcTextSize(r->name.c_str()).x; ImGui::PopFont();
-    float pw; StatusPill(dl, ImVec2(x + 18 * S + tw, y + 10 * S), r->status, r->hist, &pw);
-    if (r->kind == K_TOGGLE) {
-        if (Switch("##sw", &r->on, ImVec2(x + w - 46 * S, y + 8 * S))) { T.Save(); }
-    } else if (!r->options.empty()) {
-        Combo(*r, ImVec2(x + w - w * 0.42f - 10 * S, y + 4 * S), w * 0.42f);
-    } else {
-        char lb[32]; snprintf(lb, sizeof lb, "%.0f %s", r->val, r->note.c_str());
-        PF(fSmall); ImVec2 ts = ImGui::CalcTextSize(lb);
-        dl->AddText(ImVec2(x + w - ts.x - 12 * S, y + 2 * S), U32(C_DIM), lb); ImGui::PopFont();
-        Slider(*r, x + w * 0.45f, x + w - 14 * S, y + 24 * S);
-    }
-    ImGui::PopID();
-    dl->AddLine(ImVec2(x + 10 * S, y + h), ImVec2(x + w - 10 * S, y + h), U32(C_TRACK, 0.5f));
-    return h;
-}
-float Card(const char* title, std::vector<const char*> ids, float x, float y, float w) {
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    PF(fSmall); dl->AddText(ImVec2(x + 2 * S, y), U32(C_DIM), title); ImGui::PopFont();
-    float top = y + 18 * S;
-    float h = 6 * S;
-    for (auto id : ids) { Row* r = T.Get(id); if (r) h += 34 * S; }
-    dl->AddRectFilled(ImVec2(x, top), ImVec2(x + w, top + h + 4 * S), U32(C_CARD), 8 * S);
-    float yy = top + 4 * S;
-    for (auto id : ids) yy += CardRow(T.Get(id), x, yy, w);
-    return top + h + 18 * S - y;
-}
-void ColorCard(float x, float y, float w, float* outH) {
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    const char* names[7] = { "Wrogowie", "Sojusznicy", "Neutralni", "Potwory", "Martwi", "Przedmioty", "Skrzynie" };
-    PF(fSmall); dl->AddText(ImVec2(x + 2 * S, y), U32(C_DIM), "Kolory ESP"); ImGui::PopFont();
-    float top = y + 18 * S, h = 7 * 30 * S + 8 * S;
-    dl->AddRectFilled(ImVec2(x, top), ImVec2(x + w, top + h), U32(C_CARD), 8 * S);
-    for (int i = 0; i < 7; i++) {
-        float yy = top + 6 * S + i * 30 * S;
-        PF(fReg); dl->AddText(ImVec2(x + 12 * S, yy + 4 * S), U32(C_TEXT), names[i]); ImGui::PopFont();
-        ImVec4 col = ImGui::ColorConvertU32ToFloat4(g_espColors[i]);
-        ImGui::SetCursorScreenPos(ImVec2(x + w - 34 * S, yy + 2 * S));
-        ImGui::PushID(i + 4000);
-        if (ImGui::ColorEdit3("##c", &col.x, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) {
-            g_espColors[i] = ImGui::ColorConvertFloat4ToU32(ImVec4(col.x, col.y, col.z, 1));
-            char k[16], v[16]; snprintf(k, sizeof k, "c%d", i); snprintf(v, sizeof v, "%u", g_espColors[i]);
-            WritePrivateProfileStringA("espcolors", k, v, IniPath().c_str());
+// ---- Konfiguracja
+void ConfigPage(float w) {
+    std::vector<CardSpec> cards;
+    CardSpec look{ "Wygląd menu", {}, nullptr, 132 * S };
+    look.custom = [](float x, float y, float, bool) -> float {
+        Text(ImVec2(x + 14 * S, y + 8 * S), fReg, C_TEXT, "Kolor akcentu");
+        static const float presets[][3] = { { 0.66f, 0.55f, 1.f }, { 0.36f, 0.66f, 1.f }, { 0.35f, 0.85f, 0.60f }, { 1.f, 0.72f, 0.30f }, { 1.f, 0.42f, 0.45f }, { 0.95f, 0.45f, 0.85f } };
+        for (int i = 0; i < 6; i++) {
+            ImGui::PushID(i + 4100);
+            ImVec2 c(x + 28 * S + i * 32 * S, y + 46 * S);
+            ImGui::SetCursorScreenPos(ImVec2(c.x - 12 * S, c.y - 12 * S));
+            if (ImGui::InvisibleButton("##pre", ImVec2(24 * S, 24 * S))) { memcpy(T.accent, presets[i], sizeof(float) * 3); T.Save(); }
+            DL()->AddCircleFilled(c, 11 * S, ImGui::GetColorU32(ImVec4(presets[i][0], presets[i][1], presets[i][2], 1)), 20);
+            if (std::fabs(T.accent[0] - presets[i][0]) < 0.01f && std::fabs(T.accent[1] - presets[i][1]) < 0.01f && std::fabs(T.accent[2] - presets[i][2]) < 0.01f)
+                DL()->AddCircle(c, 14 * S, U32(C_TEXT), 20, 1.5f * S);
+            ImGui::PopID();
         }
-        ImGui::PopID();
-        char hex[12]; snprintf(hex, sizeof hex, "#%02X%02X%02X", (int)(col.x * 255), (int)(col.y * 255), (int)(col.z * 255));
-        PF(fSmall); ImVec2 ts = ImGui::CalcTextSize(hex); dl->AddText(ImVec2(x + w - 44 * S - ts.x, yy + 6 * S), U32(C_DIM), hex); ImGui::PopFont();
-    }
-    *outH = h + 26 * S;
-}
-void RenderPanel(float w) {
-    ImVec2 p = ImGui::GetCursorScreenPos();
-    float colW = (w - 12 * S) * 0.5f;
-    float lx = p.x, rx = p.x + colW + 12 * S;
-    float ly = p.y, ry = p.y;
-    ly += Card("ESP", { "espnpc", "espitems", "espchest", "espchestinv", "espeq", "esprange" }, lx, ly, colW);
-    ly += Card("Filtry", { "espfilter", "espdead", "espitemval" }, lx, ly, colW);
-    ry += Card("Wygląd", { "espname", "espdist", "espguild", "esphp", "esphpnum", "espbox", "espboxmode", "espline" }, rx, ry, colW);
-    float ch; ColorCard(rx, ry, colW, &ch); ry += ch;
-    ImGui::SetCursorScreenPos(ImVec2(p.x, std::max(ly, ry)));
-    ImGui::Dummy(ImVec2(w, 4 * S));
-}
-
-void DrawRowsGrouped(const std::string& cat, float w) {
-    std::string lastSub = "\x01";
-    int idx = 0;
+        ImGui::SetCursorScreenPos(ImVec2(x + 14 * S, y + 72 * S));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 11 * S);
+        if (ImGui::ColorEdit3("Własny kolor", T.accent, ImGuiColorEditFlags_NoInputs)) T.Save();
+        ImGui::PopStyleVar();
+        Text(ImVec2(x + 14 * S, y + 106 * S), fSmall, C_DIM, "Insert = menu, Esc = zamknij");
+        return 132 * S;
+    };
+    cards.push_back(look);
+    CardSpec tester{ "Tryb testera", {}, nullptr, 92 * S };
+    tester.custom = [](float x, float y, float cw, bool) -> float {
+        Text(ImVec2(x + 14 * S, y + 10 * S), fReg, C_TEXT, "Pokaż kropki statusu przy opcjach");
+        if (Switch("##tm", T.testerMode, ImVec2(x + cw - 50 * S, y + 9 * S))) { T.testerMode = !T.testerMode; T.Save(); }
+        float dx = x + 14 * S, dy = y + 44 * S;
+        struct { const ImVec4* c; const char* t; } lg[] = { { &C_ST_OK, "OK" }, { &C_ST_BUG, "BUG" }, { &C_ST_CRASH, "CRASH" }, { &C_ST_NEW, "TEST" } };
+        for (auto& l : lg) { DL()->AddCircleFilled(ImVec2(dx + 4 * S, dy + 8 * S), 4 * S, U32(*l.c), 12); Text(ImVec2(dx + 12 * S, dy), fSmall, C_DIM, l.t); dx += 64 * S; }
+        Text(ImVec2(x + 14 * S, y + 66 * S), fSmall, C_DIM, "najedź na kropkę = opis i historia z poprzednich buildów");
+        return 92 * S;
+    };
+    cards.push_back(tester);
+    for (auto& c : CardsFor("Konfiguracja", "Konfiguracja")) cards.push_back(c);
+    CardSpec tog{ "Przełączniki", {}, nullptr, 52 * S };
+    tog.custom = [](float x, float y, float, bool) -> float {
+        if (Button("##restore", "Przywróć ostatnio włączone", ImVec2(x + 14 * S, y + 8 * S), false)) T.RestoreToggles();
+        return 52 * S;
+    };
+    cards.push_back(tog);
+    Masonry(cards, w);
+    SectionLabel("Skróty klawiszowe");
+    BeginPanel("##hk", nullptr, w);
+    PF(fSmall); ImGui::TextColored(C_DIM, "Klawisz przypiszesz przy każdej opcji (najedź na wiersz -> \"+ klawisz\"). Przypisane:"); ImGui::PopFont();
+    int n = 0;
     for (auto& r : T.rows) {
-        if (r.cat != cat || r.hidden) continue;
-        if (r.sub != lastSub) { SubHeader(r.sub); lastSub = r.sub; }
-        DrawRow(r, idx++, w);
+        if (!r.hotkey) continue;
+        n++;
+        ImGui::PushID(r.id.c_str());
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextColored(C_ACC, "%s", KeyName(r.hotkey).c_str()); ImGui::SameLine(120 * S);
+        ImGui::TextColored(C_TEXT, "%s", r.name.c_str()); ImGui::SameLine(w * 0.55f);
+        ImGui::TextColored(C_DIM, "%s › %s", r.cat.c_str(), r.sub.c_str()); ImGui::SameLine(w - 60 * S);
+        if (IconButton("##rmk", ICN_TIMES, "Usuń skrót", ImGui::GetCursorScreenPos(), 24 * S, C_DIM)) { r.hotkey = 0; T.Save(); }
+        ImGui::NewLine();
+        ImGui::PopID();
     }
+    if (!n) ImGui::TextColored(C_DIM, "Brak przypisanych skrótów.");
+    ImGui::Dummy(ImVec2(0, 4 * S));
+    PF(fSmall); ImGui::TextColored(C_DIM, "Opcje bez własnego wiersza (przyciski na stronach):"); ImGui::PopFont();
+    for (auto& r : T.rows) {
+        if (!r.hidden || r.kind == K_VALUE) continue;
+        ImGui::PushID(r.id.c_str());
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        Text(ImVec2(p.x, p.y + 4 * S), fReg, C_TEXT, r.name.c_str());
+        HotkeyChip(r, p.x + w - 40 * S, p.y + 13 * S, true);
+        ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + 28 * S)); ImGui::Dummy(ImVec2(10, 0));
+        ImGui::PopID();
+    }
+    EndPanel();
 }
 
-// ---------------------------------------------------------------------------- overlays
+// ------------------------------------------------------------------ overlays
 void DrawEsp(const Snapshot& s, float W, float H) {
     ImDrawList* bg = ImGui::GetBackgroundDrawList();
     PF(fSmall);
     for (auto& L : s.labels) {
         ImVec2 a(L.x * W, L.y * H);
         ImU32 col = L.color;
+        for (size_t i = 0; i + 3 < L.bones.size(); i += 4)
+            bg->AddLine(ImVec2(L.bones[i] * W, L.bones[i + 1] * H), ImVec2(L.bones[i + 2] * W, L.bones[i + 3] * H), col, 1.4f * S);
         if (L.box == 1) bg->AddRect(ImVec2(L.bx0 * W, L.by0 * H), ImVec2(L.bx1 * W, L.by1 * H), col, 3 * S, 1.5f * S);
         if (L.box == 2) {
             static const int E[12][2] = { {0,1},{0,2},{0,4},{1,3},{1,5},{2,3},{2,6},{3,7},{4,5},{4,6},{5,7},{6,7} };
@@ -799,85 +1049,90 @@ void DrawEsp(const Snapshot& s, float W, float H) {
         ImVec2 ss = L.sub.empty() ? ImVec2(0, 0) : ImGui::CalcTextSize(L.sub.c_str());
         float bw = std::max(ts.x, ss.x);
         for (auto& l : L.lines) bw = std::max(bw, ImGui::CalcTextSize(l.c_str()).x);
-        bw += 12 * S;
+        bw += 14 * S;
         float lh = ImGui::GetTextLineHeight();
-        float bh = ts.y + ss.y + (L.hp >= 0 ? 6 * S : 0) + L.lines.size() * lh + 6 * S;
+        float bh = ts.y + ss.y + (L.hp >= 0 ? 7 * S : 0) + L.lines.size() * lh + 8 * S;
         float topY = (L.box ? L.by0 * H : a.y) - bh - 4 * S;
         ImVec2 p0(a.x - bw * 0.5f, topY);
-        bg->AddRectFilled(p0, ImVec2(p0.x + bw, p0.y + bh), IM_COL32(15, 14, 24, 185), 5 * S);
-        float y = p0.y + 3 * S;
+        bg->AddRectFilled(p0, ImVec2(p0.x + bw, p0.y + bh), IM_COL32(14, 13, 22, 190), 6 * S);
+        float y = p0.y + 4 * S;
         if (!L.text.empty()) { bg->AddText(ImVec2(a.x - ts.x * 0.5f, y), col, L.text.c_str()); y += ts.y; }
         if (!L.sub.empty()) { bg->AddText(ImVec2(a.x - ss.x * 0.5f, y), IM_COL32(170, 170, 190, 255), L.sub.c_str()); y += ss.y; }
         if (L.hp >= 0) {
-            float x0 = p0.x + 6 * S, x1 = p0.x + bw - 6 * S;
-            bg->AddRectFilled(ImVec2(x0, y + 1 * S), ImVec2(x1, y + 4 * S), IM_COL32(60, 60, 80, 255), 2 * S);
-            bg->AddRectFilled(ImVec2(x0, y + 1 * S), ImVec2(x0 + (x1 - x0) * L.hp, y + 4 * S), U32(C_ON), 2 * S);
+            float x0 = p0.x + 7 * S, x1 = p0.x + bw - 7 * S;
+            bg->AddRectFilled(ImVec2(x0, y + 2 * S), ImVec2(x1, y + 5 * S), IM_COL32(60, 60, 80, 255), 2 * S);
+            bg->AddRectFilled(ImVec2(x0, y + 2 * S), ImVec2(x0 + (x1 - x0) * L.hp, y + 5 * S), U32(C_ON), 2 * S);
+            y += 7 * S;
+        }
+        for (auto& l : L.lines) { bg->AddText(ImVec2(p0.x + 7 * S, y), IM_COL32(210, 210, 225, 255), l.c_str()); y += lh; }
+    }
+    ImGui::PopFont();
+}
+
+// ------------------------------------------------------------------ sidebar
+void Sidebar(const Snapshot& s, ImVec2 p, float w, float h) {
+    DL()->AddRectFilled(p, ImVec2(p.x + w, p.y + h), U32(C_SIDE), 12 * S, ImDrawFlags_RoundTopLeft | ImDrawFlags_RoundBottomLeft);
+    Text(ImVec2(p.x + 22 * S, p.y + 18 * S), fTitle, C_TEXT, "GOTHIC");
+    char b[64]; snprintf(b, sizeof b, "Crazy Trainer  ·  build %d", TRAINER_BUILD);
+    Text(ImVec2(p.x + 22 * S, p.y + 50 * S), fSmall, C_ACC, b);
+    float y = p.y + 86 * S;
+    float itemH = 36 * S, subH = 29 * S;
+    for (int i = 0; i < (int)kSecs.size(); i++) {
+        const Sec& sec = kSecs[i];
+        bool act = !cfgPage && curSec == i;
+        ImGui::PushID(i + 100);
+        ImGui::SetCursorScreenPos(ImVec2(p.x + 10 * S, y));
+        if (ImGui::InvisibleButton("##sec", ImVec2(w - 20 * S, itemH))) {
+            if (cfgPage || curSec != i) { curSec = i; curSub = 0; search[0] = 0; }
+            cfgPage = false; gsearch[0] = 0;
+        }
+        bool hov = ImGui::IsItemHovered();
+        if (act || hov) DL()->AddRectFilled(ImVec2(p.x + 10 * S, y), ImVec2(p.x + w - 10 * S, y + itemH), U32(act ? C_ACCD : C_HOVER, act ? 0.55f : 0.6f), 8 * S);
+        if (iconsOk) { PF(fIcon); ImVec2 ts = ImGui::CalcTextSize(sec.icon); DL()->AddText(ImVec2(p.x + 32 * S - ts.x * 0.5f, y + (itemH - ts.y) * 0.5f), U32(act ? C_ACC : C_DIM), sec.icon); ImGui::PopFont(); }
+        Text(ImVec2(p.x + 52 * S, y + 9 * S), act ? fBold : fReg, act || hov ? C_TEXT : C_DIM, sec.name);
+        if (iconsOk) DL()->AddText(fIcon, 11 * S, ImVec2(p.x + w - 32 * S, y + 13 * S), U32(C_FAINT), act ? ICO_CHEVD : ICO_CHEVR);
+        ImGui::PopID();
+        y += itemH + 2 * S;
+        if (act) {
+            for (int j = 0; j < (int)sec.subs.size(); j++) {
+                bool sa = curSub == j && !gsearch[0];
+                ImGui::PushID(i * 100 + j + 1000);
+                ImGui::SetCursorScreenPos(ImVec2(p.x + 10 * S, y));
+                if (ImGui::InvisibleButton("##sub", ImVec2(w - 20 * S, subH))) { curSub = j; search[0] = 0; gsearch[0] = 0; }
+                bool sh = ImGui::IsItemHovered();
+                if (sa) DL()->AddRectFilled(ImVec2(p.x + 48 * S, y + 7 * S), ImVec2(p.x + 50.5f * S, y + subH - 7 * S), U32(C_ACC), 1.5f * S);
+                Text(ImVec2(p.x + 62 * S, y + 6 * S), sa ? fBold : fReg, sa ? C_ACC : (sh ? C_TEXT : C_DIM), sec.subs[j]);
+                ImGui::PopID();
+                y += subH;
+            }
             y += 6 * S;
         }
-        for (auto& l : L.lines) { bg->AddText(ImVec2(p0.x + 6 * S, y), IM_COL32(210, 210, 225, 255), l.c_str()); y += lh; }
     }
-    ImGui::PopFont();
-}
-
-void PlayerCard(const Snapshot& s, ImVec2 p, float w) {
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    float h = 58 * S;
-    ImU32 left = U32(Mix(C_CARD, C_ACC, 0.18f)), right = U32(C_CARD);
-    dl->AddRectFilledMultiColor(p, ImVec2(p.x + w, p.y + h), left, right, right, left);
-    dl->AddRect(p, ImVec2(p.x + w, p.y + h), U32(C_ACC, 0.2f), 8 * S);
-    Avatar(dl, ImVec2(p.x + 30 * S, p.y + h * 0.5f), 20 * S, false, s.bodyName);
-    float x = p.x + 60 * S;
+    float by = p.y + h - 14 * S - itemH;
+    ImGui::SetCursorScreenPos(ImVec2(p.x + 10 * S, by));
+    if (ImGui::InvisibleButton("##cfg", ImVec2(w - 20 * S, itemH))) { cfgPage = true; gsearch[0] = 0; }
+    bool hov = ImGui::IsItemHovered();
+    if (cfgPage || hov) DL()->AddRectFilled(ImVec2(p.x + 10 * S, by), ImVec2(p.x + w - 10 * S, by + itemH), U32(cfgPage ? C_ACCD : C_HOVER, 0.6f), 8 * S);
+    if (iconsOk) { PF(fIcon); ImVec2 ts = ImGui::CalcTextSize(ICN_COG); DL()->AddText(ImVec2(p.x + 32 * S - ts.x * 0.5f, by + (itemH - ts.y) * 0.5f), U32(cfgPage ? C_ACC : C_DIM), ICN_COG); ImGui::PopFont(); }
+    Text(ImVec2(p.x + 52 * S, by + 9 * S), cfgPage ? fBold : fReg, cfgPage || hov ? C_TEXT : C_DIM, "Konfiguracja");
+    // player mini card above Konfiguracja (only if it does not collide with the menu)
+    float pcH = 80 * S, py = by - pcH - 12 * S;
+    if (py < y + 10 * S) return;
+    DL()->AddLine(ImVec2(p.x + 18 * S, py - 6 * S), ImVec2(p.x + w - 18 * S, py - 6 * S), U32(C_LINE));
     if (!s.inGame) {
-        PF(fBold); dl->AddText(ImVec2(x, p.y + 10 * S), U32(C_ACC), "GOTHIC CONNECTED"); ImGui::PopFont();
-        PF(fSmall); dl->AddText(ImVec2(x, p.y + 32 * S), U32(C_DIM), "w menu gry - wczytaj albo zacznij grę"); ImGui::PopFont();
+        Text(ImVec2(p.x + 22 * S, py + 8 * S), fBold, C_ACC, "Gothic połączony");
+        Text(ImVec2(p.x + 22 * S, py + 30 * S), fSmall, C_DIM, "wczytaj albo zacznij grę");
         return;
     }
-    PF(fBold);
+    Avatar(ImVec2(p.x + 40 * S, py + 22 * S), 18 * S, false, 0);
     std::string nm = s.bodyName.empty() ? "Bezimienny" : s.bodyName;
-    dl->AddText(ImVec2(x, p.y + 6 * S), U32(C_TEXT), nm.c_str());
-    float nx = x + ImGui::CalcTextSize(nm.c_str()).x + 8 * S;
-    ImGui::PopFont();
-    if (s.swapped) Pill(dl, ImVec2(nx, p.y + 9 * S), "OBCE CIAŁO", C_ST_BUG);
-    char b[220];
-    snprintf(b, sizeof b, "%s  ·  poziom %d  ·  PD %d/%d  ·  PN %d  ·  Ruda %d  ·  Dzień %d, %02d:%02d", s.guildName.c_str(), s.level, s.exp,
-             s.expNext, s.lp, s.ore, s.day, s.hour, s.minute);
-    PF(fSmall); dl->AddText(ImVec2(x, p.y + 26 * S), U32(C_DIM), b); ImGui::PopFont();
-    float bw = (w - (x - p.x) - 20 * S) * 0.5f - 6 * S, by = p.y + 44 * S;
-    auto bar = [&](float bx, int v, int m, const ImVec4& c, const char* t) {
-        float f = m > 0 ? std::max(0.f, std::min(1.f, (float)v / m)) : 0;
-        dl->AddRectFilled(ImVec2(bx, by), ImVec2(bx + bw, by + 6 * S), U32(C_TRACK), 3 * S);
-        dl->AddRectFilled(ImVec2(bx, by), ImVec2(bx + bw * f, by + 6 * S), U32(c), 3 * S);
-        char l[48]; snprintf(l, sizeof l, "%s %d/%d", t, v, m);
-        PF(fSmall); ImVec2 ts = ImGui::CalcTextSize(l); dl->AddText(ImVec2(bx + bw - ts.x, by - ts.y - 1 * S), U32(C_TEXT, 0.8f), l); ImGui::PopFont();
-    };
-    bar(x, s.hp, s.hpmax, ImVec4(0.92f, 0.36f, 0.40f, 1), "HP");
-    bar(x + bw + 12 * S, s.mana, s.manamax, ImVec4(0.40f, 0.62f, 1.0f, 1), "Mana");
-}
-
-void SettingsPopup(ImVec2 anchor) {
-    ImGui::SetNextWindowPos(anchor, ImGuiCond_Always, ImVec2(1, 0));
-    ImGui::SetNextWindowSize(ImVec2(320 * S, 0));
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.09f, 0.09f, 0.13f, 0.99f));
-    ImGui::Begin("##settings", &settingsOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
-    PF(fBold); ImGui::TextColored(C_ACC, "Ustawienia menu"); ImGui::PopFont();
-    ImGui::TextColored(C_DIM, "Kolor akcentu");
-    const float presets[][3] = { { 0.66f, 0.55f, 1.f }, { 0.36f, 0.66f, 1.f }, { 0.35f, 0.85f, 0.60f }, { 1.f, 0.72f, 0.30f }, { 1.f, 0.42f, 0.45f }, { 0.95f, 0.45f, 0.85f } };
-    for (int i = 0; i < 6; i++) {
-        ImGui::PushID(i);
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        if (ImGui::InvisibleButton("##pre", ImVec2(26 * S, 26 * S))) { memcpy(T.accent, presets[i], sizeof(float) * 3); T.Save(); }
-        ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(p.x + 13 * S, p.y + 13 * S), 11 * S, ImGui::GetColorU32(ImVec4(presets[i][0], presets[i][1], presets[i][2], 1)), 20);
-        ImGui::PopID();
-        ImGui::SameLine();
-    }
-    ImGui::NewLine();
-    if (ImGui::ColorEdit3("Własny", T.accent, ImGuiColorEditFlags_NoInputs)) T.Save();
-    ImGui::Dummy(ImVec2(0, 4 * S));
-    if (Row* r = T.Get("pausemenu")) { bool v = r->on; if (Switch("##pause", &v, ImGui::GetCursorScreenPos())) { r->on = v; T.Save(); } ImGui::SameLine(46 * S); ImGui::Text("Pauza gry przy otwartym menu"); }
-    ImGui::Dummy(ImVec2(0, 4 * S));
-    ImGui::TextColored(C_DIM, "Esc zamyka menu, Insert otwiera/zamyka.");
-    ImGui::End();
-    ImGui::PopStyleColor();
+    TextClip(ImVec2(p.x + 66 * S, py + 6 * S), fBold, s.swapped ? C_ST_BUG : C_TEXT, nm, p.x + w - 12 * S);
+    char inf[96]; snprintf(inf, sizeof inf, "poz. %d  ·  %d rudy", s.level, s.ore);
+    Text(ImVec2(p.x + 66 * S, py + 24 * S), fSmall, C_DIM, inf);
+    HpBar(p.x + 22 * S, p.x + w - 22 * S, py + 48 * S, s.hp, s.hpmax, C_HP, 4);
+    HpBar(p.x + 22 * S, p.x + w - 22 * S, py + 57 * S, s.mana, s.manamax, C_MANA, 4);
+    snprintf(inf, sizeof inf, "Dzień %d, %02d:%02d", s.day, s.hour, s.minute);
+    Text(ImVec2(p.x + 22 * S, py + 64 * S), fSmall, C_FAINT, inf);
 }
 } // namespace
 
@@ -889,6 +1144,8 @@ void UiInitFonts(float screenH) {
     static const ImWchar iconRanges[] = { 0xF000, 0xF2E0, 0 };
     char win[MAX_PATH]; GetWindowsDirectoryA(win, MAX_PATH);
     std::string reg = std::string(win) + "\\Fonts\\segoeui.ttf", bold = std::string(win) + "\\Fonts\\segoeuib.ttf";
+    std::string semi = std::string(win) + "\\Fonts\\seguisb.ttf";
+    if (GetFileAttributesA(semi.c_str()) == INVALID_FILE_ATTRIBUTES) semi = bold;
     std::string dir = IniPath(); dir = dir.substr(0, dir.find_last_of("\\/"));
     std::string icons = dir + "\\..\\..\\launcher\\Fonts\\forkawesome-webfont.ttf";
     if (GetFileAttributesA(icons.c_str()) == INVALID_FILE_ATTRIBUTES) icons = dir + "\\forkawesome-webfont.ttf";
@@ -899,25 +1156,24 @@ void UiInitFonts(float screenH) {
         if (iconsOk) { ImFontConfig cfg; cfg.MergeMode = true; cfg.GlyphOffset.y = 1 * S; io.Fonts->AddFontFromFileTTF(icons.c_str(), px * S * 0.92f, &cfg, iconRanges); }
         return font;
     };
-    fReg = add(reg, 15); fBold = add(bold, 15); fBig = add(bold, 19); fSmall = add(reg, 12.5f);
-    fIcon = iconsOk ? io.Fonts->AddFontFromFileTTF(icons.c_str(), 16 * S, nullptr, iconRanges) : fReg;
+    fReg = add(reg, 15); fBold = add(semi, 15); fBig = add(bold, 19); fTitle = add(bold, 23); fSmall = add(reg, 12.5f);
+    fIcon = iconsOk ? io.Fonts->AddFontFromFileTTF(icons.c_str(), 15 * S, nullptr, iconRanges) : fReg;
     io.FontDefault = fReg;
     for (int i = 0; i < 7; i++) {
         char k[16]; snprintf(k, sizeof k, "c%d", i);
         unsigned v = (unsigned)GetPrivateProfileIntA("espcolors", k, 0, IniPath().c_str());
         if (v) g_espColors[i] = v;
     }
-
     ImGuiStyle& st = ImGui::GetStyle();
-    st.WindowRounding = 10 * S; st.ChildRounding = 8 * S; st.FrameRounding = 6 * S; st.PopupRounding = 6 * S;
+    st.WindowRounding = 12 * S; st.ChildRounding = 10 * S; st.FrameRounding = 6 * S; st.PopupRounding = 8 * S;
     st.ScrollbarSize = 6 * S; st.ScrollbarRounding = 3 * S; st.GrabRounding = 6 * S;
-    st.WindowBorderSize = 0; st.FrameBorderSize = 0; st.PopupBorderSize = 0; st.WindowPadding = ImVec2(14 * S, 12 * S);
+    st.WindowBorderSize = 0; st.FrameBorderSize = 0; st.PopupBorderSize = 0; st.ChildBorderSize = 0; st.WindowPadding = ImVec2(0, 0);
     st.FramePadding = ImVec2(8 * S, 5 * S); st.ItemSpacing = ImVec2(6 * S, 6 * S);
     ImVec4* c = st.Colors;
-    c[ImGuiCol_WindowBg] = C_BG; c[ImGuiCol_ChildBg] = ImVec4(0, 0, 0, 0); c[ImGuiCol_Text] = C_TEXT;
-    c[ImGuiCol_TextDisabled] = C_DIM; c[ImGuiCol_FrameBg] = C_ROW1; c[ImGuiCol_FrameBgHovered] = C_HOVER;
+    c[ImGuiCol_WindowBg] = C_WIN; c[ImGuiCol_ChildBg] = ImVec4(0, 0, 0, 0); c[ImGuiCol_Text] = C_TEXT;
+    c[ImGuiCol_TextDisabled] = C_DIM; c[ImGuiCol_FrameBg] = C_CARD2; c[ImGuiCol_FrameBgHovered] = C_HOVER;
     c[ImGuiCol_ScrollbarBg] = ImVec4(0, 0, 0, 0);
-    c[ImGuiCol_PopupBg] = ImVec4(0.10f, 0.10f, 0.14f, 0.98f); c[ImGuiCol_Border] = ImVec4(0, 0, 0, 0);
+    c[ImGuiCol_PopupBg] = ImVec4(0.10f, 0.10f, 0.14f, 0.99f); c[ImGuiCol_Border] = ImVec4(0, 0, 0, 0);
 }
 
 bool UiCapturingKey() { return bindRow != nullptr; }
@@ -932,9 +1188,9 @@ void UiBindKey(int vk) {
 
 void UiDraw(bool menuOpen, float dispW, float dispH) {
     C_ACC = ImVec4(T.accent[0], T.accent[1], T.accent[2], 1);
-    C_EDIT = Mix(ImVec4(0.10f, 0.10f, 0.14f, 1), C_ACC, 0.35f);
+    C_ACCD = Mix(ImVec4(0.10f, 0.10f, 0.14f, 1), C_ACC, 0.30f);
     ImVec4* sc = ImGui::GetStyle().Colors;
-    sc[ImGuiCol_FrameBgActive] = C_EDIT; sc[ImGuiCol_ScrollbarGrab] = C_ACC; sc[ImGuiCol_ScrollbarGrabHovered] = C_ACC;
+    sc[ImGuiCol_FrameBgActive] = C_ACCD; sc[ImGuiCol_ScrollbarGrab] = Mix(C_TRACK, C_ACC, 0.5f); sc[ImGuiCol_ScrollbarGrabHovered] = C_ACC;
     sc[ImGuiCol_ScrollbarGrabActive] = C_ACC; sc[ImGuiCol_TextSelectedBg] = ImVec4(C_ACC.x, C_ACC.y, C_ACC.z, 0.35f);
     sc[ImGuiCol_NavCursor] = C_ACC; sc[ImGuiCol_CheckMark] = C_ACC;
 
@@ -946,124 +1202,101 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
 
     std::vector<std::string> hud;
     if (s.paused) hud.push_back("PAUZA  ·  menu trainera");
-    if (s.swapped) hud.push_back("OBCE CIAŁO  ·  powrót: menu (Insert) -> przycisk w nagłówku");
+    if (s.swapped) hud.push_back("OBCE CIAŁO  ·  powrót: menu (Insert) -> przycisk u góry");
     if (s.arena) hud.push_back("ARENA  ·  fala " + std::to_string(s.arenaWave) + "  ·  wrogów: " + std::to_string(s.arenaAlive));
     if (s.speed) { char b[48]; snprintf(b, sizeof b, "TEMPO ŚWIATA  x%.2f", s.speedVal); hud.push_back(b); }
+    if (s.quicksilver) hud.push_back("QUICKSILVER");
     if (s.ghost) hud.push_back("TRYB DUCHA");
-    if (s.noclip) hud.push_back("NO-CLIP  ·  WASD  Q/E  Spacja/Ctrl");
+    if (s.noclip) hud.push_back("NO-CLIP  ·  WASD  Q/E  Spacja/Ctrl  ·  Esc = wyłącz");
     float hy = 20 * S;
     PF(fBold);
     for (auto& t : hud) {
         ImVec2 ts = ImGui::CalcTextSize(t.c_str());
         ImVec2 p(dispW - ts.x - 34 * S, hy);
-        bg->AddRectFilled(ImVec2(p.x - 12 * S, p.y - 7 * S), ImVec2(p.x + ts.x + 12 * S, p.y + ts.y + 7 * S), U32(C_BG), 8 * S);
+        bg->AddRectFilled(ImVec2(p.x - 12 * S, p.y - 7 * S), ImVec2(p.x + ts.x + 12 * S, p.y + ts.y + 7 * S), U32(C_WIN), 8 * S);
         bg->AddRectFilled(ImVec2(p.x - 12 * S, p.y - 7 * S), ImVec2(p.x - 9 * S, p.y + ts.y + 7 * S), U32(C_ACC), 1.5f * S);
         bg->AddText(p, U32(C_TEXT), t.c_str());
         hy += ts.y + 20 * S;
     }
     ImGui::PopFont();
-    if (!menuOpen && NowSec() < toastUntil && !toast.empty()) {
+    if (NowSec() < toastUntil && !toast.empty()) {
         PF(fBold);
         ImVec2 ts = ImGui::CalcTextSize(toast.c_str());
-        ImVec2 p(dispW * 0.5f - ts.x * 0.5f, dispH * 0.80f);
-        bg->AddRectFilled(ImVec2(p.x - 16 * S, p.y - 9 * S), ImVec2(p.x + ts.x + 16 * S, p.y + ts.y + 9 * S), U32(C_BG), 10 * S);
-        bg->AddText(p, U32(C_ACC), toast.c_str());
+        ImVec2 p(dispW * 0.5f - ts.x * 0.5f, dispH * (menuOpen ? 0.94f : 0.80f));
+        ImDrawList* fg = menuOpen ? ImGui::GetForegroundDrawList() : bg;
+        fg->AddRectFilled(ImVec2(p.x - 16 * S, p.y - 9 * S), ImVec2(p.x + ts.x + 16 * S, p.y + ts.y + 9 * S), U32(C_WIN), 10 * S);
+        fg->AddRect(ImVec2(p.x - 16 * S, p.y - 9 * S), ImVec2(p.x + ts.x + 16 * S, p.y + ts.y + 9 * S), U32(C_ACC, 0.5f), 10 * S);
+        fg->AddText(p, U32(C_ACC), toast.c_str());
         ImGui::PopFont();
     }
-    if (!menuOpen) { editRow = nullptr; bindRow = nullptr; settingsOpen = false; return; }
+    if (!menuOpen) { editRow = nullptr; bindRow = nullptr; return; }
 
-    ImGui::SetNextWindowSize(ImVec2(800 * S, 800 * S), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(dispW * 0.5f - 400 * S, dispH * 0.5f - 400 * S), ImGuiCond_FirstUseEver);
-    ImGui::Begin("##g1trainer", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse);
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    ImVec2 wp = ImGui::GetWindowPos(); float ww = ImGui::GetWindowWidth();
-    PF(fBig); ImGui::TextColored(C_TEXT, "GOTHIC"); ImGui::PopFont();
-    {
-        char acc[48]; snprintf(acc, sizeof acc, "[ Crazy Trainer · build %d ]", TRAINER_BUILD);
-        PF(fBold); ImVec2 ts = ImGui::CalcTextSize(acc);
-        dl->AddText(ImVec2(wp.x + ww * 0.5f - ts.x * 0.5f, wp.y + 14 * S), U32(C_ACC), acc); ImGui::PopFont();
-    }
-    PF(fSmall); ImGui::TextColored(C_DIM, "TRAINER / Insert = MENU, Esc = zamknij | kliknij hotkey, żeby przypisać"); ImGui::PopFont();
-    // header buttons (right): unswap (only when swapped), settings, search
-    float bs = 30 * S, bx = wp.x + ww - 14 * S - bs, by = wp.y + 12 * S;
-    if (IconButton("##gsearch", ICO_SEARCH, "Szukaj we wszystkich funkcjach", ImVec2(bx, by), bs, globalSearch ? C_ACC : C_DIM, globalSearch)) { globalSearch = !globalSearch; gsearchFocus = globalSearch; }
-    bx -= bs + 6 * S;
-    if (IconButton("##gset", ICO_COG, "Ustawienia menu", ImVec2(bx, by), bs, settingsOpen ? C_ACC : C_DIM, settingsOpen)) settingsOpen = !settingsOpen;
-    ImVec2 settingsAnchor(bx + bs, by + bs + 6 * S);
+    ImGui::SetNextWindowSize(ImVec2(std::min(dispW * 0.92f, 1060 * S), std::min(dispH * 0.88f, 760 * S)), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(dispW * 0.5f, dispH * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSizeConstraints(ImVec2(780 * S, 540 * S), ImVec2(dispW, dispH));
+    ImGui::Begin("##g1trainer", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollWithMouse);
+    ImVec2 wp = ImGui::GetWindowPos(), ws = ImGui::GetWindowSize();
+    float sideW = 224 * S;
+    Sidebar(s, wp, sideW, ws.y);
+
+    // header: breadcrumb, unswap, search, gear
+    float cx = wp.x + sideW + 24 * S, cw = ws.x - sideW - 46 * S;
+    std::string crumbA = cfgPage ? "Konfiguracja" : kSecs[curSec].name, crumbB = cfgPage ? "" : kSecs[curSec].subs[curSub];
+    if (gsearch[0]) { crumbA = "Wyniki wyszukiwania"; crumbB = ""; }
+    float hx = wp.x + ws.x - 22 * S;
+    float bs = 34 * S;
+    hx -= bs;
+    if (IconButton("##gear", ICN_COG, "Konfiguracja", ImVec2(hx, wp.y + 18 * S), bs, C_DIM, cfgPage)) { cfgPage = !cfgPage; gsearch[0] = 0; }
+    float sw = 220 * S;
+    hx -= sw + 8 * S;
+    ImGui::SetCursorScreenPos(ImVec2(hx, wp.y + 18 * S));
+    InputBox("##gq", gsearch, sizeof gsearch, "Szukaj funkcji...", sw);
+    if (iconsOk && !gsearch[0]) { PF(fIcon); DL()->AddText(ImVec2(hx + sw - 26 * S, wp.y + 27 * S), U32(C_FAINT), ICN_SEARCH); ImGui::PopFont(); }
     if (s.swapped) {
-        const char* lbl = ICO_HOME "  Wróć do bohatera";
-        float tw = TextW(lbl, fBold) + 20 * S;
-        bx -= tw + 8 * S;
-        ImGui::SetCursorScreenPos(ImVec2(bx, by));
-        if (ImGui::InvisibleButton("##unswap", ImVec2(tw, bs))) Act_Unswap();
-        bool hov = ImGui::IsItemHovered();
-        dl->AddRectFilled(ImVec2(bx, by), ImVec2(bx + tw, by + bs), U32(C_ACC, hov ? 1.f : 0.85f), 7 * S);
-        PF(fBold); ImVec2 ts = ImGui::CalcTextSize(lbl); dl->AddText(ImVec2(bx + 10 * S, by + (bs - ts.y) * 0.5f), IM_COL32(20, 18, 30, 255), lbl); ImGui::PopFont();
+        const char* lbl = ICN_HOME "  Wróć do bohatera";
+        float tw = ButtonW(lbl);
+        hx -= tw + 8 * S;
+        if (Button("##unswap", lbl, ImVec2(hx, wp.y + 20 * S))) Act_Unswap();
     }
-    ImGui::SetCursorScreenPos(ImVec2(wp.x + 14 * S, wp.y + 64 * S));
-    for (int i = 0; i < kTabCount; i++) {
-        bool act = tab == i && !globalSearch;
-        PF(act ? fBold : fReg);
-        ImVec2 ts = ImGui::CalcTextSize(kTabs[i]);
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        if (p.x + ts.x > wp.x + ww - 14 * S) { ImGui::NewLine(); p = ImGui::GetCursorScreenPos(); }
-        ImGui::PushID(i);
-        if (ImGui::InvisibleButton("##tab", ImVec2(ts.x + 4 * S, ts.y + 8 * S))) { tab = i; search[0] = 0; globalSearch = false; }
-        bool hov = ImGui::IsItemHovered();
-        ImGui::PopID();
-        dl->AddText(ImVec2(p.x + 2 * S, p.y), U32(act ? C_ACC : (hov ? C_TEXT : C_DIM)), kTabs[i]);
-        if (act) dl->AddRectFilled(ImVec2(p.x, p.y + ts.y + 3 * S), ImVec2(p.x + ts.x + 4 * S, p.y + ts.y + 5 * S), U32(C_ACC), 1 * S);
-        ImGui::PopFont();
-        ImGui::SameLine(0, 14 * S);
+    float crumbMax = hx - 12 * S;
+    float ta = TextW(crumbA.c_str(), fTitle);
+    TextClip(ImVec2(cx, wp.y + 20 * S), fTitle, crumbB.empty() ? C_TEXT : C_DIM, crumbA, crumbMax);
+    if (!crumbB.empty() && cx + ta + 30 * S < crumbMax) {
+        if (iconsOk) DL()->AddText(fIcon, 13 * S, ImVec2(cx + ta + 11 * S, wp.y + 29 * S), U32(C_FAINT), ICO_CHEVR);
+        TextClip(ImVec2(cx + ta + 30 * S, wp.y + 20 * S), fTitle, C_TEXT, crumbB, crumbMax);
     }
-    ImGui::NewLine();
-    ImGui::Dummy(ImVec2(0, 2 * S));
 
-    float footerH = 96 * S;
-    ImGui::BeginChild("##content", ImVec2(0, -footerH), false);
-    float w = ImGui::GetContentRegionAvail().x - 8 * S;
-    if (globalSearch) {
-        if (gsearchFocus) { ImGui::SetKeyboardFocusHere(); gsearchFocus = false; }
-        InputBox("##gq", gsearch, sizeof gsearch, "Szukaj funkcji we wszystkich zakładkach: np. ruda, teleport, esp, gildia...", w);
-        int idx = 0;
-        for (auto& r : T.rows)
-            if (gsearch[0] && (MatchQ(gsearch, r.name, r.note) || MatchQ(gsearch, r.cat, r.sub))) DrawRow(r, idx++, w, r.cat.c_str());
-        if (gsearch[0] && !idx) ImGui::TextColored(C_DIM, "Nic nie znaleziono.");
-        if (!gsearch[0]) ImGui::TextColored(C_DIM, "Wpisz fragment nazwy, opisu albo zakładki.");
+    // content
+    ImGui::SetCursorScreenPos(ImVec2(cx, wp.y + 70 * S));
+    ImGui::BeginChild("##content", ImVec2(cw + 12 * S, ws.y - 70 * S - 14 * S), ImGuiChildFlags_None);
+    float w = cw - 4 * S;
+    if (gsearch[0]) {
+        auto cards = CardsFor("", "", gsearch);
+        if (cards.empty()) ImGui::TextColored(C_DIM, "Nic nie znaleziono.");
+        Masonry(cards, w);
+    } else if (cfgPage) {
+        ConfigPage(w);
     } else {
-        std::string cat = kTabs[tab];
-        if (cat == "Cel") TargetCard(s, w);
-        if (cat == "Render") RenderPanel(w);
-        DrawRowsGrouped(cat, w);
-        if (cat == "Przedmioty") ItemsPanel(w);
-        if (cat == "Potwory i NPC") NpcPanel(w);
-        if (cat == "Teleport") TeleportPanel(s, w);
-        if (cat == "Marvin") MarvinPanel(s, w);
-    }
-    ImGui::EndChild();
-
-    ImVec2 fp = ImGui::GetCursorScreenPos();
-    PlayerCard(s, fp, ww - 28 * S);
-    ImGui::SetCursorScreenPos(ImVec2(fp.x, fp.y + 64 * S));
-    PF(fSmall);
-    {
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        float x = p.x, pw;
-        struct { Status s; const char* t; } lg[] = { { ST_OK, "sprawdzone" }, { ST_BUG, "działa źle" }, { ST_CRASH, "crashuje" }, { ST_NEW, "do przetestowania" } };
-        for (auto& l : lg) {
-            StatusPill(dl, ImVec2(x, p.y + 2 * S), l.s, "", &pw);
-            dl->AddText(ImVec2(x + pw + 4 * S, p.y + 2 * S), U32(C_DIM), l.t);
-            x += pw + 12 * S + ImGui::CalcTextSize(l.t).x;
+        std::string cat = kSecs[curSec].name, sub = kSecs[curSec].subs[curSub];
+        auto cards = CardsFor(cat, sub);
+        if (cat == "Postacie" && sub == "Cel") { TargetPage(s, w); Masonry(cards, w); }
+        else if (cat == "Ekwipunek" && sub == "Spawner") ItemSpawner(w);
+        else if (cat == "Ekwipunek" && sub == "Zestawy") { Masonry(cards, w); SetsPage(w); }
+        else if (cat == "Postacie" && sub == "Spawner") NpcSpawner(w);
+        else if (cat == "Postacie" && sub == "Drużyna") { Masonry(cards, w); AllyPicker(s, w); }
+        else if (cat == "Fun" && sub == "Magia") {
+            CardSpec sp{ "Zaklęcia w deszczu", {}, nullptr, RainSpellsCard(0, 0, 0, false) };
+            sp.custom = [](float x, float y, float cw2, bool) { return RainSpellsCard(x, y, cw2, true); };
+            cards.push_back(sp);
+            Masonry(cards, w);
         }
-        if (NowSec() < toastUntil + 6 && !toast.empty()) dl->AddText(ImVec2(x + 10 * S, p.y + 2 * S), U32(C_ACC), toast.c_str());
-        const char* rl = "[ Restore toggles ]";
-        ImVec2 ts = ImGui::CalcTextSize(rl);
-        ImVec2 rp(wp.x + ww - ts.x - 16 * S, p.y + 2 * S);
-        ImGui::SetCursorScreenPos(rp);
-        if (ImGui::InvisibleButton("##restore", ts)) T.RestoreToggles();
-        dl->AddText(rp, U32(ImGui::IsItemHovered() ? C_TEXT : C_DIM), rl);
+        else if (cat == "Świat" && sub == "Teleport") { Masonry(cards, w); TeleportPage(s, w); }
+        else if (cat == "Wizualia" && sub == "Kolory") ColorsPage(w);
+        else if (cat == "Narzędzia" && sub == "Konsola") ConsolePage(s, w);
+        else if (cat == "Narzędzia" && sub == "Diagnostyka") DiagPage(s, w);
+        else Masonry(cards, w);
     }
-    ImGui::PopFont();
+    ImGui::Dummy(ImVec2(0, 16 * S));
+    ImGui::EndChild();
     ImGui::End();
-    if (settingsOpen) SettingsPopup(settingsAnchor);
 }

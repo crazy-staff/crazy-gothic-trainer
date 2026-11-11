@@ -18,6 +18,12 @@ DECL_MODULE(Esp)
 DECL_MODULE(Teleport)
 DECL_MODULE(Marvin)
 
+// Fun module: spell rain list and spell-on-target (shared with the Target module)
+constexpr int RAIN_FX_COUNT = 9;
+extern const char* kRainFx[RAIN_FX_COUNT];
+extern const char* kRainNames[RAIN_FX_COUNT];
+void SpellOn(void* target, const char* fx, int dmg);
+
 // helpers for building rows
 Row MkRow(const char* id, const char* name, const char* note, const char* cat, const char* sub, Kind k, float v = 0,
           float mn = 0, float mx = 0, std::function<void(Row&)> act = nullptr, bool flt = false);

@@ -1,4 +1,5 @@
-// World module: pause-on-menu, world speed, time of day, chapters.
+// World module: pause-on-menu, world tempo, time of day, chapters. Also owns every model
+// time scale (hero speed, sprint, world tempo for characters, Quicksilver) so they never fight.
 #include "mods.h"
 #include <algorithm>
 #include <cmath>
@@ -6,15 +7,47 @@
 using namespace g1;
 using namespace gx;
 
-namespace { bool g_timerTouched = false; float g_frozenTime = -1; }
+namespace {
+bool g_timerTouched = false; float g_frozenTime = -1;
+std::set<void*> g_scaled;
+
+bool Moving() {
+    if (T.menuOpen || !GameFocused()) return false;
+    auto k = [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; };
+    return k('W') || k('A') || k('S') || k('D') || k(VK_UP) || k(VK_DOWN);
+}
+void TimeScales(void* hero, bool paused) {
+    bool spd = On("speed"); int mode = (int)Val("speedmode");
+    float npcScale = 1.f;
+    if (spd && mode == 0) npcScale *= std::max(0.05f, Val("speed"));
+    if (On("quicksilver")) npcScale *= std::max(0.02f, Val("qsfactor"));
+    float heroScale = On("pspeed") ? Val("pspeed") : 1.f;
+    if (On("sprint") && (int)Val("sprintmode") == 1 && Moving()) heroScale *= 1.6f;
+    if (On("quicksilver")) heroScale *= std::max(1.f, Val("qshero"));
+    if (spd && mode == 1 && On("speedonlyworld")) heroScale /= std::max(0.05f, Val("speed"));
+    if (paused) return;
+    void* main = MainHero();
+    ForEachNpc([&](void* n) {
+        float want = (n == hero || n == main) ? (n == hero ? heroScale : 1.f) : (IsAlly(n) && On("qsallies") ? 1.f : npcScale);
+        bool touched = g_scaled.count(n) != 0;
+        if (want == 1.f && !touched) return;
+        void* m = VobModel(n);
+        if (!m) return;
+        fld<float>(m, MODEL_TIMESCALE) = want;
+        if (want == 1.f) g_scaled.erase(n); else if (!touched) g_scaled.insert(n);
+    });
+}
+}
 
 void World_Hooks() {}
-void World_World() { g_frozenTime = -1; }
+void World_World() { g_frozenTime = -1; g_scaled.clear(); }
 void World_Tick(TickCtx& c) {
     bool spd = On("speed");
+    bool clockMode = spd && (int)Val("speedmode") == 1;
     if (c.paused) { at<float>(ZTIMER) = 0.0001f; g_timerTouched = true; }
-    else if (spd) { at<float>(ZTIMER) = std::max(0.05f, Val("speed")); g_timerTouched = true; }
+    else if (clockMode) { at<float>(ZTIMER) = std::max(0.05f, Val("speed")); g_timerTouched = true; }
     else if (g_timerTouched) { at<float>(ZTIMER) = 1.f; g_timerTouched = false; }
+    TimeScales(c.hero, c.paused);
 
     void* wt = fld<void*>(c.game, OG_WLDTIMER);
     if (wt) {
@@ -26,25 +59,34 @@ void World_Tick(TickCtx& c) {
         c.s.minute = (int)(std::fmod(t, TICKS_PER_HOUR) / TICKS_PER_HOUR * 60.f);
     }
     c.s.speed = spd; c.s.speedVal = Val("speed");
+    c.s.quicksilver = On("quicksilver");
     c.s.world = WorldName();
 }
 
 void World_Register() {
     const char* C = "Świat";
-    T.Add(MkRow("pausemenu", "Pauza przy otwartym menu", "świat stoi, gdy menu trainera jest otwarte", C, "Czas", K_TOGGLE));
-    T.rows.back().on = true; St(ST_OK, "działa"); Icon(ICN_CLOCK);
-    T.Add(MkRow("speed", "Tempo świata", "0.1 = slow-mo, 3 = turbo", C, "Czas", K_SLIDER, 0.3f, 0.1f, 5, nullptr, true));
-    St(ST_OK, "działa; build 3: opcja 'tylko świat'"); Icon(ICN_CLOCK);
-    T.Add(MkRow("speedonlyworld", "Tempo nie dotyczy bohatera", "bohater porusza się normalnie mimo slow-mo", C, "Czas", K_TOGGLE));
-    St(ST_NEW, "nowe w build 3 (skala czasu animacji bohatera)");
-    T.Add(MkRow("hour", "Ustaw godzinę", "0-23", C, "Czas", K_ACTION, 12, 0, 23, [](Row& r) {
+    const char* S = "Czas i fabuła";
+    CardTitle("Tempo");
+    T.Add(MkRow("speed", "Tempo świata", "0.1 = slow-mo, 3 = turbo", C, S, K_SLIDER, 0.3f, 0.1f, 5, nullptr, true));
+    St(ST_BUG, "build 3: działa, ale spowalniało też obrót myszą/QE; build 4: domyślnie zwalnia postacie, nie zegar gry"); Icon(ICN_CLOCK);
+    T.Add(MkRow("speedmode", "Co zwalnia", "", C, S, K_VALUE, 0, 0, 1));
+    Opts({ { 0, "Postacie wokół (ty i kamera normalnie)" }, { 1, "Całą grę (zegar silnika)" } }); St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("speedonlyworld", "Bohater normalnie (tryb zegara)", "kompensuje twoje animacje, gdy zwalniasz całą grę", C, S, K_TOGGLE));
+    St(ST_OK, "build 3: działa");
+    CardTitle("Pora dnia");
+    T.Add(MkRow("hour", "Ustaw godzinę", "0-23", C, S, K_ACTION, 12, 0, 23, [](Row& r) {
         CallExt("Wld_SetTime", { Arg::Int((int)r.val), Arg::Int(0) }); g_frozenTime = -1;
         T.Toast("Godzina " + std::to_string((int)r.val) + ":00"); }));
-    St(ST_OK, "działa");
-    T.Add(MkRow("freezetime", "Zatrzymaj czas dnia", "", C, "Czas", K_TOGGLE)); St(ST_OK, "działa");
-    T.Add(MkRow("chapter", "Skok do rozdziału", "B_Kapitelwechsel - może popsuć questy!", C, "Fabuła", K_CHOICE, 2, 1, 6, [](Row& r) {
+    St(ST_OK, "działa"); Icon(ICN_CLOCK);
+    T.Add(MkRow("freezetime", "Zatrzymaj czas dnia", "", C, S, K_TOGGLE)); St(ST_OK, "działa");
+    CardTitle("Fabuła");
+    T.Add(MkRow("chapter", "Skok do rozdziału", "B_Kapitelwechsel - może popsuć questy!", C, S, K_CHOICE, 2, 1, 6, [](Row& r) {
         bool ok; CallScript("B_Kapitelwechsel", { Arg::Int((int)r.val) }, &ok);
         T.Toast(ok ? "Rozdział " + std::to_string((int)r.val) : std::string("Brak B_Kapitelwechsel")); }));
     Opts({ { 1, "Rozdział 1" }, { 2, "Rozdział 2" }, { 3, "Rozdział 3" }, { 4, "Rozdział 4" }, { 5, "Rozdział 5" }, { 6, "Rozdział 6" } });
     St(ST_OK, "działa");
+
+    CardTitle("Menu");
+    T.Add(MkRow("pausemenu", "Pauza przy otwartym menu", "świat stoi, gdy menu trainera jest otwarte", "Konfiguracja", "Konfiguracja", K_TOGGLE));
+    T.rows.back().on = true; St(ST_OK, "działa"); Icon(ICN_CLOCK);
 }

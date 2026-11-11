@@ -208,6 +208,10 @@ void* VobModel(void* vob) {
     void* v = fld<void*>(vob, 0xB8);
     return (v && *reinterpret_cast<uintptr_t*>(v) == 0x7D3FEC) ? v : nullptr;
 }
+bool NpcReady(void* n) {
+    if (!IsNpc(n)) return false;
+    return fld<void*>(n, NPC_ANICTRL) != nullptr && VobModel(n) != nullptr;
+}
 bool NpcDead(const void* n) { return reinterpret_cast<fn_this_ret>(0x693480)(const_cast<void*>(n)) != 0; }
 void* FocusNpc() {
     void* p = Player();
@@ -217,6 +221,7 @@ void* FocusNpc() {
 }
 void Kill(void* npc, void* killer) {
     if (!npc || NpcDead(npc)) return;
+    if (!fld<void*>(npc, NPC_ANICTRL)) return;   // DoDie uses the animation controller -> null = engine crash
     fld<int>(npc, NPC_FLAGS) &= ~2;  // NPC_FLAG_IMMORTAL (gate guards etc.)
     SetAttr(npc, 0, 0);
     reinterpret_cast<fn_this_p>(F_NPC_DODIE)(npc, killer);

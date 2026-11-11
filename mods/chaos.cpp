@@ -1,16 +1,22 @@
-// Chaos module: guild war, peace, mass destruction, invasions, physics fun.
+// Fun module (was "Chaos"): war, destruction, spell rain, invasions, physics, Quicksilver.
 #include "mods.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 using namespace g1;
 using namespace gx;
 
+const char* kRainFx[RAIN_FX_COUNT] = { "SPELLFX_FIREBOLT", "SPELLFX_FIREBALL", "SPELLFX_FIRESTORM", "SPELLFX_FIRERAIN", "SPELLFX_THUNDERBOLT",
+                                       "SPELLFX_THUNDERBALL", "SPELLFX_ICECUBE", "SPELLFX_ICEWAVE", "SPELLFX_WINDFIST" };
+const char* kRainNames[RAIN_FX_COUNT] = { "Ognisty pocisk", "Ognista kula", "Burza ognia", "Deszcz ognia", "Piorun",
+                                          "Kula błyskawic", "Bryła lodu", "Fala lodu", "Pięść wiatru" };
+
 namespace {
 std::vector<int> g_savedAtt;
 bool g_chaosActive = false;
-std::set<void*> g_frozen;
-double g_lastRain = 0;
+std::set<void*> g_frozen, g_aggroed;
+double g_lastRain = 0, g_lastAllVsMe = 0;
 
 void SetChaos(bool on) {
     int gmax = K.gilMax;
@@ -29,54 +35,95 @@ void SetChaos(bool on) {
                 if (v >= 0) CallExt("Wld_SetGuildAttitude", { Arg::Int(a), Arg::Int(v), Arg::Int(b) });
             }
         g_chaosActive = false;
-        Guard("row:peace(chaos-off)", [] { PeaceAll(1e9f); });
+        Guard("row:peace(chaos-off)", [] { PeaceAll(6000.f); });
         T.Toast("Pokój - wszyscy wracają do swoich zajęć");
     }
 }
 void SetFreeze(bool on) {
     if (on) {
         void* h = Player();
-        ForEachNpc([&](void* n) { if (n != h && n != MainHero() && !IsAlly(n)) { SetSleeping(n, true); g_frozen.insert(n); } });
+        ForEachNpc([&](void* n) { if (n != h && n != MainHero() && !IsAlly(n) && !g_frozen.count(n)) { SetSleeping(n, true); g_frozen.insert(n); } });
     } else {
         ForEachNpc([&](void* n) { if (g_frozen.count(n)) SetSleeping(n, false); });
         g_frozen.clear();
     }
 }
-struct RainKind { const char* fx; bool fire; };
-const RainKind kRain[] = { { "SPELLFX_FIREBALL", true }, { "SPELLFX_THUNDERBOLT", false }, { "SPELLFX_ICECUBE", false }, { "SPELLFX_FIRERAIN", true } };
-void RainFrame(float dmg) {
-    double now = NowSec();
-    if (now - g_lastRain < 0.6) return;
+bool Victim(void* n) { return !NpcDead(n) && !IsAlly(n) && n != MainHero() && n != Player(); }
+bool PassFilter(void* n, int f) {
+    switch (f) {
+    case 1: return CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(Player()) }) == K.attHostile;
+    case 2: return !IsMonster(n);
+    case 3: return IsMonster(n);
+    default: return true;
+    }
+}
+}
+
+// Spell visual played on the target itself (not cast by the hero -> nobody blames the player),
+// damage applied directly a moment later.
+void SpellOn(void* t, const char* fx, int dmg) {
+    if (!NpcAlive(t)) return;
+    bool fire = strstr(fx, "FIRE") != nullptr;
+    Effect(fx, t, t, 2, 0, fire ? K.damFire : K.damMagic, false);
+    if (strstr(fx, "ICE")) {
+        if (NpcReady(t)) { SetSleeping(t, true); Schedule(4.0, [t] { if (NpcExists(t)) SetSleeping(t, false); }); }
+    }
+    if (dmg > 0) Schedule(0.5, [t, dmg] { if (NpcAlive(t)) DealDamage(t, dmg, nullptr); });
+}
+
+namespace {
+void RainFrame() {
+    double now = T.gameClock;
+    if (now - g_lastRain < std::max(0.1f, Val("rainint"))) return;
     g_lastRain = now;
+    int mask = (int)Val("rainmask");
+    std::vector<int> fx;
+    for (int i = 0; i < RAIN_FX_COUNT; i++) if (mask & (1 << i)) fx.push_back(i);
+    if (fx.empty()) fx.push_back(1);
     std::vector<void*> c;
-    NpcsInRadius(3000.f, [&](void* n) { if (!NpcDead(n) && !IsAlly(n) && n != MainHero()) c.push_back(n); });
+    int filt = (int)Val("rainfilter");
+    NpcsInRadius(Val("rainradius") * 100.f, [&](void* n) { if (Victim(n) && PassFilter(n, filt)) c.push_back(n); });
     if (c.empty()) return;
-    void* t = c[rng() % c.size()];
-    const RainKind& k = kRain[std::max(0, std::min(3, (int)Val("raintype")))];
-    Guard(std::string("row:rain:") + k.fx, [&] { Effect(k.fx, Player(), t, 2, (int)dmg, k.fire ? K.damFire : K.damMagic, true); });
+    std::shuffle(c.begin(), c.end(), rng);
+    int cnt = std::min((int)c.size(), std::max(1, (int)Val("raincount")));
+    for (int i = 0; i < cnt; i++) {
+        const char* f = kRainFx[fx[rng() % fx.size()]];
+        Guard(std::string("row:rain:") + f, [&] { SpellOn(c[i], f, (int)Val("raindmg")); });
+    }
+}
+void AllVsMeFrame() {
+    double now = T.gameClock;
+    if (now - g_lastAllVsMe < 1.5) return;
+    g_lastAllVsMe = now;
+    void* h = Player();
+    NpcsInRadius(Val("allvsmer") * 100.f, [&](void* n) {
+        if (!Victim(n) || g_aggroed.count(n)) return;
+        Aggro(n, h); g_aggroed.insert(n);
+    });
 }
 }
 
 void Chaos_Hooks() {}
-void Chaos_World() { g_chaosActive = false; g_frozen.clear(); }
+void Chaos_World() { g_chaosActive = false; g_frozen.clear(); g_aggroed.clear(); g_lastRain = g_lastAllVsMe = 0; }
 void Chaos_Tick(TickCtx& c) {
     SetChaos(On("chaos"));
     if (On("freezenpc")) SetFreeze(true); else if (!g_frozen.empty()) SetFreeze(false);
-    if (On("rain") && !c.paused) RainFrame(Val("rain"));
+    if (c.paused) return;
+    if (On("rain")) RainFrame();
+    if (On("allvsme")) AllVsMeFrame();
+    else if (!g_aggroed.empty()) {
+        std::set<void*> a; a.swap(g_aggroed);
+        Guard("row:allvsme-off", [&] { for (void* n : a) if (NpcAlive(n)) Peace(n); });
+    }
 }
 
 void Chaos_Register() {
-    const char* C = "Chaos";
-    T.Add(MkRow("chaos", "Wszyscy na wszystkich", "każda gildia wroga każdej; wyłączenie = pokój", C, "Wojna", K_TOGGLE));
-    St(ST_OK, "działa; wyłączenie uspokaja (build 2: Pokój crashował - naprawione)"); Icon(ICN_FIRE);
-    T.Add(MkRow("peace", "Pokój na świecie", "wszyscy przestają walczyć (bez sojuszników)", C, "Wojna", K_ACTION, 0, 0, 0, [](Row&) {
-        PeaceAll(1e9f); T.Toast("Pokój"); })); NoVal(); Icon(ICN_HEART);
-    St(ST_NEW, "build 2: CRASH (pusty argument NPC) - naprawione w build 3");
-    T.Add(MkRow("allvsme", "Wszyscy przeciw tobie", "promień w metrach", C, "Wojna", K_ACTION, 30, 5, 300, [](Row& r) {
-        int c = 0; NpcsInRadius(r.val * 100.f, [&](void* n) { if (!IsAlly(n) && !NpcDead(n) && n != MainHero()) { Aggro(n, Player()); c++; } });
-        T.Toast(std::to_string(c) + " wrogów rusza na ciebie"); }));
-    St(ST_NEW, "build 2: CRASH (pusty argument NPC) - naprawione w build 3"); Icon(ICN_CROSSHAIR);
-    T.Add(MkRow("randguild", "Losowe gildie", "ludzie w promieniu (m) dostają losową gildię", C, "Wojna", K_ACTION, 30, 1, 300, [](Row& r) {
+    const char* C = "Fun";
+    const char* W = "Wojna";
+    CardTitle("Wojna gildii");
+    T.Add(MkRow("chaos", "Wszyscy na wszystkich", "każda gildia wroga każdej; wyłączenie = pokój w promieniu 60 m", C, W, K_TOGGLE));
+    St(ST_OK, "build 3: działa"); Icon(ICN_FIRE);
+    T.Add(MkRow("randguild", "Losowe gildie", "ludzie w promieniu (m) dostają losową gildię", C, W, K_ACTION, 30, 1, 300, [](Row& r) {
         int c = 0;
         NpcsInRadius(r.val * 100.f, [&](void* n) {
             if (IsMonster(n) || NpcDead(n)) return;
@@ -84,38 +131,60 @@ void Chaos_Register() {
             CallExt("Npc_SetTrueGuild", { Arg::Npc(n), Arg::Int(g) }); fld<int>(n, K.offGuild) = g; c++;
         });
         T.Toast(std::to_string(c) + " zmian gildii"); }));
-    St(ST_OK, "chyba działa (build 2)");
+    St(ST_OK, "build 3: działa"); Icon(ICN_REFRESH);
+    T.Add(MkRow("peace", "Pokój", "wszyscy w promieniu (m) przestają walczyć", C, W, K_ACTION, 50, 5, 300, [](Row& r) {
+        PeaceAll(r.val * 100.f); T.Toast("Pokój"); }));
+    Icon(ICN_HEART);
+    St(ST_NEW, "build 3: CRASH (cały świat, także postacie bez załadowanego modelu); build 4: promień + pomija niegotowe postacie");
+    CardTitle("Przeciw tobie");
+    T.Add(MkRow("allvsme", "Wszyscy przeciw tobie", "dopóki włączone, każdy w promieniu rusza na ciebie; wyłączenie = pokój", C, W, K_TOGGLE));
+    St(ST_NEW, "build 3: działało jako jednorazowa akcja; build 4: przełącznik"); Icon(ICN_CROSSHAIR);
+    T.Add(MkRow("allvsmer", "Promień", "m", C, W, K_VALUE, 30, 5, 200)); St(ST_NEW, "nowe w build 4");
 
-    T.Add(MkRow("thanos", "Pstryknięcie Thanosa", "połowa NPC w promieniu (m) rozpada się w pył", C, "Zagłada", K_ACTION, 50, 5, 500, [](Row& r) {
+    const char* Z = "Zagłada";
+    CardTitle("Pstryknięcie");
+    T.Add(MkRow("thanos", "Pstryknięcie Thanosa", "NPC w promieniu (m) rozpadają się w pył", C, Z, K_ACTION, 50, 5, 500, [](Row& r) {
         std::vector<void*> v;
-        NpcsInRadius(r.val * 100.f, [&](void* n) { if (!NpcDead(n) && !IsAlly(n) && n != MainHero()) v.push_back(n); });
+        NpcsInRadius(r.val * 100.f, [&](void* n) { if (Victim(n)) v.push_back(n); });
         std::shuffle(v.begin(), v.end(), rng);
-        size_t k = v.size() / 2;
+        size_t k = (int)Val("thanospct") == 0 ? v.size() / 2 : v.size();
         for (size_t i = 0; i < k; i++) {
             void* n = v[i];
             double t0 = 0.4 + 2.6 * (double)i / std::max<size_t>(1, k);
             Schedule(t0, [n] { if (NpcAlive(n)) Effect("SPELLFX_TRANSFORM", n, n, 0, 0, 0, false); });
             Schedule(t0 + 0.7, [n] {
                 if (!NpcExists(n)) return;
-                Kill(n, Player());
+                Kill(n, nullptr);
                 fld<uint32_t>(n, VOB_FLAGS) &= ~(1u | VOBF_COLLSTAT | VOBF_COLLDYN);
             });
         }
         T.Toast("*pstryk*  " + std::to_string(k) + " z " + std::to_string(v.size()) + " obróci się w pył"); }));
-    St(ST_NEW, "build 2: działało, ale pomijało nieśmiertelnych (np. straż bramy) - build 3: zdejmuje nieśmiertelność; efekt pyłu był pusty (naprawione)");
-    Icon(ICN_MAGIC);
-    T.Add(MkRow("meteor", "Meteoryt", "deszcz ognia na wszystkich w promieniu (m)", C, "Zagłada", K_ACTION, 25, 5, 200, [](Row& r) {
+    St(ST_OK, "build 3: działa z efektem; build 4: domyślnie wszyscy, efekty nie kumulują się w pauzie"); Icon(ICN_MAGIC);
+    T.Add(MkRow("thanospct", "Kogo", "", C, Z, K_VALUE, 1, 0, 1));
+    Opts({ { 1, "Wszystkich" }, { 0, "Połowę (losowo)" } }); St(ST_NEW, "nowe w build 4");
+    CardTitle("Meteoryt");
+    T.Add(MkRow("meteor", "Meteoryt", "deszcz ognia na wszystkich w promieniu (m)", C, Z, K_ACTION, 25, 5, 200, [](Row& r) {
         int c = 0;
-        NpcsInRadius(r.val * 100.f, [&](void* n) {
-            if (!NpcDead(n) && !IsAlly(n) && n != MainHero()) { Effect("SPELLFX_FIRERAIN", n, n, 3, 120, K.damFire, false); c++; } });
+        NpcsInRadius(r.val * 100.f, [&](void* n) { if (Victim(n)) { SpellOn(n, "SPELLFX_FIRERAIN", (int)Val("meteordmg")); c++; } });
         T.Toast("Meteoryt! (" + std::to_string(c) + " celów)"); }));
-    St(ST_NEW, "build 2: nic się nie działo (pusty argument NPC) - naprawione w build 3"); Icon(ICN_FIRE);
-    T.Add(MkRow("rain", "Deszcz zaklęć", "co 0.6 s zaklęcie w losowego NPC (30 m); wartość = obrażenia", C, "Zagłada", K_SLIDER, 80, 1, 2000));
-    St(ST_NEW, "build 2: nic się nie działo - naprawione w build 3"); Icon(ICN_BOLT);
-    T.Add(MkRow("raintype", "Rodzaj deszczu", "", C, "Zagłada", K_VALUE, 0, 0, 3));
-    Opts({ { 0, "Ogniste kule" }, { 1, "Pioruny" }, { 2, "Bryły lodu" }, { 3, "Deszcz ognia" } });
+    St(ST_NEW, "build 3: efekt bez obrażeń; build 4: obrażenia zadawane bezpośrednio"); Icon(ICN_FIRE);
+    T.Add(MkRow("meteordmg", "Obrażenia meteorytu", "", C, Z, K_VALUE, 150, 1, 2000)); St(ST_NEW, "nowe w build 4");
 
-    T.Add(MkRow("zombies", "Apokalipsa zombie", "ile zombie wokół ciebie; słabsze i śmiertelne", C, "Inwazja", K_ACTION, 8, 1, 40, [](Row& r) {
+    const char* M = "Magia";
+    CardTitle("Deszcz zaklęć");
+    T.Add(MkRow("rain", "Deszcz zaklęć", "zaklęcia spadają na losowe postacie wokół ciebie", C, M, K_TOGGLE));
+    St(ST_OK, "build 3: działa; build 4: dużo opcji, zaklęcia nie są rzucane przez ciebie (brak agresji na gracza)"); Icon(ICN_BOLT);
+    T.Add(MkRow("raindmg", "Obrażenia", "", C, M, K_VALUE, 80, 0, 2000)); St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("rainint", "Co ile sekund", "", C, M, K_VALUE, 0.6f, 0.1f, 5, nullptr, true)); St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("raincount", "Celów naraz", "", C, M, K_VALUE, 1, 1, 10)); St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("rainradius", "Promień", "m", C, M, K_VALUE, 30, 5, 150)); St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("rainfilter", "W kogo", "", C, M, K_VALUE, 0, 0, 3));
+    Opts({ { 0, "Wszystkich (bez drużyny)" }, { 1, "Tylko wrogów" }, { 2, "Tylko ludzi" }, { 3, "Tylko potwory" } }); St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("rainmask", "Zaklęcia", "", C, M, K_VALUE, 2 | 16, 0, 511)); Hidden(); St(ST_NEW, "nowe w build 4");
+
+    const char* I = "Inwazja";
+    CardTitle("Inwazja");
+    T.Add(MkRow("zombies", "Apokalipsa zombie", "ile zombie wokół ciebie; słabsze i śmiertelne", C, I, K_ACTION, 8, 1, 40, [](Row& r) {
         std::vector<const NpcEntry*> pool;
         for (auto& e : g_cat.npcs) if (e.group == NG_UNDEAD && e.id.find("ZOMBIE") != std::string::npos && !T.Crashed("npc:" + e.id)) pool.push_back(&e);
         if (pool.empty()) for (auto& e : g_cat.npcs) if (e.group == NG_UNDEAD && !T.Crashed("npc:" + e.id)) pool.push_back(&e);
@@ -128,7 +197,7 @@ void Chaos_Register() {
             void* z = nullptr;
             Guard("npc:" + e->id, [&] { z = SpawnNpc(e->sym, SpawnPointNear(800.f, 1500.f, (float)i / n * 6.2831f)); });
             if (!z) continue;
-            fld<int>(z, NPC_FLAGS) &= ~2;                       // not immortal
+            fld<int>(z, NPC_FLAGS) &= ~2;
             for (int k = 0; k < 8; k++) fld<int>(z, protOff + 4 * k) = 10 + (int)(rng() % 15);
             int hp = 80 + (int)(rng() % 120);
             SetAttr(z, 1, hp); SetAttr(z, 0, hp);
@@ -136,13 +205,13 @@ void Chaos_Register() {
             CallExt("Mdl_SetModelFatness", { Arg::Npc(z), Arg::Flt((float)(rng() % 300) / 100.f - 0.5f) });
         }
         T.Toast("Umarli powstają..."); }));
-    St(ST_NEW, "build 2: działało, ale zombie były nieśmiertelne; build 3: słabsze, śmiertelne, własna nazwa"); Icon(ICN_USERS);
-    T.Add(MkRow("polymorph", "Polimorf", "ludzie w promieniu (m) zmieniają się w zwierzęta - UWAGA: usuwa NPC (questy!)", C, "Inwazja", K_ACTION, 10, 1, 100, [](Row& r) {
+    St(ST_OK, "build 3: działa"); Icon(ICN_USERS);
+    T.Add(MkRow("polymorph", "Polimorf", "ludzie w promieniu (m) zmieniają się w zwierzęta - UWAGA: usuwa NPC (questy!)", C, I, K_ACTION, 10, 1, 100, [](Row& r) {
         std::vector<const NpcEntry*> pool;
         for (auto& e : g_cat.npcs) if (e.group == NG_ANIMALS && e.level > 0 && !T.Crashed("npc:" + e.id)) pool.push_back(&e);
         if (pool.empty()) return;
         std::vector<void*> v;
-        NpcsInRadius(r.val * 100.f, [&](void* n) { if (!NpcDead(n) && !IsMonster(n) && !IsAlly(n) && n != MainHero()) v.push_back(n); });
+        NpcsInRadius(r.val * 100.f, [&](void* n) { if (Victim(n) && !IsMonster(n)) v.push_back(n); });
         for (void* n : v) {
             zVEC3 p = Pos(n);
             const NpcEntry* e = pool[rng() % pool.size()];
@@ -153,10 +222,20 @@ void Chaos_Register() {
         T.Toast("Polimorf: " + std::to_string(v.size()) + " przemian"); }));
     St(ST_OK, "działa"); Icon(ICN_PAW);
 
-    T.Add(MkRow("launchall", "Wszyscy w powietrze", "promień (m); NPC lecą 15 m w górę", C, "Fizyka", K_ACTION, 20, 1, 200, [](Row& r) {
+    const char* F = "Fizyka";
+    CardTitle("Fizyka");
+    T.Add(MkRow("launchall", "Wszyscy w powietrze", "promień (m); NPC lecą 15 m w górę", C, F, K_ACTION, 20, 1, 200, [](Row& r) {
         int c = 0; NpcsInRadius(r.val * 100.f, [&](void* n) { if (n == MainHero()) return; zVEC3 p = Pos(n); p.y += 1500.f; SafeSetPos(n, p); c++; });
         T.Toast(std::to_string(c) + " w powietrzu"); }));
     St(ST_OK, "działa"); Icon(ICN_ROCKET);
-    T.Add(MkRow("freezenpc", "Zamroź wszystkich NPC", "świat staje, tylko ty się ruszasz", C, "Fizyka", K_TOGGLE));
-    Icon(ICN_SNOW);
+    T.Add(MkRow("freezenpc", "Zamroź wszystkich NPC", "świat staje, tylko ty się ruszasz", C, F, K_TOGGLE));
+    St(ST_OK, "build 3: działa"); Icon(ICN_SNOW);
+
+    const char* Q = "Czas";
+    CardTitle("Quicksilver");
+    T.Add(MkRow("quicksilver", "Tryb Quicksilver", "wszystko wokół prawie stoi, ty poruszasz się normalnie (lub szybciej)", C, Q, K_TOGGLE));
+    St(ST_NEW, "nowe w build 4"); Icon(ICN_BOLT);
+    T.Add(MkRow("qsfactor", "Tempo świata", "0.05 = prawie stop", C, Q, K_VALUE, 0.12f, 0.02f, 0.6f, nullptr, true)); St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("qshero", "Twoje tempo", "1 = normalnie", C, Q, K_VALUE, 1.3f, 1, 3, nullptr, true)); St(ST_NEW, "nowe w build 4");
+    T.Add(MkRow("qsallies", "Drużyna też szybka", "", C, Q, K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 4");
 }

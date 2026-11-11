@@ -21,7 +21,16 @@ double NowSec() {
     return (double)c.QuadPart / (double)f.QuadPart;
 }
 Row* Trainer::Get(const std::string& id) { for (auto& r : rows) if (r.id == id) return &r; return nullptr; }
-void Trainer::Add(Row r) { rows.push_back(std::move(r)); }
+static std::string g_card, g_cardSub;
+void CardTitle(const char* t) { g_card = t; g_cardSub.clear(); }
+void Trainer::Add(Row r) {
+    if (r.group.empty()) {
+        if (!g_card.empty() && g_cardSub.empty()) g_cardSub = r.sub;
+        if (r.sub != g_cardSub) { g_card = r.sub; g_cardSub = r.sub; }
+        r.group = g_card;
+    }
+    rows.push_back(std::move(r));
+}
 void Trainer::Queue(const std::string& label, std::function<void()> f) { std::lock_guard<std::mutex> l(mtx); queue.emplace_back(label, std::move(f)); }
 void Trainer::Toast(const std::string& s) { std::lock_guard<std::mutex> l(mtx); toast = s; toastUntil = NowSec() + 2.5; }
 
@@ -169,14 +178,16 @@ void Trainer::Tick() {
         Snapshot t; SelfTest(t); diag = t.diag;
     }
     TrackMainHero();
-    RunSchedule();
 
     void* h = Player();
     bool paused = menuOpen && On("pausemenu");
+    float frameSec = std::min(0.1f, at<float>(ZTIMER + 4) / 1000.f);
+    if (!paused && frameSec > 0) gameClock += frameSec;
     TickCtx c{ h, Game(), std::min(0.1f, at<float>(ZTIMER + 4) / 1000.f), paused, s };
     struct { const char* n; void (*f)(TickCtx&); } mods[] = {
         { "player", Player_Tick }, { "world", World_Tick }, { "chaos", Chaos_Tick }, { "npcs", Npcs_Tick },
         { "target", Target_Tick }, { "items", Items_Tick }, { "teleport", Teleport_Tick }, { "marvin", Marvin_Tick }, { "esp", Esp_Tick } };
+    g_crumb = "schedule"; RunSchedule();
     for (auto& m : mods) { g_crumb = m.n; m.f(c); }
     g_crumb = "tick";
     s.inGame = true;
@@ -204,7 +215,10 @@ void ApplyRow(Row& r) {
         if (r.act) T.Queue("row:" + r.id, [rp] { if (InGame()) rp->act(*rp); });
         T.Toast(r.name + ": " + (r.on ? "ON" : "OFF"));
         break;
-    case K_SET: r.on = true; T.Toast(r.name + " = " + std::to_string((int)r.val)); break;
+    case K_SET:
+        r.on = !r.on;
+        T.Toast(r.on ? r.name + " = " + std::to_string((int)r.val) : r.name + ": przywrócono wartość gry");
+        break;
     case K_ACTION: case K_CHOICE:
         if (r.act) T.Queue("row:" + r.id, [rp] { if (InGame()) rp->act(*rp); });
         break;
@@ -224,12 +238,13 @@ void Trainer::Load() {
         GetPrivateProfileStringA("values", r.id.c_str(), "", b, sizeof b, ini.c_str());
         if (b[0]) r.val = std::max(r.vmin, std::min(r.vmax, (float)atof(b)));
         r.hotkey = GetPrivateProfileIntA("hotkeys", r.id.c_str(), r.hotkey, ini.c_str());
-        if (r.kind == K_TOGGLE && (r.id == "pausemenu" || r.id.rfind("esp", 0) == 0))
+        if (r.kind == K_TOGGLE && (r.id == "pausemenu" || r.id.rfind("esp", 0) == 0 || r.id.rfind("ally", 0) == 0))
             r.on = GetPrivateProfileIntA("lastOn", r.id.c_str(), r.on ? 1 : 0, ini.c_str()) != 0;
     }
     char b[64];
     GetPrivateProfileStringA("menu", "accent", "", b, sizeof b, ini.c_str());
     if (b[0]) sscanf(b, "%f,%f,%f", &accent[0], &accent[1], &accent[2]);
+    testerMode = GetPrivateProfileIntA("menu", "tester", 0, ini.c_str()) != 0;
     LoadSets(); LoadMacros();
 }
 void Trainer::Save() {
@@ -245,6 +260,7 @@ void Trainer::Save() {
     }
     char b[64]; snprintf(b, sizeof b, "%.3f,%.3f,%.3f", accent[0], accent[1], accent[2]);
     WritePrivateProfileStringA("menu", "accent", b, ini.c_str());
+    WritePrivateProfileStringA("menu", "tester", testerMode ? "1" : "0", ini.c_str());
 }
 void Trainer::RestoreToggles() {
     std::string ini = IniPath();

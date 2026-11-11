@@ -58,8 +58,9 @@ void Items_World() {}
 void Items_Tick(TickCtx&) {}
 
 void Items_Register() {
-    const char* C = "Przedmioty";
-    const char* S = "Gotowe zestawy";
+    const char* C = "Ekwipunek";
+    const char* S = "Zestawy";
+    CardTitle("Gotowe zestawy");
     T.Add(MkRow("kitwar", "Wojownik", "najmocniejsza broń 1H i 2H, najlepsza zbroja, 10 mikstur leczenia", C, S, K_ACTION, 0, 0, 0, [](Row&) {
         auto dmg = [](const ItemEntry& e) { return e.damage * 1000 + e.value; };
         if (auto b = Best(IC_MELEE, dmg, [](const ItemEntry& e) { return e.sub.find("1H") != std::string::npos; })) CreateItems(Player(), b->sym, 1);
@@ -86,6 +87,7 @@ void Items_Register() {
         for (auto& e : g_cat.items) if (e.id.find("LOCKPICK") != std::string::npos || e.id.find("DIETRICH") != std::string::npos) CreateItems(Player(), e.sym, 30);
         T.Toast("Zestaw złodzieja"); }));
     NoVal(); Icon(ICN_BAG); St(ST_NEW, "nowe w build 3");
+    CardTitle("Wszystko z kategorii");
     T.Add(MkRow("allrunes", "Wszystkie runy", "", C, S, K_ACTION, 0, 0, 0, [](Row&) { GiveWhere([](const ItemEntry& e) { return e.cat == IC_RUNE; }, 1, "Runy dodane"); }));
     NoVal(); St(ST_OK, "działa");
     T.Add(MkRow("allscrolls", "Wszystkie zwoje", "ilość każdego", C, S, K_ACTION, 5, 1, 100, [](Row& r) { GiveWhere([](const ItemEntry& e) { return e.cat == IC_SCROLL; }, (int)r.val, "Zwoje dodane"); }));

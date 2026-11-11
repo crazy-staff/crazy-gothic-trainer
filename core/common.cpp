@@ -65,8 +65,17 @@ void* Target() {
 }
 
 bool IsAlly(void* n) { return std::find(g_allies.begin(), g_allies.end(), n) != g_allies.end(); }
-void MakeAlly(void* npc) {
+// AI calls on an npc whose animation controller/model is not set up yet (fresh spawn, far away)
+// crash inside the engine (build 3: arena/spawn/peace). Such npcs are retried a bit later.
+static void Retry(void* npc, int tries, void (*f)(void*, int)) {
+    if (tries <= 0) return;
+    Schedule(0.25, [npc, tries, f] { if (NpcAlive(npc)) Guard("ai:ally-retry", [&] { f(npc, tries - 1); }); });
+}
+static void MakeAllyT(void* npc, int tries);
+void MakeAlly(void* npc) { MakeAllyT(npc, 12); }
+static void MakeAllyT(void* npc, int tries) {
     if (!npc || NpcDead(npc)) return;
+    if (!NpcReady(npc)) { if (!IsAlly(npc)) g_allies.push_back(npc); Retry(npc, tries, MakeAllyT); return; }
     CallExt("Npc_SetAttitude", { Arg::Npc(npc), Arg::Int(K.attFriendly) });
     CallExt("Npc_SetTempAttitude", { Arg::Npc(npc), Arg::Int(K.attFriendly) });
     CallExt("Npc_ClearAIQueue", { Arg::Npc(npc) });
@@ -79,8 +88,15 @@ void MakeAlly(void* npc) {
     }
     if (!IsAlly(npc)) g_allies.push_back(npc);
 }
-void Aggro(void* npc, void* victim) {
+static void AggroT(void* npc, void* victim, int tries);
+void Aggro(void* npc, void* victim) { AggroT(npc, victim, 12); }
+static void AggroT(void* npc, void* victim, int tries) {
     if (!npc || !victim || NpcDead(npc)) return;
+    if (!NpcReady(npc) || !NpcReady(victim)) {
+        if (tries > 0) Schedule(0.25, [npc, victim, tries] {
+            if (NpcAlive(npc) && NpcExists(victim)) Guard("ai:aggro-retry", [&] { AggroT(npc, victim, tries - 1); }); });
+        return;
+    }
     CallExt("Npc_SetAttitude", { Arg::Npc(npc), Arg::Int(K.attHostile) });
     CallExt("Npc_SetTempAttitude", { Arg::Npc(npc), Arg::Int(K.attHostile) });
     CallExt("Npc_ClearAIQueue", { Arg::Npc(npc) });
@@ -89,7 +105,7 @@ void Aggro(void* npc, void* victim) {
     if (st >= 0) CallExt("AI_StartState", { Arg::Npc(npc), Arg::Int(st), Arg::Int(0), Arg::Str("") });
 }
 void Peace(void* npc) {
-    if (!npc || NpcDead(npc) || IsAlly(npc) || npc == Player()) return;
+    if (!npc || NpcDead(npc) || IsAlly(npc) || npc == Player() || npc == MainHero() || !NpcReady(npc)) return;
     void* h = Player();
     CallExt("Npc_ClearAIQueue", { Arg::Npc(npc) });
     int perm = CallExt("Npc_GetPermAttitude", { Arg::Npc(npc), Arg::Npc(h) });
@@ -134,9 +150,9 @@ zVEC3 SpawnPointNear(float minR, float maxR, float ang) {
     return { hp.x + std::cos(ang) * 150.f, hp.y + 50.f, hp.z + std::sin(ang) * 150.f };
 }
 
-void Schedule(double d, std::function<void()> f) { g_sched.push_back({ NowSec() + d, std::move(f) }); }
+void Schedule(double d, std::function<void()> f) { g_sched.push_back({ T.gameClock + d, std::move(f) }); }
 void RunSchedule() {
-    double now = NowSec();
+    double now = T.gameClock;
     std::vector<Sched> due;
     for (auto it = g_sched.begin(); it != g_sched.end();) {
         if (it->t <= now) { due.push_back(std::move(*it)); it = g_sched.erase(it); } else ++it;
@@ -147,6 +163,55 @@ void ClearWorldState() {
     g_savedTargets.clear(); g_activeSaved = -1; g_allies.clear(); g_sched.clear(); g_mainHero = nullptr;
 }
 
+void DealDamage(void* npc, int dmg, void* killer) {
+    if (!npc || NpcDead(npc) || dmg <= 0) return;
+    if (npc == MainHero() && On("god")) return;
+    int hp = Attr(npc, 0) - dmg;
+    if (hp > 0) { SetAttr(npc, 0, hp); return; }
+    Kill(npc, killer);
+}
+bool Project(const zVEC3& w, float& sx, float& sy) {
+    void* cam = at<void*>(ACTIVE_CAM_PTR);
+    if (!cam) return false;
+    const float* M = &fld<float>(cam, CAM_MATRIX);
+    float vx = M[0] * w.x + M[1] * w.y + M[2] * w.z + M[3];
+    float vy = M[4] * w.x + M[5] * w.y + M[6] * w.z + M[7];
+    float vz = M[8] * w.x + M[9] * w.y + M[10] * w.z + M[11];
+    if (vz < 30.f) return false;
+    float xc = fld<float>(cam, CAM_XCENTER), yc = fld<float>(cam, CAM_YCENTER);
+    float dx = fld<float>(cam, CAM_VDISTX), dy = fld<float>(cam, CAM_VDISTY);
+    float xd = (float)fld<int>(cam, CAM_XDIM), yd = (float)fld<int>(cam, CAM_YDIM);
+    if (xd <= 0 || yd <= 0) return false;
+    sx = (xc + vx * dx / vz) / xd;
+    sy = (yc - vy * dy / vz) / yd;
+    return sx > -0.2f && sx < 1.2f && sy > -0.2f && sy < 1.2f;
+}
+
+std::string InstName(void* npc) {
+    Sym* s = SymAt(NpcInstance(npc));
+    return s ? zs(s->name) : std::string("?");
+}
+std::string PlaceName(const zVEC3& p) {
+    const WpEntry* best = nullptr; float bd = 1e30f;
+    for (auto& w : g_cat.wps) {
+        float dx = w.x - p.x, dy = w.y - p.y, dz = w.z - p.z, d = dx * dx + dy * dy * 0.3f + dz * dz;
+        if (d < bd) { bd = d; best = &w; }
+    }
+    if (!best) return "";
+    std::string r = RegionOfWp(best->name);
+    return r.empty() ? best->name : r + " (" + best->name + ")";
+}
+std::string RegionOfWp(const std::string& n) {
+    static const struct { const char* pre; const char* name; } kMap[] = {
+        { "OCC_", "Stary Obóz - zamek" }, { "OCR_", "Stary Obóz" }, { "OC_", "Stary Obóz" }, { "OC1", "Stary Obóz" },
+        { "NC_", "Nowy Obóz" }, { "NCI", "Nowy Obóz" }, { "NCE", "Nowy Obóz" }, { "NC", "Nowy Obóz" },
+        { "PSI", "Obóz Bractwa" }, { "OM", "Stara Kopalnia" }, { "FM_", "Wolna Kopalnia" }, { "DT_", "Wieża Xardasa" },
+        { "TPL_", "Świątynia Śniącego" }, { "ORC_", "Ziemie orków" }, { "OW_ORC", "Ziemie orków" }, { "LOCATION_", "Dzicz" },
+        { "SPAWN_", "Dzicz" }, { "OW_", "Górnicza Dolina" }, { "PATH_", "Górnicza Dolina" }, { "WP_", "Górnicza Dolina" },
+    };
+    for (auto& m : kMap) if (n.rfind(m.pre, 0) == 0) return m.name;
+    return "";
+}
 bool GameFocused() { return GetForegroundWindow() == g_gameHwnd; }
 bool On(const char* id) { Row* r = T.Get(id); return r && r->on; }
 float Val(const char* id) { Row* r = T.Get(id); return r ? r->val : 0.f; }

@@ -12,6 +12,7 @@
 #include "imgui_impl_win32.h"
 #include "trainer.h"
 #include "ui.h"
+#include "portrait.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
@@ -59,6 +60,10 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
             if (UiCapturingKey()) { if (!repeat) UiBindKey(vk); return 0; }
             if (!repeat && vk == VK_INSERT) { SetMenu(!T.menuOpen); return 0; }
             if (!repeat && vk == VK_ESCAPE && T.menuOpen && !UiTyping()) { SetMenu(false); return 0; }
+            if (!repeat && vk == VK_ESCAPE && !T.menuOpen) {   // Esc leaves no-clip first (game menu/saving then sees a normal hero)
+                Row* nc = T.Get("noclip");
+                if (nc && nc->on) { ApplyRow(*nc); return 0; }
+            }
             bool typing = T.menuOpen && ImGui::GetIO().WantTextInput;
             if (!repeat && !typing && GetForegroundWindow() == h) T.Hotkey(vk);
         }
@@ -112,6 +117,13 @@ static HRESULT __stdcall hkPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
             bool nl = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0, nr = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
             if (nl != lb) { io2.AddMouseButtonEvent(0, nl); lb = nl; }
             if (nr != rb) { io2.AddMouseButtonEvent(1, nr); rb = nr; }
+        }
+        {   // portraits of saved targets: crop of the clean game frame (before our overlay is drawn)
+            Snapshot ps;
+            { std::lock_guard<std::mutex> l(T.mtx); ps.inGame = T.snap.inGame; ps.saved = T.snap.saved; ps.world = T.snap.world; }
+            static std::string lastWorld;
+            if (ps.world != lastWorld) { lastWorld = ps.world; PortraitClear(); }
+            PortraitCapture(g_dev, g_ctx, sc, ps, T.menuOpen);
         }
         ImGui::NewFrame();
         ImGuiIO& io = ImGui::GetIO();

@@ -29,7 +29,8 @@ void Teleport_World() {}
 void Teleport_Tick(TickCtx& c) { zVEC3 p = Pos(c.hero); c.s.px = p.x; c.s.py = p.y; c.s.pz = p.z; }
 
 void Teleport_Register() {
-    T.Add(MkRow("tpfwd", "Teleport do przodu", "metry, ląduje na podłożu", "Teleport", "Szybkie", K_ACTION, 20, 1, 500, [](Row& r) {
+    CardTitle("Szybki skok");
+    T.Add(MkRow("tpfwd", "Teleport do przodu", "metry, ląduje na podłożu", "Świat", "Teleport", K_ACTION, 20, 1, 500, [](Row& r) {
         SafeSetPos(Player(), Grounded(InFront(r.val * 100.f))); }));
     St(ST_OK, "działa"); Icon(ICN_SIGNIN);
 }

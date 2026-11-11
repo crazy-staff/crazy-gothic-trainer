@@ -19,21 +19,52 @@ std::unordered_map<void*, NpcInfo> g_npc;
 std::vector<void*> g_chests;
 double g_lastNpc = 0, g_lastChest = 0;
 
-bool Project(const zVEC3& w, float& sx, float& sy) {
-    void* cam = at<void*>(ACTIVE_CAM_PTR);
-    if (!cam) return false;
-    const float* M = &fld<float>(cam, CAM_MATRIX);
-    float vx = M[0] * w.x + M[1] * w.y + M[2] * w.z + M[3];
-    float vy = M[4] * w.x + M[5] * w.y + M[6] * w.z + M[7];
-    float vz = M[8] * w.x + M[9] * w.y + M[10] * w.z + M[11];
-    if (vz < 30.f) return false;
-    float xc = fld<float>(cam, CAM_XCENTER), yc = fld<float>(cam, CAM_YCENTER);
-    float dx = fld<float>(cam, CAM_VDISTX), dy = fld<float>(cam, CAM_VDISTY);
-    float xd = (float)fld<int>(cam, CAM_XDIM), yd = (float)fld<int>(cam, CAM_YDIM);
-    if (xd <= 0 || yd <= 0) return false;
-    sx = (xc + vx * dx / vz) / xd;
-    sy = (yc - vy * dy / vz) / yd;
-    return sx > -0.2f && sx < 1.2f && sy > -0.2f && sy < 1.2f;
+// ---- skeleton from the model node hierarchy (zCModel nodeList, local trafos composed to world)
+struct M34 { float m[12]; };
+M34 Mul(const M34& a, const float* b) {   // a (3x4) * b (4x4 row-major, affine)
+    M34 r;
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 4; j++)
+            r.m[i * 4 + j] = a.m[i * 4 + 0] * b[0 * 4 + j] + a.m[i * 4 + 1] * b[1 * 4 + j] + a.m[i * 4 + 2] * b[2 * 4 + j] + (j == 3 ? a.m[i * 4 + 3] : 0.f);
+    return r;
+}
+bool g_skelBroken = false;
+bool Skeleton(void* npc, std::vector<zVEC3>& pts, std::vector<int>& par) {
+    if (g_skelBroken) return false;
+    void* model = VobModel(npc);
+    if (!model) return false;
+    void** arr = fld<void**>(model, MODEL_NODELIST);
+    int num = fld<int>(model, MODEL_NODELIST + 8);
+    if (!arr || num <= 0 || num > 200 || IsBadReadPtr(arr, num * 4)) return false;
+    std::unordered_map<void*, int> idx;
+    for (int i = 0; i < num; i++) { if (!arr[i] || IsBadReadPtr(arr[i], 0x4C)) return false; idx[arr[i]] = i; }
+    std::vector<M34> om(num);
+    std::vector<char> done(num, 0);
+    pts.assign(num, { 0, 0, 0 }); par.assign(num, -1);
+    M34 world; const float* W = &fld<float>(npc, VOB_TRAFO); for (int k = 0; k < 12; k++) world.m[k] = W[k];
+    zVEC3 base = Pos(npc);
+    for (int pass = 0; pass < 3; pass++)
+        for (int i = 0; i < num; i++) {
+            if (done[i]) continue;
+            void* p = fld<void*>(arr[i], 0);
+            const float* local = &fld<float>(arr[i], 0xC);
+            auto it = p ? idx.find(p) : idx.end();
+            if (it == idx.end()) { om[i] = Mul(world, local); done[i] = 1; continue; }
+            if (!done[it->second]) continue;
+            om[i] = Mul(om[it->second], local); par[i] = it->second; done[i] = 1;
+        }
+    for (int i = 0; i < num; i++) {
+        pts[i] = { om[i].m[3], om[i].m[7], om[i].m[11] };
+        if (!done[i] || Dist(pts[i], base) > 600.f) { par[i] = -2; }
+    }
+    // slot nodes (ZS_*) carry no bone geometry - drop their links
+    for (int i = 0; i < num; i++) {
+        void* proto = fld<void*>(arr[i], 4);
+        if (!proto || IsBadReadPtr(proto, 0x18)) continue;
+        const zSTRING& nm = fld<zSTRING>(proto, 4);
+        if (nm.ptr && nm.len >= 3 && nm.len < 64 && !IsBadReadPtr(nm.ptr, nm.len) && nm.ptr[0] == 'Z' && nm.ptr[1] == 'S' && nm.ptr[2] == '_') par[i] = -2;
+    }
+    return true;
 }
 void Boxes(const void* vob, Label& L, int mode) {
     const float* b = &fld<float>(vob, VOB_BBOX);
@@ -55,9 +86,9 @@ void Boxes(const void* vob, Label& L, int mode) {
     }
     L.box = mode == 2 ? 2 : 1; L.bx0 = x0; L.by0 = y0; L.bx1 = x1; L.by1 = y1;
 }
-std::string ItemLine(void* it) {
+std::string ItemLine(void* it, int amt = -1) {
     std::string n = K.offItemName >= 0 ? U(zs(fld<zSTRING>(it, K.offItemName))) : "?";
-    int amt = K.offItemAmount >= 0 ? fld<int>(it, K.offItemAmount) : 1;
+    if (amt < 0) amt = fld<int>(it, ITEM_AMOUNT);
     if (amt > 1) n += " x" + std::to_string(amt);
     return n;
 }
@@ -73,7 +104,7 @@ std::vector<std::string> NpcEquipment(void* npc) {
             if (!IsItem(it)) break;
             bool worn = flagsOff >= 0 && (fld<int>(it, flagsOff) & (1 << 30));
             int val = K.offItemValue >= 0 ? fld<int>(it, K.offItemValue) : 0;
-            all.push_back({ (worn ? 1000000 : 0) + val, (worn ? "[założone] " : "") + ItemLine(it) });
+            all.push_back({ (worn ? 1000000 : 0) + val, (worn ? "[założone] " : "") + ItemLine(it, amount) });
         }
     std::sort(all.begin(), all.end(), [](auto& a, auto& b) { return a.first > b.first; });
     std::vector<std::string> out;
@@ -146,7 +177,29 @@ void Esp_Tick(TickCtx& c) {
             Label L{}; L.type = 0; L.hp = -1;
             const float* b = &fld<float>(n, VOB_BBOX);
             if (!Project({ p.x, b[4] + 15.f, p.z }, L.x, L.y)) return;
-            if (On("espbox")) Boxes(n, L, boxMode);
+            bool wantSkel = On("espskel") && d < 4000.f;
+            if (On("espbox") && boxMode != 3) Boxes(n, L, boxMode);
+            if ((On("espbox") && boxMode == 3) || wantSkel) {
+                std::vector<zVEC3> pts; std::vector<int> par;
+                if (Skeleton(n, pts, par)) {
+                    float x0 = 1e9f, y0 = 1e9f, x1 = -1e9f, y1 = -1e9f; int nproj = 0;
+                    std::vector<float> sx(pts.size()), sy(pts.size()); std::vector<char> ok(pts.size(), 0);
+                    for (size_t i = 0; i < pts.size(); i++) {
+                        if (par[i] == -2) continue;
+                        if (!Project(pts[i], sx[i], sy[i])) continue;
+                        ok[i] = 1; nproj++;
+                        x0 = std::min(x0, sx[i]); y0 = std::min(y0, sy[i]); x1 = std::max(x1, sx[i]); y1 = std::max(y1, sy[i]);
+                    }
+                    if (wantSkel)
+                        for (size_t i = 0; i < pts.size(); i++)
+                            if (par[i] >= 0 && ok[i] && ok[par[i]]) { L.bones.push_back(sx[i]); L.bones.push_back(sy[i]); L.bones.push_back(sx[par[i]]); L.bones.push_back(sy[par[i]]); }
+                    if (On("espbox") && boxMode == 3 && nproj > 3) {
+                        float px = (x1 - x0) * 0.18f + 0.002f, py = (y1 - y0) * 0.08f + 0.004f;
+                        L.box = 1; L.bx0 = x0 - px; L.bx1 = x1 + px; L.by0 = y0 - py * 1.6f; L.by1 = y1 + py * 0.5f;
+                    }
+                }
+            }
+            if (On("espbox") && boxMode == 3 && L.box == 0) Boxes(n, L, 1);   // no skeleton -> silhouette
             if (On("espname")) L.text = inf.name;
             std::string sub;
             auto add = [&](const std::string& t) { if (!sub.empty()) sub += "  ·  "; sub += t; };
@@ -198,27 +251,36 @@ void Esp_Tick(TickCtx& c) {
 }
 
 void Esp_Register() {
-    const char* C = "Render";
+    const char* C = "Wizualia";
+    const char* P = "ESP postaci";
     auto tog = [&](const char* id, const char* name, const char* sub, bool def, Status st, const char* h) {
-        T.Add(MkRow(id, name, "", C, sub, K_TOGGLE)); T.rows.back().on = def; St(st, h); Hidden();
+        T.Add(MkRow(id, name, "", C, sub, K_TOGGLE)); T.rows.back().on = def; St(st, h);
     };
-    tog("espnpc", "NPC i potwory", "ESP", false, ST_OK, "działa");
-    tog("espitems", "Przedmioty na ziemi", "ESP", false, ST_OK, "działa");
-    tog("espchest", "Skrzynie", "ESP", false, ST_OK, "działa");
-    tog("espchestinv", "Zawartość skrzyń", "ESP", false, ST_NEW, "nowe w build 3");
-    tog("espeq", "Ekwipunek postaci (do 15 m)", "ESP", false, ST_NEW, "nowe w build 3");
-    T.Add(MkRow("esprange", "Maksymalny zasięg", "m", C, "ESP", K_VALUE, 50, 5, 300)); Hidden(); St(ST_OK, "działa");
-    tog("espname", "Imię", "Wygląd", true, ST_OK, "działa");
-    tog("espdist", "Odległość", "Wygląd", true, ST_OK, "działa");
-    tog("espguild", "Gildia", "Wygląd", false, ST_OK, "działa");
-    tog("esphp", "Pasek HP", "Wygląd", true, ST_OK, "działa");
-    tog("esphpnum", "HP liczbowo", "Wygląd", false, ST_OK, "działa");
-    tog("espbox", "Ramka", "Wygląd", false, ST_BUG, "build 2: ramka nie pasowała do postaci; build 3: 3 rodzaje ramek");
-    T.Add(MkRow("espboxmode", "Rodzaj ramki", "", C, "Wygląd", K_VALUE, 1, 0, 2)); Hidden();
-    Opts({ { 0, "Bounding box 2D" }, { 1, "Sylwetka" }, { 2, "Bounding box 3D" } }); St(ST_NEW, "nowe w build 3");
-    tog("espline", "Linie od dołu ekranu", "Wygląd", false, ST_OK, "działa");
-    T.Add(MkRow("espfilter", "Pokazuj", "", C, "Filtry", K_VALUE, 0, 0, 4)); Hidden();
-    Opts({ { 0, "Wszystkich" }, { 1, "Tylko wrogów" }, { 2, "Tylko ludzi" }, { 3, "Tylko potwory" }, { 4, "Tylko sojuszników" } }); St(ST_OK, "działa");
-    tog("espdead", "Martwi", "Filtry", false, ST_OK, "działa");
-    T.Add(MkRow("espitemval", "Min. wartość przedmiotu", "rudy", C, "Filtry", K_VALUE, 0, 0, 5000)); Hidden(); St(ST_OK, "działa");
+    CardTitle("Postacie");
+    tog("espnpc", "Pokaż postacie", P, false, ST_OK, "działa"); Icon(ICN_EYE);
+    T.Add(MkRow("esprange", "Maksymalny zasięg", "m", C, P, K_VALUE, 50, 5, 300)); St(ST_OK, "działa");
+    T.Add(MkRow("espfilter", "Pokazuj", "", C, P, K_VALUE, 0, 0, 4));
+    Opts({ { 0, "Wszystkich" }, { 1, "Tylko wrogów" }, { 2, "Tylko ludzi" }, { 3, "Tylko potwory" }, { 4, "Tylko drużynę" } }); St(ST_OK, "działa");
+    tog("espdead", "Martwi", P, false, ST_OK, "działa");
+    CardTitle("Informacje");
+    tog("espname", "Imię", P, true, ST_OK, "działa");
+    tog("espdist", "Odległość", P, true, ST_OK, "działa");
+    tog("espguild", "Gildia", P, false, ST_OK, "działa");
+    tog("esphp", "Pasek HP", P, true, ST_OK, "działa");
+    tog("esphpnum", "HP liczbowo", P, false, ST_OK, "działa");
+    tog("espeq", "Ekwipunek (do 15 m)", P, false, ST_OK, "build 3: działa; build 4: liczba sztuk");
+    CardTitle("Ramka i szkielet");
+    tog("espbox", "Ramka", P, false, ST_BUG, "build 3: ramki 2D/3D niedopasowane, sylwetka OK; build 4: ramka dopasowana do kości");
+    T.Add(MkRow("espboxmode", "Rodzaj ramki", "", C, P, K_VALUE, 3, 0, 3));
+    Opts({ { 3, "Dopasowana (z kości)" }, { 1, "Sylwetka" }, { 0, "Bounding box 2D" }, { 2, "Bounding box 3D" } }); St(ST_NEW, "build 4: nowa 'dopasowana'");
+    tog("espskel", "Szkielet", P, false, ST_NEW, "nowe w build 4 (do 40 m)");
+    tog("espline", "Linie od dołu ekranu", P, false, ST_OK, "działa");
+
+    const char* I = "ESP przedmiotów";
+    CardTitle("Przedmioty na ziemi");
+    tog("espitems", "Pokaż przedmioty", I, false, ST_OK, "działa"); Icon(ICN_BAG);
+    T.Add(MkRow("espitemval", "Min. wartość", "rudy", C, I, K_VALUE, 0, 0, 5000)); St(ST_OK, "działa");
+    CardTitle("Skrzynie");
+    tog("espchest", "Pokaż skrzynie", I, false, ST_OK, "działa"); Icon(ICN_CUBE);
+    tog("espchestinv", "Zawartość skrzyń", I, false, ST_BUG, "build 3: brak liczby sztuk; build 4: liczba sztuk z obiektu przedmiotu");
 }

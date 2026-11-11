@@ -193,5 +193,14 @@ std::string WorldName();
 constexpr uintptr_t F_NPC_CANSEE = 0x69E010;  // oCNpc::CanSee(zCVob*, int)
 constexpr uintptr_t VOB_BBOX = 0x7C;          // zTBBox3D mins[3], maxs[3] (world)
 constexpr uintptr_t VOB_SLEEPMODE = 0xEC;
+constexpr uintptr_t NPC_ANICTRL = 0x9B4;          // oCAniCtrl_Human* (null until the npc is fully set up)
+constexpr uintptr_t NPC_PERCLIST = 0x834, NPC_PERCCOUNT = 0x93C; // {int type, int func}[33]
+constexpr uintptr_t ITEM_AMOUNT = 0x2E4;          // oCItem::amount (stacked items)
+constexpr uintptr_t F_NPC_ONDAMAGE_DESC = 0x730FE0; // oCNpc::OnDamage(oSDamageDescriptor&) - real hit path (vtbl 0xB8)
+constexpr uintptr_t F_NPC_CANSENSE = 0x69D020;    // oCNpc::CanSense(zCVob*) - sight/hearing/smell
+constexpr uintptr_t F_NPC_PASSIVEPERC = 0x6B49C0; // oCNpc::CreatePassivePerception(int, zCVob*, zCVob*)
+constexpr uintptr_t OG_CAMVOB = 0x14;             // zCSession::camVob
+constexpr uintptr_t MODEL_NODELIST = 0x64;        // zCArray<zCModelNodeInst*> {arr, alloc, num}
+bool NpcReady(void* npc);                          // has animation controller + model (safe for AI calls)
 
 } // namespace g1

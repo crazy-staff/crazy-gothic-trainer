@@ -30,7 +30,8 @@ bool NpcExists(void* n);
 bool NpcAlive(void* n);
 template <class F> void NpcsInRadius(float r, F f) {
     void* h = Player(); zVEC3 hp = Pos(h);
-    ForEachNpc([&](void* n) { if (n != h && Dist(Pos(n), hp) <= r) f(n); });
+    // only npcs that are really in the world (model + animation controller); others crash AI/death calls
+    ForEachNpc([&](void* n) { if (n != h && Dist(Pos(n), hp) <= r && NpcReady(n)) f(n); });
 }
 
 // main hero (the real PC_HERO body, even while body-swapped)
@@ -50,7 +51,7 @@ bool IsAlly(void* n);
 void MakeAlly(void* npc);
 void Aggro(void* npc, void* victim);
 void Peace(void* npc);
-void PeaceAll(float radius);
+void PeaceAll(float radius = 6000.f);
 
 void Effect(const char* fx, void* origin, void* target, int lvl, int dmg, int dtype, bool proj);
 zVEC3 InFront(float dist);
@@ -62,6 +63,11 @@ void Schedule(double delaySec, std::function<void()> f);
 void RunSchedule();
 void ClearWorldState();   // on world change
 
+void DealDamage(void* npc, int dmg, void* killer);   // direct HP damage (no aggro on the player when killer == null)
+bool Project(const zVEC3& world, float& sx, float& sy);   // -> normalized screen coords
+std::string PlaceName(const zVEC3& p);                     // nearest waypoint -> human location name
+std::string RegionOfWp(const std::string& wpName);         // waypoint prefix -> region ("" if unknown)
+std::string InstName(void* npc);                           // script instance id (e.g. GRD_212_TORWACHE)
 bool GameFocused();
 bool On(const char* id);
 float Val(const char* id);
