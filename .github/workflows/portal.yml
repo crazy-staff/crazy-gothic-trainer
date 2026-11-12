@@ -1,5 +1,6 @@
 # Builds our portal image: upstream Quackback (pinned in portal/QUACKBACK_VERSION) with its help center
-# turned into our docs (portal/transform.py: new files from portal/patch + checked edits).
+# turned into docs on Fumadocs (portal/transform.py: new files from portal/patch + checked edits;
+# portal/dependencies.txt: extra npm packages).
 # Image: ghcr.io/dawidseipold/gothic1-portal:latest and :<quackback version>-<short sha>
 name: Portal image
 on:
@@ -25,6 +26,10 @@ jobs:
           git clone -q --depth 1 --branch "$V" https://github.com/QuackbackIO/quackback.git upstream
       - name: Turn the help center into our docs
         run: python3 portal/transform.py upstream
+      - uses: oven-sh/setup-bun@v2
+      - name: Extra dependencies (Fumadocs), lockfile updated for the frozen install in the Dockerfile
+        working-directory: upstream/apps/web
+        run: bun add $(cat ../../../portal/dependencies.txt)
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:

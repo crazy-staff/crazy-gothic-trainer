@@ -1,0 +1,396 @@
+/*
+ * Fumadocs UI inside Quackback.
+ * - Fumadocs colours follow the portal theme (Quackback's CSS variables), so branding applies.
+ * - The animations, utilities and the `layout` variant are copied from fumadocs-ui's
+ *   css/lib/base.css (MIT, version in portal/FUMADOCS_VERSION) WITHOUT its @layer base,
+ *   which would restyle every Quackback page.
+ */
+@source "../../node_modules/fumadocs-ui/dist";
+
+@theme inline {
+  --color-fd-background: var(--background);
+  --color-fd-foreground: var(--foreground);
+  --color-fd-muted: var(--muted);
+  --color-fd-muted-foreground: var(--muted-foreground);
+  --color-fd-popover: var(--popover);
+  --color-fd-popover-foreground: var(--popover-foreground);
+  --color-fd-card: var(--card);
+  --color-fd-card-foreground: var(--card-foreground);
+  --color-fd-border: var(--border);
+  --color-fd-primary: var(--primary);
+  --color-fd-primary-foreground: var(--primary-foreground);
+  --color-fd-secondary: var(--secondary);
+  --color-fd-secondary-foreground: var(--secondary-foreground);
+  --color-fd-accent: var(--accent);
+  --color-fd-accent-foreground: var(--accent-foreground);
+  --color-fd-ring: var(--ring);
+}
+
+:root {
+  --fd-sidebar-drawer-offset: 100%;
+}
+[dir='rtl'] {
+  --fd-sidebar-drawer-offset: -100%;
+}
+
+@theme {
+  --animate-fd-fade-in: fd-fade-in 300ms ease;
+  --animate-fd-fade-out: fd-fade-out 300ms ease;
+
+  --animate-fd-dialog-in: fd-dialog-in 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-fd-dialog-out: fd-dialog-out 300ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-fd-popover-in: fd-popover-in 100ms ease;
+  --animate-fd-popover-out: fd-popover-out 100ms ease;
+
+  --animate-fd-enterFromLeft: fd-enterFromLeft 250ms ease;
+  --animate-fd-enterFromRight: fd-enterFromRight 250ms ease;
+
+  --animate-fd-sidebar-in: fd-sidebar-in 250ms ease;
+  --animate-fd-sidebar-out: fd-sidebar-out 250ms ease;
+
+  --animate-fd-exitToLeft: fd-exitToLeft 250ms ease;
+  --animate-fd-exitToRight: fd-exitToRight 250ms ease;
+
+  --animate-fd-collapsible-down: fd-collapsible-down 150ms cubic-bezier(0.45, 0, 0.55, 1);
+  --animate-fd-collapsible-up: fd-collapsible-up 150ms cubic-bezier(0.45, 0, 0.55, 1);
+
+  --animate-fd-accordion-down: fd-accordion-down 200ms ease-out;
+  --animate-fd-accordion-up: fd-accordion-up 200ms ease-out;
+
+  --animate-fd-nav-menu-in: fd-nav-menu-in 200ms ease;
+  --animate-fd-nav-menu-out: fd-nav-menu-out 200ms ease;
+
+  @keyframes fd-sidebar-in {
+    from {
+      transform: translateX(var(--fd-sidebar-drawer-offset));
+    }
+  }
+
+  @keyframes fd-sidebar-out {
+    to {
+      transform: translateX(var(--fd-sidebar-drawer-offset));
+    }
+  }
+
+  @keyframes fd-dialog-in {
+    from {
+      transform: scale(1.06);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes fd-dialog-out {
+    from {
+      transform: scale(1);
+    }
+    to {
+      transform: scale(1.04);
+      opacity: 0;
+    }
+  }
+
+  @keyframes fd-popover-in {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  @keyframes fd-popover-out {
+    to {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  @keyframes fd-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fd-fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fd-enterFromRight {
+    from {
+      opacity: 0;
+      transform: translateX(200px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes fd-enterFromLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-200px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes fd-exitToRight {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(200px);
+    }
+  }
+
+  @keyframes fd-exitToLeft {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(-200px);
+    }
+  }
+
+  @keyframes fd-collapsible-down {
+    from {
+      height: 0;
+      opacity: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height);
+    }
+  }
+
+  @keyframes fd-collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height);
+    }
+    to {
+      height: 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes fd-accordion-down {
+    from {
+      height: 0;
+      opacity: 0.5;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes fd-accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes fd-nav-menu-in {
+    from {
+      opacity: 0;
+      height: 0px;
+    }
+    to {
+      opacity: 1;
+      height: var(--radix-navigation-menu-viewport-height);
+    }
+  }
+
+  @keyframes fd-nav-menu-out {
+    from {
+      opacity: 1;
+      height: var(--radix-navigation-menu-viewport-height);
+    }
+    to {
+      opacity: 0;
+      height: 0px;
+    }
+  }
+}
+
+
+
+@utility fd-scroll-container {
+  &::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 5px;
+    background: var(--color-fd-border);
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-corner {
+    display: none;
+  }
+}
+
+@utility fd-steps {
+  counter-reset: step;
+  position: relative;
+  @apply ps-6 ms-2 border-s sm:ms-4 sm:ps-7;
+}
+
+@utility fd-step {
+  &:before {
+    background-color: var(--color-fd-secondary);
+    color: var(--color-fd-secondary-foreground);
+    content: counter(step);
+    counter-increment: step;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    display: flex;
+    position: absolute;
+    @apply size-8 -inset-s-4 rounded-full;
+  }
+}
+
+@utility prose-no-margin {
+  & > :first-child {
+    margin-top: 0;
+  }
+
+  & > :last-child {
+    margin-bottom: 0;
+  }
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+/* define/override layout variables, from a direct child of the layout: a descendant `:has()` re-checks the whole layout on DOM changes */
+@variant layout {
+  #nd-docs-layout:has(> &),
+  #nd-notebook-layout:has(> &),
+  #nd-home-layout:has(> &),
+  #nd-flux-layout:has(> &),
+  #fd-glass-layout:has(> &) {
+    @slot;
+  }
+}
+
+@property --radix-collapsible-content-height {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* to transition the columns alone */
+@property --fd-sidebar-col {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+@property --fd-ai-chat-col {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+.fd-page-tree-item-name {
+  @apply inline-flex items-center gap-1 w-full;
+}
+
+/* ------------------------------------------------------------------ docs shell */
+
+/* Header height (portal-header.tsx): one 3.5rem row on large screens, plus the nav row below. */
+.custom-docs { --portal-header-height: calc(6.25rem + 1px); }
+@media (min-width: 64rem) { .custom-docs { --portal-header-height: calc(3.5rem + 1px); } }
+.custom-docs #nd-docs-layout {
+  --fd-banner-height: var(--portal-header-height);
+  --fd-docs-height: 100dvh;
+  min-height: calc(100dvh - var(--portal-header-height));
+}
+.custom-docs #nd-docs-layout *,
+.custom-docs #nd-docs-layout ::before,
+.custom-docs #nd-docs-layout ::after { border-color: var(--color-fd-border); }
+/* Sidebar: the page colour, separated by a hairline (like fumadocs.dev). */
+.custom-docs #nd-sidebar { background: var(--color-fd-background); }
+.custom-docs #nd-docs-layout [data-layout-main] { background: transparent; }
+
+/* ------------------------------------------------------------------ article typography */
+
+.docs-prose { font-size: 15.5px; line-height: 1.75; color: color-mix(in oklab, var(--foreground) 86%, transparent); }
+.docs-prose > * + * { margin-top: 1.15em; }
+.docs-prose :where(h2, h3, h4) { color: var(--foreground); font-weight: 600; letter-spacing: -0.01em; scroll-margin-top: calc(var(--portal-header-height, 4rem) + 1.5rem); }
+.docs-prose :where(h2) { font-size: 1.5rem; line-height: 1.3; margin-top: 2.4em; margin-bottom: 0.2em; }
+.docs-prose :where(h3) { font-size: 1.2rem; line-height: 1.4; margin-top: 1.9em; }
+.docs-prose :where(h4) { font-size: 1.02rem; margin-top: 1.6em; }
+.docs-prose > :where(h2, h3, h4):first-child { margin-top: 0; }
+.docs-prose :where(h2, h3, h4) + * { margin-top: 0.6em; }
+.docs-prose :where(strong) { color: var(--foreground); font-weight: 600; }
+.docs-prose :where(ul, ol) { padding-inline-start: 1.4em; }
+.docs-prose :where(ul) { list-style: disc; }
+.docs-prose :where(ol) { list-style: decimal; }
+.docs-prose :where(li) { margin-top: 0.3em; padding-inline-start: 0.2em; }
+.docs-prose :where(li)::marker { color: var(--color-fd-muted-foreground); }
+.docs-prose :where(ol > li)::marker { font-weight: 600; color: var(--primary); }
+.docs-prose :where(li > p) { margin: 0; }
+.docs-prose :where(blockquote) { border-inline-start: 3px solid var(--border); padding-inline-start: 1em; color: var(--muted-foreground); }
+.docs-prose :where(hr) { border: 0; border-top: 1px solid var(--border); margin: 2.5em 0; }
+.docs-prose :where(img) { max-width: 100%; }
+.docs-prose :where(figcaption) { margin-top: 0.5em; text-align: center; font-size: 0.875rem; color: var(--muted-foreground); }
+.docs-prose :where(.docs-link) { color: var(--foreground); font-weight: 500; text-decoration: underline; text-decoration-color: color-mix(in oklab, var(--primary) 55%, transparent); text-underline-offset: 3px; text-decoration-thickness: 1px; transition: text-decoration-color .15s; }
+.docs-prose :where(.docs-link):hover { text-decoration-color: var(--primary); }
+.docs-code { border: 1px solid var(--border); background: var(--muted); border-radius: 6px; padding: 0.1em 0.38em; font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.85em; color: var(--foreground); }
+
+/* tables */
+.docs-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 0.75rem; }
+.docs-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; line-height: 1.6; }
+.docs-table :where(th) { background: var(--muted); text-align: start; font-weight: 600; color: var(--foreground); }
+.docs-table :where(th, td) { padding: 0.6rem 0.9rem; vertical-align: top; }
+.docs-table :where(tr + tr) > * { border-top: 1px solid var(--border); }
+.docs-table :where(th + th, td + td, th + td, td + th) { border-inline-start: 1px solid var(--border); }
+.docs-table :where(th p, td p) { margin: 0; }
+
+/* task lists */
+.docs-prose .docs-tasks { list-style: none; padding-inline-start: 0.2em; }
+.docs-tasks > li { display: flex; gap: 0.6em; align-items: flex-start; }
+.docs-task-box { flex: none; margin-top: 0.35em; width: 1.05em; height: 1.05em; border-radius: 0.3em; border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; font-size: 0.7em; color: var(--primary-foreground); }
+.docs-tasks > li[data-checked='true'] .docs-task-box { background: var(--primary); border-color: var(--primary); }
+.docs-tasks > li[data-checked='true'] > div { color: var(--muted-foreground); text-decoration: line-through; }
+
+/* markdown inside blocks */
+.docs-md > * + * { margin-top: 0.75em; }
+.docs-md :where(ul) { list-style: disc; padding-inline-start: 1.3em; }
+.docs-md :where(ol) { list-style: decimal; padding-inline-start: 1.3em; }
+.docs-step-title { font-weight: 600; color: var(--foreground); margin-bottom: 0.35em; }
+
+/* media placeholders */
+.docs-media-box { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; aspect-ratio: 16 / 9; border: 1px dashed color-mix(in oklab, var(--primary) 45%, var(--border)); border-radius: 0.875rem; color: color-mix(in oklab, var(--primary) 75%, var(--muted-foreground)); background: repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in oklab, var(--primary) 5%, transparent) 14px 28px); }
+
+/* docs home */
+.docs-home-hero { position: relative; padding: 2.5rem 0 1rem; }
+.docs-home-hero::before { content: ''; position: absolute; inset: -2rem -2rem auto; height: 16rem; z-index: -1; background: radial-gradient(60% 80% at 20% 0%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 70%); pointer-events: none; }
+.docs-feedback { margin-top: 2rem; }
