@@ -7,7 +7,9 @@
    "desc": "Automatyczne zdarzenia (deszcz meteorów, polimorf, zombie...) z odliczaniem na ekranie.",
    "issues": [
     88
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   },
   {
    "key": "i89",
@@ -16,7 +18,9 @@
    "desc": "Widzowie głosują na zdarzenia, które trener uruchamia.",
    "issues": [
     89
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   }
  ],
  "label": "kategoria: Stream i chaos",

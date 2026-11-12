@@ -13,7 +13,9 @@
      "key": "itemmap",
      "text": "mapa z przedmiotami na bazie [ItemMap](https://github.com/Sefaris/ItemMap) (Sefaris) — integracja ItemMapPlugin albo własna implementacja na bazie jego kodu, z creditem."
     }
-   ]
+   ],
+   "priority": "wysoki",
+   "status": "zatwierdzony"
   },
   {
    "key": "i96",
@@ -22,7 +24,9 @@
    "desc": "Wyszukaj postać i teleportuj się do niej, gdziekolwiek jest w świecie.",
    "issues": [
     96
-   ]
+   ],
+   "priority": "wysoki",
+   "status": "zatwierdzony"
   },
   {
    "key": "i73",
@@ -31,7 +35,9 @@
    "desc": "Zapisuj kolejne punkty jako trasę, odtwarzaj automatycznie (zwiedzanie, bot, nagrania).",
    "issues": [
     73
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   }
  ],
  "label": "kategoria: Teleport",

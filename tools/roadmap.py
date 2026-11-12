@@ -40,10 +40,16 @@ def fetch_ideas():
         if not d["pageInfo"]["hasNextPage"]: return out
         cur = d["pageInfo"]["endCursor"]
 
+def prio(i):
+    names = [l["name"] for l in i.get("labels", [])]
+    return 0 if "priorytet:wysoki" in names else 1 if "priorytet:średni" in names else 2
+
 def ref(i): return i.get("ref") or f"#{i['number']}"
 
 def section(i):
-    if i.get("idea"): return "plans" if order(i) < 9999 else "ideas"
+    if i.get("idea"):
+        st = next((l["name"][8:] for l in i.get("labels", []) if l["name"].startswith("status: ")), "nowy")
+        return {"odrzucony": None, "zrobione": "done", "w trakcie": "doing", "w planie": "plans", "zatwierdzony": "plans"}.get(st, "ideas")
     labels = {l["name"] for l in i.get("labels", [])}
     if i["state"] == "closed":
         return "done" if i.get("state_reason") != "not_planned" else None
@@ -59,8 +65,8 @@ SECTIONS = [
     ("bugs", "Błędy", "Znane problemy, które jeszcze nie są naprawione."),
     ("doing", "W trakcie", "Nad tym właśnie pracujemy."),
     ("verify", "Do sprawdzenia w grze", "Poprawione w ostatnim buildzie - czeka na potwierdzenie testerów."),
-    ("plans", "Plany", "Zaplanowane na kolejne buildy - w kolejności priorytetu (od góry)."),
-    ("ideas", "Pomysły - głosuj", "Każdy pomysł to osobny wątek w Dyskusjach: zagłosuj strzałką w górę lub 👍 - najwyżej ocenione robimy najpierw."),
+    ("plans", "Plany", "Zatwierdzone pomysły - od najwyższego priorytetu."),
+    ("ideas", "Nowe pomysły - głosuj", "Każdy pomysł to osobny wątek w Dyskusjach: zagłosuj strzałką w górę lub 👍 - najwyżej ocenione robimy najpierw."),
     ("done", "Zrobione", "Ostatnio zamknięte."),
     ("other", "Inne", ""),
 ]
@@ -78,7 +84,7 @@ def build(issues):
         if s: groups[s].append(i)
     for k in groups:
         if k == "done": groups[k].sort(key=lambda i: i.get("closed_at") or "", reverse=True); groups[k] = groups[k][:60]
-        elif k == "plans": groups[k].sort(key=lambda i: (order(i), -votes(i), i["number"]))
+        elif k == "plans": groups[k].sort(key=lambda i: (prio(i), order(i), -votes(i), i["number"]))
         else: groups[k].sort(key=lambda i: (-votes(i), -i["number"]))
     return groups
 

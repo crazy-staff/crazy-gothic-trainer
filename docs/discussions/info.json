@@ -7,7 +7,9 @@
    "desc": "Wyskakujące liczby obrażeń, podsumowanie walki, DPS.",
    "issues": [
     78
-   ]
+   ],
+   "priority": "średni",
+   "status": "zatwierdzony"
   },
   {
    "key": "i83",
@@ -16,7 +18,9 @@
    "desc": "Podgląd planu dnia postaci na ESP / mapie, z teleportem do miejsca.",
    "issues": [
     83
-   ]
+   ],
+   "priority": "średni",
+   "status": "zatwierdzony"
   },
   {
    "key": "i84",
@@ -25,7 +29,9 @@
    "desc": "Znaczniki na ESP i radarze dla handlarzy, nauczycieli i postaci z zadaniami.",
    "issues": [
     84
-   ]
+   ],
+   "priority": "średni",
+   "status": "zatwierdzony"
   },
   {
    "key": "i95",
@@ -34,7 +40,9 @@
    "desc": "HP, obrażenia, ochrona, gildia, gdzie występuje - z portretami.",
    "issues": [
     95
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   }
  ],
  "label": "kategoria: Informacje",

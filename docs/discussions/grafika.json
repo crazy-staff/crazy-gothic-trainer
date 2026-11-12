@@ -5,17 +5,23 @@
   {
    "key": "n-underwater",
    "title": "Wyłączenie efektu wizualnego pod wodą",
-   "desc": "Opcja, która usuwa zniekształcenie i kolor obrazu po zanurzeniu.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_"
+   "desc": "Opcja, która usuwa zniekształcenie i kolor obrazu po zanurzeniu.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_",
+   "priority": "niski",
+   "status": "zatwierdzony"
   },
   {
    "key": "n-vegcam",
    "title": "Ukrywanie roślinności, która zasłania bohatera",
-   "desc": "Krzaki, trawa i liście między kamerą a bohaterem stają się przezroczyste albo znikają.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_"
+   "desc": "Krzaki, trawa i liście między kamerą a bohaterem stają się przezroczyste albo znikają.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_",
+   "priority": "średni",
+   "status": "zatwierdzony"
   },
   {
    "key": "n-dangle",
    "title": "Dyndająca broń przy pasie",
-   "desc": "Włączenie fizycznego ruchu broni noszonej przy pasie i na plecach.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_"
+   "desc": "Włączenie fizycznego ruchu broni noszonej przy pasie i na plecach.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_",
+   "priority": "niski",
+   "status": "zatwierdzony"
   }
  ]
 }

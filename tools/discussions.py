@@ -36,9 +36,16 @@ def all_discussions():
         if not d["discussions"]["pageInfo"]["hasNextPage"]: return d, out
         cur = d["discussions"]["pageInfo"]["endCursor"]
 
+STATUS = {"nowy": ("ededed", "Pomysł czeka na przejrzenie"), "zatwierdzony": ("0e8a16", "Przyjęty - zrobimy"),
+          "w planie": ("1d76db", "Ma zgłoszenie i build, w którym wejdzie"), "w trakcie": ("fbca04", "Właśnie robione"),
+          "zrobione": ("5319e7", "Jest w trenerze"), "odrzucony": ("b60205", "Nie będzie robione")}
+
 def label_id(name, desc):
+    if name.startswith("status: "): desc = desc or STATUS.get(name[8:], ("", ""))[1]
     l = rest("GET", "labels/" + urllib.parse.quote(name))
-    if not l: l = rest("POST", "labels", {"name": name, "color": "8a63d2", "description": desc[:100]})
+    if not l:
+        col = STATUS.get(name[8:], ("8a63d2",))[0] if name.startswith("status: ") else "8a63d2"
+        l = rest("POST", "labels", {"name": name, "color": col, "description": desc[:100]})
     return l["node_id"]
 
 def idea_body(i):
@@ -82,6 +89,10 @@ def main():
                         comment(d["id"], f"{m}\n**Dołączony pomysł:** {a['text']}")
                         print("  dopisano", a["key"], "->", d["number"])
             want = [t["label"]] + i.get("labels", [])
+            have_l = {l["name"] for l in d["labels"]["nodes"]}
+            # priority / status are set only when missing - later changes made on GitHub (UI) win
+            if i.get("priority") and not any(x.startswith("priorytet") for x in have_l): want.append("priorytet:" + i["priority"])
+            if i.get("status") and not any(x.startswith("status:") for x in have_l): want.append("status: " + i["status"])
             miss = [x for x in want if x not in {l["name"] for l in d["labels"]["nodes"]}]
             if miss:
                 ids = [lid if x == t["label"] else label_id(x, "") for x in miss]

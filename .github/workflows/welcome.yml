@@ -5,6 +5,7 @@ on:
     types: [created]
 permissions:
   discussions: write
+  issues: read
 jobs:
   hello:
     if: github.event.discussion.user.type != 'Bot'
@@ -18,4 +19,8 @@ jobs:
             const body = d.category.slug === 'ideas'
               ? 'Dzięki za pomysł! Już jest na [mapie drogowej](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/blob/main/ROADMAP.md) — inni mogą na niego głosować strzałką w górę lub 👍. Przy najbliższym przeglądzie dostanie etykietę kategorii (a jeśli jest już bardzo podobny pomysł, podlinkuję go tutaj).'
               : 'Dzięki! Jeśli to pomysł na funkcję, nie przejmuj się kategorią — przy najbliższym przeglądzie przeniosę go do [Pomysłów](' + ideas + '). Błędy najlepiej zgłaszać przez Centrum testera w grze albo w zakładce Issues.';
+            if (d.category.slug === 'ideas') {
+              const l = await github.rest.issues.getLabel({ ...context.repo, name: 'status: nowy' });
+              await github.graphql(`mutation($i:ID!,$l:[ID!]!){addLabelsToLabelable(input:{labelableId:$i,labelIds:$l}){clientMutationId}}`, { i: d.node_id, l: [l.data.node_id] });
+            }
             await github.graphql(`mutation($d:ID!,$b:String!){addDiscussionComment(input:{discussionId:$d,body:$b}){comment{id}}}`, { d: d.node_id, b: body });

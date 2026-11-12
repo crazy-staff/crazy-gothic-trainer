@@ -7,7 +7,9 @@
    "desc": "Podgląd i edycja zawartości skrzyni, na którą patrzysz.",
    "issues": [
     75
-   ]
+   ],
+   "priority": "wysoki",
+   "status": "zatwierdzony"
   },
   {
    "key": "i74",
@@ -16,7 +18,9 @@
    "desc": "Spawner obiektów świata (vobów) z obracaniem i zapisem w grze.",
    "issues": [
     74
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   },
   {
    "key": "i71",
@@ -25,7 +29,9 @@
    "desc": "Sterowanie deszczem/mgłą/niebem, zatrzymanie pogody.",
    "issues": [
     71
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   },
   {
    "key": "i85",
@@ -34,7 +40,9 @@
    "desc": "Wolna kamera, zatrzymanie czasu, zrzut w wysokiej rozdzielczości.",
    "issues": [
     85
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   }
  ],
  "label": "kategoria: Świat",

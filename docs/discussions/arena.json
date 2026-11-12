@@ -7,7 +7,9 @@
    "desc": "Wzmocniony potwór (HP, obrażenia, rozmiar, aura) z lepszą nagrodą.",
    "issues": [
     77
-   ]
+   ],
+   "priority": "średni",
+   "status": "zatwierdzony"
   },
   {
    "key": "i76",
@@ -16,7 +18,9 @@
    "desc": "Własne listy przeciwników, modyfikatory fal, czas przetrwania, tabela wyników.",
    "issues": [
     76
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   },
   {
    "key": "i80",
@@ -25,7 +29,9 @@
    "desc": "Postać, która nie atakuje i mierzy obrażenia (testy broni i czarów).",
    "issues": [
     80
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   },
   {
    "key": "i92",
@@ -34,7 +40,9 @@
    "desc": "Np. przetrwaj 10 fal, zbierz 500 przedmiotów, pokonaj bossa - z odznakami.",
    "issues": [
     92
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   }
  ],
  "label": "kategoria: Arena",

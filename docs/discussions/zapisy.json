@@ -8,7 +8,9 @@
    "issues": [
     65,
     51
-   ]
+   ],
+   "priority": "wysoki",
+   "status": "zatwierdzony"
   },
   {
    "key": "i67",
@@ -17,7 +19,9 @@
    "desc": "Lista zadań z dziennika, ustawianie: w toku / ukończone / nieudane, pomoc gdy quest się zablokował.",
    "issues": [
     67
-   ]
+   ],
+   "priority": "średni",
+   "status": "zatwierdzony"
   },
   {
    "key": "i68",
@@ -26,7 +30,9 @@
    "desc": "Przeglądarka zmiennych skryptów (np. kto już coś powiedział), zmiana wartości, ostrzeżenia co może zepsuć fabułę.",
    "issues": [
     68
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   }
  ],
  "label": "kategoria: Zapisy i fabuła",

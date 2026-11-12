@@ -13,7 +13,9 @@
      "key": "partygive",
      "text": "przekazywanie przedmiotów towarzyszom (i odbieranie od nich) prosto z ekwipunku."
     }
-   ]
+   ],
+   "priority": "wysoki",
+   "status": "zatwierdzony"
   },
   {
    "key": "i69",
@@ -22,7 +24,9 @@
    "desc": "Zapisz „buildy” postaci (atrybuty, umiejętności, wygląd, gildia) i wczytuj jednym kliknięciem.",
    "issues": [
     69
-   ]
+   ],
+   "priority": "niski",
+   "status": "zatwierdzony"
   }
  ],
  "label": "kategoria: Postać",
