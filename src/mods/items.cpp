@@ -105,7 +105,15 @@ void Act_BotStart(const std::vector<uintptr_t>& items) {
         tst::Event("lootbot", "start: " + std::to_string(g_route.size()));
     });
 }
-void Act_BotStop() { T.Queue("item:botstop", [] { if (g_bot) T.Toast("Bot zatrzymany: zebrano " + std::to_string(g_botGot)); g_bot = false; }); }
+// build 16: "return to start" also when the bot is stopped (Esc / button), not only when the route ends
+void BotFinish(void* h, const char* why) {
+    if (!g_bot) return;
+    g_bot = false;
+    if (On("lootbotback") && h) SafeSetPos(h, g_botHome);
+    T.Toast(std::string(why) + ": zebrano " + std::to_string(g_botGot) + (On("lootbotback") ? " - wracasz na miejsce startu" : ""));
+    tst::Event("lootbot", std::string(why) + ": " + std::to_string(g_botGot));
+}
+void Act_BotStop() { T.Queue("item:botstop", [] { BotFinish(Player(), "Bot zatrzymany"); }); }
 
 void Items_Hooks() {}
 void Items_World() { g_bot = false; g_route.clear(); g_animTaken.clear(); g_map.reset(); g_mapAt = -10; }
@@ -116,7 +124,7 @@ void Items_Tick(TickCtx& c) {
     static double lootAt = 0;
     if (On("autoloot") && !c.paused && h && !NpcDead(h) && now - lootAt > std::max(0.1f, Val("lootint"))) {
         lootAt = now;
-        bool anim = On("lootanim");
+        bool anim = On("lootanim") && !On("noclip") && !On("glide");   // build 16: no pick-up animation while flying / gliding
         float r = Val("lootrange") * 100.f; if (anim) r = std::min(r, 350.f);
         zVEC3 hp = Pos(h);
         std::vector<std::pair<float, void*>> v;
@@ -135,17 +143,13 @@ void Items_Tick(TickCtx& c) {
     }
     // bot
     if (g_bot && h) {
-        if (GameFocused() && (GetAsyncKeyState(VK_ESCAPE) & 0x8000)) { g_bot = false; T.Toast("Bot przerwany (Esc): zebrano " + std::to_string(g_botGot)); }
+        if (GameFocused() && (GetAsyncKeyState(VK_ESCAPE) & 0x8000)) BotFinish(h, "Bot przerwany (Esc)");
         else if (!c.paused && now - g_botAt > std::max(0.05f, Val("lootbotdelay"))) {
             g_botAt = now;
             auto live = WorldItems();
             while (g_ri < g_route.size() && !live.count(g_route[g_ri])) g_ri++;
-            if (g_ri >= g_route.size()) {
-                g_bot = false;
-                if (On("lootbotback")) SafeSetPos(h, g_botHome);
-                T.Toast("Bot skończył: zebrano " + std::to_string(g_botGot));
-                tst::Event("lootbot", "koniec: " + std::to_string(g_botGot));
-            } else {
+            if (g_ri >= g_route.size()) BotFinish(h, "Bot skończył");
+            else {
                 void* it = g_route[g_ri++];
                 zVEC3 p = Pos(it);
                 SafeSetPos(h, { p.x, p.y + 100.f, p.z });

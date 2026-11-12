@@ -7,7 +7,7 @@
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 15
+#define TRAINER_BUILD 16
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]
@@ -48,6 +48,7 @@ struct Label {
     bool anchor = false; float ax = 0, ay = 0;   // where the ground line ends (feet of the skeleton)
     std::string text, sub;
     std::vector<std::string> lines;   // equipment / chest contents
+    bool hasT = false; float tx = 0, ty = 0;   // build 16: line to whom this NPC attacks
     unsigned color;
     float hp;
 };
@@ -82,6 +83,9 @@ struct Snapshot {
     std::string tInst, tPlace; float tx = 0, ty = 0, tz = 0; uintptr_t tPtr = 0;
     std::vector<NearNpc> nearby, party, spawned, env;
     std::shared_ptr<const std::vector<MapItem>> mapItems; bool botOn = false; int botLeft = 0, botGot = 0;   // build 15
+    std::string aimTarget;   // build 16
+    int thrCount = 0; std::string thrName, weapon; float thrDist = 0;   // build 16 widgets
+    std::vector<RadarDot> ind;   // build 16: ESP direction arrows (world-relative, like radar dots)
     std::vector<RadarDot> radar; float rfx = 0, rfz = 1, rrx = 1, rrz = 0;   // build 14: radar dots + hero forward/right   // env: build 14 Otoczenie page (incl. party, dead)
     std::string subjectName; uintptr_t subjectPtr = 0;
     bool quicksilver = false;
@@ -110,6 +114,7 @@ struct Trainer {
     std::string toast; double toastUntil = 0;
     bool menuOpen = false;
     bool envWanted = false;
+    bool shotSelect = false;  // build 16: Shift+F11 area selection owns mouse + keyboard
     bool mapWanted = false;   // build 15: the map item list is open   // build 14: the Otoczenie page is open (its list is refreshed only then)
 
     int spawnMode = 0, spawnCount = 1, itemAmount = 1;

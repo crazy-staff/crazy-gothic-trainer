@@ -333,10 +333,12 @@ void Party_BreakFight(void* n) {
         else if (K.stFollow >= 0) CallExt("AI_StartState", { Arg::Npc(n), Arg::Int(K.stFollow), Arg::Int(1), Arg::Str("") });
     });
 }
-static void Calm(void* n) {
+static void Calm(void* n, void* about = nullptr) {
     auto& t = g_calmAt[n];
     if (T.gameClock - t < 0.5) return;
     t = T.gameClock;
+    static double logAt = 0;   // build 16: visible in reports (party fights were hard to test)
+    if (T.gameClock - logAt > 2.0) { logAt = T.gameClock; tst::Event("party", "przerwano walkę: " + InstName(n) + (about ? " -> " + InstName(about) : std::string())); }
     if (IsAlly(n)) { Party_BreakFight(n); return; }
     Schedule(0.0, [n] { if (NpcAlive(n) && NpcReady(n)) Peace(n); });
 }
@@ -536,6 +538,27 @@ void Npcs_Tick(TickCtx& c) {
         }
     }
     if (On("allykeep") && !c.paused) Guard("row:allykeep", [] { KeepParty(); });
+    // build 16: the perception/damage filters alone did not stop every fight (#100): every 0.5 s check whom the
+    // party members and the people around them really fight, and break fights the options do not allow
+    static double enfAt = 0;
+    if (!g_allies.empty() && !c.paused && T.gameClock - enfAt > 0.5) {
+        enfAt = T.gameClock;
+        void* h = c.hero;
+        Guard("party:enforce", [&] {
+            for (void* a : std::vector<void*>(g_allies)) {
+                if (!NpcAlive(a) || !VobInWorld(a)) continue;
+                void* t = NpcTarget(a);
+                if (!t || !NpcFighting(a)) continue;
+                bool bad = t == h || t == MainHero() ? true : IsAlly(t) ? !On("partyinfight") : (!PartyEnemy(t) && !(IsMonster(a) ? On("partymonatk") : On("partyhumatk")));
+                if (bad) Calm(a, t);
+            }
+            if (!On("partyothersatk")) NpcsInRadius(4000.f, [&](void* n) {
+                if (IsAlly(n) || NpcDead(n)) return;
+                void* t = NpcTarget(n);
+                if (t && IsAlly(t) && !PartyEnemy(n) && NpcFighting(n)) Calm(n, t);
+            });
+        });
+    }
     {   // build 14: Otoczenie - everybody around (party and dead included), only while that page is open
         static std::vector<NearNpc> env; static double envAt = -10;
         if (T.menuOpen && T.envWanted && NowSec() - envAt > 0.5) {
@@ -614,6 +637,31 @@ void Npcs_Register() {
     T.Add(MkRow("allyfightbreak", "Po teleporcie przerywa walkę", "towarzysz przeniesiony do ciebie idzie za tobą zamiast wracać do przeciwnika", C, D, K_TOGGLE));
     T.rows.back().on = true; St(ST_NEW, "nowe w build 13");
     T.Add(MkRow("allykeepdist", "Przenieś z odległości", "m", C, D, K_VALUE, 30, 10, 150)); St(ST_NEW, "nowe w build 7");
+    {   // build 16: a test scene for the party fight options (Narzędzia › Diagnostyka)
+        static std::vector<void*> scene;
+        CardTitle("Test drużyny");
+        T.Add(MkRow("partytest", "Scena testowa drużyny", "wokół ciebie: człowiek i wilk w drużynie, neutralny kopacz, ścierwojad; potem zmieniaj opcje w karcie Walki", "Narzędzia", "Diagnostyka", K_ACTION, 0, 0, 0, [](Row&) {
+            for (void* n : scene) if (NpcExists(n)) RemoveVob(n);
+            scene.clear();
+            struct P { const char* inst; int role; float ang; };   // role 0 ally, 1 neutral, 2 hostile
+            static const P ps[] = { { "GRD_200_THORUS", 0, 0.f }, { "WOLF", 0, 1.57f }, { "VLK_581_SNAF", 1, 3.14f }, { "SCAVENGER", 2, 4.71f } };
+            for (auto& p : ps) {
+                int sym = SymIndex(p.inst);
+                if (sym < 0) { for (auto& e : g_cat.npcs) if ((p.role == 1 && e.group == NG_OLDCAMP) || (p.role == 0 && !std::string(p.inst).empty() && e.group == NG_OLDCAMP)) { sym = e.sym; break; } }
+                if (sym < 0) continue;
+                void* n = SpawnNpc(sym, SpawnPointNear(500.f, 600.f, p.ang), true);
+                if (!n) continue;
+                scene.push_back(n); g_spawnedNpcs.push_back({ n, T.gameClock });
+                if (p.role == 0) MakeAlly(n);
+            }
+            T.Toast("Scena testowa: " + std::to_string(scene.size()) + " postaci (włącz ESP › Kogo atakuje)");
+            tst::Event("partytest", "scena: " + std::to_string(scene.size())); }));
+        NoVal(); Icon(ICN_USERS); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("partytestclear", "Usuń scenę testową", "", "Narzędzia", "Diagnostyka", K_ACTION, 0, 0, 0, [](Row&) {
+            int c = 0; for (void* n : scene) if (NpcExists(n)) { RemoveVob(n); c++; }
+            scene.clear(); T.Toast("Usunięto " + std::to_string(c)); }));
+        NoVal(); Icon(ICN_TRASH); St(ST_NEW, "nowe w build 16");
+    }
     CardTitle("Otoczenie");
     T.Add(MkRow("envradius", "Promień", "m - kogo pokazuje lista Otoczenie", C, "Otoczenie", K_VALUE, 30, 5, 150)); St(ST_NEW, "nowe w build 14");
     CardTitle("Walki");

@@ -246,12 +246,16 @@ void Chaos_Register() {
     T.Add(MkRow("rainmask", "Zaklęcia", "", C, M, K_VALUE, 2 | 16, 0, 511)); Hidden(); St(ST_NEW, "nowe w build 4");
 
     const char* I = "Walka";   // build 7: each transformation has its own card under Walka
-    CardTitle("Zombie");
+    CardTitle("Apokalipsa");
+    // build 16: renamed (not only zombies); "who rises" and "how they behave" are separate cards
     // build 15: which undead, how strong, how far, what they do; "remove all" for the ones the apocalypse made
-    T.Add(MkRow("zombies", "Apokalipsa zombie", "ile nieumarłych wokół ciebie", C, I, K_ACTION, 8, 1, 200, [](Row& r) {
+    T.Add(MkRow("zombies", "Apokalipsa", "ilu nieumarłych powstaje wokół ciebie", C, I, K_ACTION, 8, 1, 200, [](Row& r) {
         std::vector<const NpcEntry*> pool;
         for (auto& e : g_cat.npcs) {
             if (e.group != NG_UNDEAD || T.Crashed("npc:" + e.id)) continue;
+            // build 16: story / scripted undead stay immortal by script - never part of the apocalypse
+            if (e.id.find("KEEPER") != std::string::npos || e.id.find("SLEEPER") != std::string::npos || e.id.find("ROCKEFELLER") != std::string::npos ||
+                e.id.find("TEST") != std::string::npos || e.id.find("SUMMONED") != std::string::npos) continue;
             bool z = e.id.find("ZOMBIE") != std::string::npos, sk = e.id.find("SKELETON") != std::string::npos || e.id.find("SKELETT") != std::string::npos;
             if ((z && On("zombz")) || (sk && On("zombsk")) || (!z && !sk && On("zombot"))) pool.push_back(&e);
         }
@@ -269,11 +273,20 @@ void Chaos_Register() {
             Guard("npc:" + e->id, [&] { z = SpawnNpc(e->sym, SpawnPointNear(rr, rr + 600.f, (float)i / std::min(n, 40) * 6.2831f + (float)(i / 40) * 0.3f)); });
             if (!z) continue;
             g_zombies.push_back(z);
-            if (On("zombmortal")) MakeMortal(z);
-            for (int k = 0; k < 8; k++) fld<int>(z, protOff + 4 * k) = std::max(0, prot + (int)(rng() % 11) - 5);
             int hp = std::max(1, hpBase + (int)(rng() % (hpBase / 2 + 1)) - hpBase / 4);
-            SetAttr(z, 1, hp); SetAttr(z, 0, hp);
-            if (On("zombname")) ZAssign(&fld<zSTRING>(z, nameOff), "Zombie apokalipsy");
+            std::vector<int> pr(8); for (auto& v : pr) v = std::max(0, prot + (int)(rng() % 11) - 5);
+            bool mortal = On("zombmortal");
+            auto apply = [z, hp, pr, mortal, protOff]() {   // build 16: again after insertion - scripts reset values
+                if (!NpcExists(z)) return;
+                if (mortal) { MakeMortal(z); fld<int>(z, NPC_FLAGS) &= ~2; }
+                for (int k = 0; k < 8; k++) fld<int>(z, protOff + 4 * k) = pr[k];
+                if (Attr(z, 1) != hp) { SetAttr(z, 1, hp); SetAttr(z, 0, hp); }
+            };
+            apply(); Schedule(0.5, apply); Schedule(1.5, apply);
+            if (On("zombname")) {   // build 16: "Szkielet apokalipsy", "Zombie apokalipsy"... from the creature's own name
+                std::string nm = NpcName(z); if (nm.empty()) nm = "Nieumarły";
+                ZAssign(&fld<zSTRING>(z, nameOff), (nm + " apokalipsy").c_str());
+            }
             if (On("zombfat")) CallExt("Mdl_SetModelFatness", { Arg::Npc(z), Arg::Flt((float)(rng() % 300) / 100.f - 0.5f) });
             if (On("zombhunt") && h) Aggro(z, h);
         }
@@ -282,14 +295,14 @@ void Chaos_Register() {
     T.Add(MkRow("zombdist", "Odległość pojawienia się", "m od ciebie", C, I, K_VALUE, 10, 3, 80)); St(ST_NEW, "nowe w build 15");
     T.Add(MkRow("zombhp", "Życie", "HP (±25%)", C, I, K_VALUE, 150, 10, 3000)); St(ST_NEW, "nowe w build 15");
     T.Add(MkRow("zombprot", "Ochrona", "przed każdym rodzajem obrażeń", C, I, K_VALUE, 20, 0, 300)); St(ST_NEW, "nowe w build 15");
-    T.Add(MkRow("zombclear", "Usuń zombie z apokalipsy", "tylko te, które stworzyła ta opcja", C, I, K_ACTION, 0, 0, 0, [](Row&) {
+    T.Add(MkRow("zombclear", "Usuń nieumarłych z apokalipsy", "tylko tych, których stworzyła ta opcja", C, I, K_ACTION, 0, 0, 0, [](Row&) {
         int c = 0; for (void* z : g_zombies) if (NpcExists(z)) { RemoveVob(z); c++; }
         g_zombies.clear(); T.Toast("Usunięto " + std::to_string(c) + " zombie"); }));
     NoVal(); Icon(ICN_TRASH); St(ST_NEW, "nowe w build 15");
     auto chk = [&](const char* id, const char* name, bool def, const char* note = "") { T.Add(MkRow(id, name, note, C, I, K_TOGGLE)); T.rows.back().on = def; Hidden(); St(ST_NEW, "nowe w build 15"); };
     chk("zombz", "Zombie", true); chk("zombsk", "Szkielety", false); chk("zombot", "Inni nieumarli", false);
-    chk("zombhunt", "Od razu atakują ciebie", true); chk("zombmortal", "Bez odporności ze skryptów", true);
-    chk("zombfat", "Losowa tusza", true); chk("zombname", "Nazwa „Zombie apokalipsy”", true);
+    chk("zombhunt", "Od razu atakują ciebie", true); chk("zombmortal", "Da się ich zabić (bez odporności ze skryptów)", true);
+    chk("zombfat", "Losowa tusza", true); chk("zombname", "Nazwa „… apokalipsy”", true);
 
     CardTitle("Polimorfia");
     T.Add(MkRow("polymorph", "Polimorf", "promień (m); przemienia postacie w stworzenia - UWAGA: usuwa NPC (questy!)", C, I, K_ACTION, 10, 1, 100, [](Row& r) {

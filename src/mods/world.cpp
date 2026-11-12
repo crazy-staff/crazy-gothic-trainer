@@ -20,6 +20,7 @@ void TimeScales(void* hero, bool paused) {
     if (spd && mode == 0) { npcScale *= std::max(0.05f, Val("speed")); if (!On("speedallies")) allyScale *= std::max(0.05f, Val("speed")); }
     if (On("quicksilver")) { npcScale *= std::max(0.02f, Val("qsfactor")); if (!On("qsallies")) allyScale *= std::max(0.02f, Val("qsfactor")); }
     float heroScale = On("pspeed") ? Val("pspeed") : 1.f;
+    if (On("atkspeed") && hero && CallExt("Npc_IsInFightMode", { Arg::Npc(hero), Arg::Int(ConstInt("FMODE_NONE", 0)) }) == 0) heroScale *= std::max(1.f, Val("atkspeed"));   // build 16
     if (On("quicksilver")) heroScale *= std::max(1.f, Val("qshero"));
     if (paused) return;
     void* main = MainHero();
@@ -102,12 +103,18 @@ void World_Register() {
     St(ST_OK, "działa");
 
     CardTitle("Menu");
-    T.Add(MkRow("keepsearch", "Pamiętaj wyszukiwanie", "każda zakładka zachowuje wpisany tekst po przejściu do innej", "Konfiguracja", "Konfiguracja", K_TOGGLE));
+    CardTitle("Wygląd menu");   // build 16
+    T.Add(MkRow("uiscale", "Skala menu", "% (tekst i odstępy)", "Konfiguracja", "Wygląd menu", K_VALUE, 100, 60, 160)); St(ST_NEW, "nowe w build 16");
+    T.Add(MkRow("uialpha", "Krycie menu", "%", "Konfiguracja", "Wygląd menu", K_VALUE, 100, 50, 100)); St(ST_NEW, "nowe w build 16");
+    T.Add(MkRow("uiround", "Zaokrąglenie rogów", "% (0 = kanciaste)", "Konfiguracja", "Wygląd menu", K_VALUE, 100, 0, 200)); St(ST_NEW, "nowe w build 16");
+    T.Add(MkRow("uidim", "Przyciemnienie gry za menu", "%", "Konfiguracja", "Wygląd menu", K_VALUE, 0, 0, 80)); St(ST_NEW, "nowe w build 16");
+    CardTitle("Zachowanie");
+    T.Add(MkRow("keepsearch", "Pamiętaj wyszukiwanie", "każda zakładka zachowuje wpisany tekst po przejściu do innej", "Konfiguracja", "Zachowanie", K_TOGGLE));
     T.rows.back().on = true; St(ST_NEW, "nowe w build 15");
-    T.Add(MkRow("pausemenu", "Pauza przy otwartym menu", "świat stoi, gdy menu trainera jest otwarte", "Konfiguracja", "Konfiguracja", K_TOGGLE));
+    T.Add(MkRow("pausemenu", "Pauza przy otwartym menu", "świat stoi, gdy menu trainera jest otwarte", "Konfiguracja", "Zachowanie", K_TOGGLE));
     T.rows.back().on = true; St(ST_OK, "działa"); Icon(ICN_CLOCK);
     CardTitle("Okno aktywnych modów");
-    T.Add(MkRow("statuswin", "Kiedy pokazywać", "małe okno z listą wszystkiego, co jest włączone (i z jakimi ustawieniami)", "Konfiguracja", "Konfiguracja", K_VALUE, 0, 0, 2));
+    T.Add(MkRow("statuswin", "Kiedy pokazywać", "małe okno z listą wszystkiego, co jest włączone (i z jakimi ustawieniami)", "Konfiguracja", "Okna", K_VALUE, 0, 0, 2));
     Opts({ { 0, "Wyłączone" }, { 1, "Tylko w menu" }, { 2, "W menu i w grze" } }); St(ST_NEW, "build 6: trzy tryby");
-    T.Add(MkRow("statusalpha", "Przezroczystość tła", "%", "Konfiguracja", "Konfiguracja", K_VALUE, 70, 0, 100)); St(ST_NEW, "nowe w build 5");
+    T.Add(MkRow("statusalpha", "Przezroczystość tła", "%", "Konfiguracja", "Okna", K_VALUE, 70, 0, 100)); St(ST_NEW, "nowe w build 5");
 }

@@ -81,6 +81,21 @@ void* Subject() {
     if (s == 2) if (void* t = Target()) return t;
     return Player();
 }
+// build 16: whom an NPC is fighting (Npc_GetTarget fills the script global OTHER - restored right after)
+void* NpcTarget(void* n) {
+    static Sym* other = nullptr; if (!other) other = SymByName("OTHER");
+    if (!other || !NpcReady(n)) return nullptr;
+    int saved = other->offset;
+    void* t = nullptr;
+    if (CallExt("Npc_GetTarget", { Arg::Npc(n) })) t = (void*)(uintptr_t)other->offset;
+    other->offset = saved;
+    return (t && t != n && NpcExists(t)) ? t : nullptr;
+}
+bool NpcFighting(void* n) {
+    if (!NpcReady(n)) return false;
+    return (K.stAttack >= 0 && CallExt("Npc_IsInState", { Arg::Npc(n), Arg::Int(K.stAttack) })) ||
+           (K.stMmAttack >= 0 && CallExt("Npc_IsInState", { Arg::Npc(n), Arg::Int(K.stMmAttack) }));
+}
 bool IsAlly(void* n) { return std::find(g_allies.begin(), g_allies.end(), n) != g_allies.end(); }
 // AI calls on an npc whose animation controller/model is not set up yet (fresh spawn, far away)
 // crash inside the engine (build 3: arena/spawn/peace). Such npcs are retried a bit later.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Public roadmap from GitHub issues: ROADMAP.md (rendered by GitHub) + site/index.html (GitHub Pages).
 Votes = 👍 reactions on an issue. Run by .github/workflows/roadmap.yml; locally: roadmap.py --from issues.json"""
-import json, os, sys, html, urllib.request, datetime
+import json, os, sys, html, re, urllib.request, datetime
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "dawidseipold/gothic1-crazy-trainer")
 
@@ -32,13 +32,16 @@ SECTIONS = [
     ("bugs", "Błędy", "Znane problemy, które jeszcze nie są naprawione."),
     ("doing", "W trakcie", "Nad tym właśnie pracujemy."),
     ("verify", "Do sprawdzenia w grze", "Poprawione w ostatnim buildzie - czeka na potwierdzenie testerów."),
-    ("plans", "Plany", "Zaplanowane na kolejne buildy."),
+    ("plans", "Plany", "Zaplanowane na kolejne buildy - w kolejności priorytetu (od góry)."),
     ("ideas", "Pomysły - głosuj", "Daj 👍 pod zgłoszeniem na GitHubie - najwyżej ocenione robimy najpierw."),
     ("done", "Zrobione", "Ostatnio zamknięte."),
     ("other", "Inne", ""),
 ]
 
 def votes(i): return (i.get("reactions") or {}).get("+1", 0)
+def order(i):   # "Kolejność: N" in the body = priority set by the author (plans)
+    m = re.search(r"Kolejno\S*:\s*(\d+)", i.get("body") or "")
+    return int(m.group(1)) if m else 9999
 
 def build(issues):
     issues = [i for i in issues if "pull_request" not in i]
@@ -48,6 +51,7 @@ def build(issues):
         if s: groups[s].append(i)
     for k in groups:
         if k == "done": groups[k].sort(key=lambda i: i.get("closed_at") or "", reverse=True); groups[k] = groups[k][:60]
+        elif k == "plans": groups[k].sort(key=lambda i: (order(i), -votes(i), i["number"]))
         else: groups[k].sort(key=lambda i: (-votes(i), -i["number"]))
     return groups
 

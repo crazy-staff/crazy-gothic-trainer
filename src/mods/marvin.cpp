@@ -60,11 +60,12 @@ void Marvin_Register() {
     {   // build 13: rescue tools (Narzędzia › Diagnostyka)
         const char* D = "Diagnostyka";
         CardTitle("Zrzuty ekranu");
-        T.Add(MkRow("winkeyfix", "Zrzuty ekranu (Win+Shift+S)", "po naciśnięciu klawisza Windows gra na 8 s oddaje mysz i klawiaturę systemowi", "Narzędzia", D, K_TOGGLE));
-        T.rows.back().on = true; St(ST_NEW, "nowe w build 14 (UI-02)"); Icon(ICN_EYE);
-        T.Add(MkRow("shot", "Zrzut ekranu gry", "zapisuje klatkę gry (bez menu trenera), kopiuje do schowka i dołącza do następnego zgłoszenia; skrót F11", "Narzędzia", D, K_ACTION, 0, 0, 0,
-            [](Row&) { ShotRequest(); T.Toast("Zrzut ekranu zapisany i w schowku"); }));
-        NoVal(); Icon(ICN_EYE); T.rows.back().hotkey = VK_F11; St(ST_NEW, "nowe w build 15: zastępuje Win+Shift+S, które gra blokuje");
+        T.Add(MkRow("shot", "Zrzut całego ekranu", "F11: klatka gry (bez menu trenera) - do schowka i do folderu G1CrazyTrainer_zrzuty; do zgłoszenia wklejasz Ctrl+V", "Narzędzia", D, K_ACTION, 0, 0, 0,
+            [](Row&) { ShotRequest(false); T.Toast("Zrzut ekranu: w schowku i w folderze G1CrazyTrainer_zrzuty"); }));
+        NoVal(); Icon(ICN_EYE); T.rows.back().hotkey = VK_F11; St(ST_OK, "build 15: działa; build 16: bez automatycznego dołączania");
+        T.Add(MkRow("shotarea", "Zrzut zaznaczonego obszaru", "Shift+F11: zaznacz myszą prostokąt (Esc anuluje)", "Narzędzia", D, K_ACTION, 0, 0, 0,
+            [](Row&) { ShotRequest(true); }));
+        NoVal(); Icon(ICN_EXPAND); T.rows.back().hotkey = VK_F11 | HK_SHIFT; St(ST_NEW, "nowe w build 16");
         CardTitle("Ratunek");
         T.Add(MkRow("rescuedialog", "Zamknij zawieszoną rozmowę", "gdy okno dialogu nie reaguje", "Narzędzia", D, K_ACTION, 0, 0, 0, [](Row&) {
             void* h = Player(); if (!h) return;
@@ -90,11 +91,12 @@ void Marvin_Register() {
             T.Toast("Odblokowano: " + U(NpcName(t))); })); NoVal(); St(ST_NEW, "nowe w build 13"); Icon(ICN_USER);
     }
     {   // build 12: on-screen info window (Narzędzia › Nakładka) - drawn by the UI, these rows only choose what it shows
-        const char* N = "Nakładka";
-        CardTitle("Okno informacji");
-        T.Add(MkRow("hud", "Pokaż okno informacji", "zostaje na ekranie w trakcie gry; przeciągnij je myszką w menu", "Narzędzia", N, K_TOGGLE)); St(ST_NEW, "nowe w build 12"); Icon(ICN_LIST);
-        T.Add(MkRow("hudalpha", "Przezroczystość tła", "%", "Narzędzia", N, K_VALUE, 60, 0, 100)); St(ST_NEW, "nowe w build 12");
-        T.Add(MkRow("hudsize", "Wielkość tekstu", "%", "Narzędzia", N, K_VALUE, 100, 70, 200)); St(ST_NEW, "nowe w build 12");
+        // build 16: the info window is one of the widgets in the dock (Wizualia › Widżety)
+        const char* N = "Widżety";
+        CardTitle("Informacje");
+        T.Add(MkRow("hud", "Widżet Informacje", "wybrane linie poniżej, w doku widżetów", "Wizualia", N, K_TOGGLE)); St(ST_OK, "build 12: działa; build 16: w doku widżetów"); Icon(ICN_LIST);
+        T.Add(MkRow("hudalpha", "Przezroczystość tła", "%", "Wizualia", N, K_VALUE, 60, 0, 100)); Hidden(); St(ST_OK, "działa");
+        T.Add(MkRow("hudsize", "Wielkość tekstu", "%", "Wizualia", N, K_VALUE, 100, 70, 200)); Hidden(); St(ST_OK, "działa");
         struct { const char* id; const char* name; const char* note; bool on; } items[] = {
             { "hudfps", "FPS", "klatki na sekundę i czas klatki", true },
             { "hudpos", "Koordynaty", "X / Y / Z bohatera", true },
@@ -105,7 +107,7 @@ void Marvin_Register() {
             { "hudtarget", "Cel", "imię i HP postaci, w którą celujesz", false },
             { "hudmods", "Liczba włączonych opcji", "", false },
         };
-        for (auto& it : items) { T.Add(MkRow(it.id, it.name, it.note, "Narzędzia", N, K_TOGGLE)); T.rows.back().on = it.on; Hidden(); St(ST_OK, "build 12: działa"); }
+        for (auto& it : items) { T.Add(MkRow(it.id, it.name, it.note, "Wizualia", N, K_TOGGLE)); T.rows.back().on = it.on; Hidden(); St(ST_OK, "build 12: działa"); }
     }
     CardTitle("Tryb debug");
     T.Add(MkRow("marvin", "Tryb Marvina", "konsola F2, klawisze debug - bez wpisywania MARVIN", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_NEW, "build 9: nie wyłącza już Marvina włączonego w grze (#23)"); Icon(ICN_TERMINAL);

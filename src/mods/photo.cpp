@@ -238,7 +238,7 @@ void CleanClones() {
 }
 void Photo_Register() {
     CardTitle("Portrety i ikony");
-    T.Add(MkRow("photoitems", "Zrób ikony wszystkich przedmiotów", "około minuty; Esc przerywa", "Konfiguracja", "Konfiguracja", K_ACTION, 0, 0, 0, [](Row&) { Act_PhotoBatch(1); }));
+    T.Add(MkRow("photoitems", "Zrób ikony wszystkich przedmiotów", "około minuty; Esc przerywa", "Konfiguracja", "Obrazki", K_ACTION, 0, 0, 0, [](Row&) { Act_PhotoBatch(1); }));
     NoVal(); St(ST_NEW, "nowe w build 6");
 }
 void Photo_Hooks() {

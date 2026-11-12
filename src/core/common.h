@@ -51,6 +51,8 @@ extern int g_activeSaved;
 // allies
 extern std::vector<void*> g_allies;
 bool IsAlly(void* n);
+void* NpcTarget(void* n);     // build 16: current fight target (or null)
+bool NpcFighting(void* n);
 void MakeAlly(void* npc);
 void Aggro(void* npc, void* victim);
 void Peace(void* npc);

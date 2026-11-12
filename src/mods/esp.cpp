@@ -15,7 +15,7 @@ unsigned g_espColors[7] = { 0xFF6E6EFF, 0xFF8CF28C, 0xFF7AD8FF, 0xFF55AAFF, 0xFF
 // 0 enemy 1 ally 2 neutral 3 monster 4 dead 5 item 6 chest
 
 namespace {
-struct NpcInfo { std::string name, guild; unsigned color; bool hostile, monster, ally; std::vector<std::string> eq; double eqAt = 0, attAt = 0; };
+struct NpcInfo { std::string name, guild; unsigned color; bool hostile, monster, ally; std::vector<std::string> eq; double eqAt = 0, attAt = 0; void* target = nullptr; };
 std::unordered_map<void*, NpcInfo> g_npc;
 std::vector<void*> g_chests;
 std::unordered_map<void*, std::pair<double, std::vector<std::string>>> g_chestInv;
@@ -197,9 +197,49 @@ void RadarTick(TickCtx& c) {
     }
     if (s.radar.size() > 300) s.radar.resize(300);
 }
+void WidgetTick(TickCtx& c) {   // build 16: threats + weapon for the dock
+    Snapshot& s = c.s; void* h = c.hero;
+    static double at = 0; static int cnt = 0; static std::string nm, wpn; static float nd = 0;
+    if (NowSec() - at > 0.5) {
+        at = NowSec();
+        cnt = 0; nm.clear(); nd = 1e9f;
+        if (On("wthreat")) NpcsInRadius(Val("wthreatr") * 100.f, [&](void* n) {
+            if (NpcDead(n) || IsAlly(n)) return;
+            static std::unordered_map<void*, std::pair<double, bool>> hc;
+            auto& e = hc[n];
+            if (NowSec() - e.first > 1.0) { e.first = NowSec(); e.second = CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(h) }) == K.attHostile; }
+            if (!e.second) return;
+            cnt++; float d = Dist(Pos(n), Pos(h)) / 100.f;
+            if (d < nd) { nd = d; nm = U(NpcName(n)); }
+        });
+        if (On("wweapon")) {
+            static int flagsOff = -1; if (flagsOff < 0) flagsOff = FieldOff("C_ITEM.FLAGS", -1);
+            Sym* itemSym = SymByName("ITEM"); std::string melee, ranged;
+            for (int cat = 1; cat <= 2; cat++)   // INV_WEAPON, INV_ARMOR... category 1 = weapons in G1 inventory
+                for (int slot = 0; slot < 40; slot++) {
+                    int amount = CallExt("Npc_GetInvItemBySlot", { Arg::Npc(h), Arg::Int(cat), Arg::Int(slot) });
+                    if (amount <= 0) break;
+                    void* it = itemSym ? (void*)(uintptr_t)itemSym->offset : nullptr;
+                    if (!IsItem(it) || flagsOff < 0 || !(fld<int>(it, flagsOff) & (1 << 30))) continue;
+                    int mf = FieldOff("C_ITEM.MAINFLAG", -1) >= 0 ? fld<int>(it, FieldOff("C_ITEM.MAINFLAG", -1)) : 0;
+                    std::string n2 = K.offItemName >= 0 ? U(zs(fld<zSTRING>(it, K.offItemName))) : "?";
+                    if (mf & ConstInt("ITEM_KAT_FF", 4)) ranged = n2; else if (mf & ConstInt("ITEM_KAT_NF", 2)) melee = n2;
+                }
+            wpn = melee.empty() ? ranged : ranged.empty() ? melee : melee + " / " + ranged;
+            if (wpn.empty()) wpn = "pięści";
+        }
+    }
+    s.thrCount = cnt; s.thrName = nm; s.thrDist = nd; s.weapon = wpn;
+}
 void Esp_Tick(TickCtx& c) {
     Snapshot& s = c.s;
-    if (On("radar")) RadarTick(c);
+    {   // heading for compass / arrows
+        const float* m = &fld<float>(c.hero, VOB_TRAFO);
+        float fl = std::sqrt(m[2] * m[2] + m[10] * m[10]); if (fl > 1e-3f) { s.rfx = m[2] / fl; s.rfz = m[10] / fl; }
+        float rl = std::sqrt(m[0] * m[0] + m[8] * m[8]); if (rl > 1e-3f) { s.rrx = m[0] / rl; s.rrz = m[8] / rl; }
+    }
+    if (On("radar") || (On("compass") && On("compmark"))) RadarTick(c);
+    if (On("wthreat") || On("wweapon")) WidgetTick(c);
     s.espLines = On("espline");
     bool itm = On("espitm");
     bool npcOn = On("espnpc"), itemOn = itm && On("espitems"), chestOn = itm && On("espchest");
@@ -232,6 +272,7 @@ void Esp_Tick(TickCtx& c) {
                 }
                 inf.color = NpcDead(n) ? g_espColors[4] : inf.ally ? g_espColors[1] : inf.hostile ? g_espColors[0] : inf.monster ? g_espColors[3] : g_espColors[2];
                 if (On("espeq") && Dist(Pos(n), hp) < 1500.f && now - inf.eqAt > 2.0) { inf.eq = NpcEquipment(n); inf.eqAt = now; }
+                inf.target = (On("esptarget") && !NpcDead(n) && Dist(Pos(n), hp) < 3000.f) ? NpcTarget(n) : nullptr;   // build 16
                 next[n] = std::move(inf);
             });
             g_npc.swap(next);
@@ -249,6 +290,9 @@ void Esp_Tick(TickCtx& c) {
             if (filter == 2 && inf.monster) return;
             if (filter == 3 && !inf.monster) return;
             if (filter == 4 && !inf.ally) return;
+            if ((On("esparrows") || On("espedge")) && !dead) {   // build 16: direction indicators (also off-screen)
+                RadarDot dd{ p.x - hp.x, p.z - hp.z, inf.color, 0 }; dd.name = inf.name; s.ind.push_back(std::move(dd));
+            }
             Label L{}; L.type = 0; L.hp = -1;
             const float* b = &fld<float>(n, VOB_BBOX);
             if (!Project({ p.x, b[4] + 15.f, p.z }, L.x, L.y)) return;
@@ -314,6 +358,11 @@ void Esp_Tick(TickCtx& c) {
             if (On("esptype")) { std::string k = Npcs_Kind(n); if (!k.empty()) add("[" + k + "]"); }
             if (On("espdist")) { char bb[24]; snprintf(bb, sizeof bb, "%.0fm", d / 100.f); add(bb); }
             if (On("esphpnum")) { char bb[40]; snprintf(bb, sizeof bb, "%d/%d HP", Attr(n, 0), Attr(n, 1)); add(bb); }
+            if (inf.target && NpcExists(inf.target)) {   // build 16: who fights whom (party tests)
+                add("atakuje: " + (inf.target == h ? std::string("ciebie") : U(NpcName(inf.target))));
+                const float* tb = &fld<float>(inf.target, VOB_BBOX); zVEC3 tp = Pos(inf.target);
+                if (Project({ tp.x, tb[4], tp.z }, L.tx, L.ty)) L.hasT = true;
+            }
             L.sub = sub;
             if (On("esphp") && Attr(n, 1) > 0) L.hp = std::max(0.f, std::min(1.f, (float)Attr(n, 0) / Attr(n, 1)));
             if (On("espeq") && d < 1500.f) L.lines = inf.eq;
@@ -394,16 +443,40 @@ void Esp_Register() {
     St(ST_NEW, "build 6: nowa ramka 3D z kości");
     tog("espskel", "Szkielet", P, false, ST_NEW, "nowe w build 4 (do 40 m)");
     tog("espline", "Linie od dołu ekranu", P, false, ST_OK, "działa");
+    CardTitle("Wskaźniki kierunku");
+    tog("esparrows", "Strzałki wokół celownika", P, false, ST_NEW, "nowe w build 16: zamiast linii od dołu");
+    T.Add(MkRow("esparrowr", "Promień okręgu", "px", C, P, K_VALUE, 140, 50, 500)); St(ST_NEW, "nowe w build 16");
+    tog("espedge", "Znaczniki na krawędziach ekranu", P, false, ST_NEW, "nowe w build 16: dla postaci poza ekranem");
+    tog("esptarget", "Kogo atakuje", P, false, ST_NEW, "nowe w build 16: napis i strzałka do celu walki (testy drużyny)");
 
-    const char* RD = "Radar";
+    // build 16: Wizualia › Widżety - every on-screen widget lives in one dock (no more random positions)
+    const char* RD = "Widżety";
+    CardTitle("Dok widżetów");
+    T.Add(MkRow("wdock", "Położenie", "", C, RD, K_VALUE, 0, 0, 3)); Opts({ { 0, "Lewy górny róg" }, { 1, "Prawy górny róg" }, { 2, "Lewy dolny róg" }, { 3, "Prawy dolny róg" } }); St(ST_NEW, "nowe w build 16");
+    T.Add(MkRow("wwidth", "Szerokość", "px", C, RD, K_VALUE, 230, 160, 420)); St(ST_NEW, "nowe w build 16");
+    T.Add(MkRow("walpha", "Krycie", "%", C, RD, K_VALUE, 80, 20, 100)); St(ST_NEW, "nowe w build 16");
+    T.Add(MkRow("wmenu", "Też przy otwartym menu", "", C, RD, K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 16");
+    CardTitle("Zdrowie");
+    tog("whp", "Pasek zdrowia", RD, true, ST_NEW, "nowe w build 16");
+    tog("wmana", "Pasek many", RD, false, ST_NEW, "nowe w build 16");
     CardTitle("Radar");
-    tog("radar", "Radar", RD, false, ST_NEW, "nowe w build 14"); Icon(ICN_CROSSHAIR);
-    T.Add(MkRow("radarrange", "Zasięg", "m", C, RD, K_VALUE, 60, 10, 300)); St(ST_NEW, "nowe w build 14");
-    T.Add(MkRow("radarsize", "Rozmiar", "px", C, RD, K_VALUE, 240, 120, 600)); St(ST_NEW, "nowe w build 14");
-    T.Add(MkRow("radaralpha", "Krycie tła", "%", C, RD, K_VALUE, 75, 0, 100)); St(ST_NEW, "nowe w build 14");
-    T.Add(MkRow("radarpos", "Położenie", "", C, RD, K_VALUE, 0, 0, 3));
-    Opts({ { 0, "Prawy górny róg" }, { 1, "Lewy górny róg" }, { 2, "Prawy dolny róg" }, { 3, "Lewy dolny róg" } }); St(ST_NEW, "nowe w build 14");
-    tog("radarrot", "Obracaj z postacią", RD, true, ST_NEW, "nowe w build 14: przód zawsze u góry; wyłączone = północ u góry");
+    tog("radar", "Radar", RD, false, ST_OK, "build 14: działa; build 16: w doku widżetów"); Icon(ICN_CROSSHAIR);
+    T.Add(MkRow("radarrange", "Zasięg", "m", C, RD, K_VALUE, 60, 10, 300)); St(ST_OK, "build 14: działa");
+    T.Add(MkRow("radarsize", "Rozmiar", "px", C, RD, K_VALUE, 240, 120, 600)); Hidden(); St(ST_OK, "build 16: = szerokość doku");
+    T.Add(MkRow("radaralpha", "Krycie tła", "%", C, RD, K_VALUE, 75, 0, 100)); Hidden(); St(ST_OK, "build 16: krycie doku");
+    T.Add(MkRow("radarpos", "Położenie", "", C, RD, K_VALUE, 0, 0, 3)); Hidden(); St(ST_OK, "build 16: położenie doku");
+    tog("radarrot", "Obracaj z postacią", RD, true, ST_OK, "build 14: działa");
+    CardTitle("Zagrożenia");
+    tog("wthreat", "Zagrożenia", RD, true, ST_NEW, "nowe w build 16: ilu wrogów w pobliżu i najbliższy");
+    T.Add(MkRow("wthreatr", "Zasięg", "m", C, RD, K_VALUE, 30, 5, 150)); St(ST_NEW, "nowe w build 16");
+    CardTitle("Broń i FPS");
+    tog("wweapon", "Broń w ręku / założona", RD, true, ST_NEW, "nowe w build 16");
+    tog("wfps", "FPS", RD, true, ST_NEW, "nowe w build 16");
+    CardTitle("Kompas");
+    tog("compass", "Kompas u góry ekranu", RD, false, ST_NEW, "nowe w build 16"); Icon(ICN_MAP);
+    T.Add(MkRow("compw", "Szerokość", "px", C, RD, K_VALUE, 440, 240, 1000)); St(ST_NEW, "nowe w build 16");
+    T.Add(MkRow("comprange", "Zakres", "stopnie widoczne na pasku", C, RD, K_VALUE, 120, 60, 360)); St(ST_NEW, "nowe w build 16");
+    tog("compmark", "Znaczniki postaci", RD, true, ST_NEW, "nowe w build 16: te same co na radarze (Co pokazywać)");
     // build 15: "what to show" is one card of checkmarks (Wizualia › Radar)
     tog("raden", "Wrogowie", RD, true, ST_NEW, "nowe w build 15"); Hidden();
     tog("radne", "Neutralni", RD, true, ST_NEW, "nowe w build 15"); Hidden();
@@ -415,6 +488,43 @@ void Esp_Register() {
     tog("radarnames", "Imiona najbliższych", RD, false, ST_OK, "build 14: działa"); Hidden();
     T.Add(MkRow("radarfilter", "Które postacie", "", C, RD, K_VALUE, 0, 0, 4)); Hidden();
 
+    {   // build 16: crosshair editor (Wizualia › Celownik)
+        const char* X = "Celownik";
+        CardTitle("Celownik");
+        tog("xhair", "Pokaż celownik", X, false, ST_NEW, "nowe w build 16"); Icon(ICN_CROSSHAIR);
+        T.Add(MkRow("xhstyle", "Kształt", "", C, X, K_VALUE, 0, 0, 4)); Opts({ { 0, "Krzyż" }, { 1, "Kropka" }, { 2, "Krzyż ukośny" }, { 3, "Okrąg" }, { 4, "Kąty" } }); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("xhgap", "Przerwa", "px", C, X, K_VALUE, 4, 0, 40, nullptr, true)); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("xhlen", "Długość", "px", C, X, K_VALUE, 12, 1, 80, nullptr, true)); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("xhthick", "Grubość", "px", C, X, K_VALUE, 2, 1, 10, nullptr, true)); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("xhrot", "Obrót", "stopnie", C, X, K_VALUE, 0, 0, 360)); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("xhspin", "Stały obrót", "stopnie na sekundę (0 = stoi)", C, X, K_VALUE, 0, 0, 720)); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("xhalpha", "Krycie", "%", C, X, K_VALUE, 100, 10, 100)); St(ST_NEW, "nowe w build 16");
+        tog("xhdot", "Kropka w środku", X, false, ST_NEW, "nowe w build 16");
+        tog("xhoutline", "Obrys", X, true, ST_NEW, "nowe w build 16");
+        for (const char* id : { "xhr", "xhg", "xhb" }) { T.Add(MkRow(id, id, "", C, X, K_VALUE, 255, 0, 255)); Hidden(); St(ST_NEW, "nowe w build 16"); }
+        if (Row* r = T.Get("xhb")) r->val = 206;
+        if (Row* r = T.Get("xhg")) r->val = 250;
+    }
+    {   // build 16: Wizualia › Grafika - colour pass over the game frame (menu and overlay stay untouched)
+        const char* G = "Grafika";
+        CardTitle("Nadpisywanie grafiki");
+        tog("gfx", "Włącz nadpisywanie grafiki", G, false, ST_NEW, "nowe w build 16"); Icon(ICN_EYE);
+        T.Add(MkRow("gfxmode", "Filtr", "", C, G, K_VALUE, 0, 0, 4)); Opts({ { 0, "Brak" }, { 1, "Czarno-biały" }, { 2, "Sepia" }, { 3, "Noktowizor" }, { 4, "Negatyw" } }); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("gfxreset", "Przywróć domyślne", "", C, G, K_ACTION, 0, 0, 0, [](Row&) {
+            struct { const char* id; float v; } d[] = { { "gfxbright", 0 }, { "gfxcontrast", 100 }, { "gfxsat", 100 }, { "gfxgamma", 100 }, { "gfxtemp", 0 }, { "gfxsharp", 0 }, { "gfxvign", 0 }, { "gfxmode", 0 } };
+            for (auto& e : d) if (Row* r = T.Get(e.id)) r->val = e.v;
+            T.Toast("Grafika: wartości domyślne"); }));
+        NoVal(); Icon(ICN_REFRESH); St(ST_NEW, "nowe w build 16");
+        CardTitle("Jasność i kolor");
+        T.Add(MkRow("gfxbright", "Jasność", "%", C, G, K_VALUE, 0, -50, 50)); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("gfxgamma", "Gamma", "% (więcej = jaśniejsze cienie)", C, G, K_VALUE, 100, 50, 250)); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("gfxcontrast", "Kontrast", "%", C, G, K_VALUE, 100, 50, 200)); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("gfxsat", "Nasycenie", "%", C, G, K_VALUE, 100, 0, 250)); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("gfxtemp", "Temperatura barw", "- zimniej / + cieplej", C, G, K_VALUE, 0, -100, 100)); St(ST_NEW, "nowe w build 16");
+        CardTitle("Ostrość i winieta");
+        T.Add(MkRow("gfxsharp", "Wyostrzenie", "%", C, G, K_VALUE, 0, 0, 150)); St(ST_NEW, "nowe w build 16");
+        T.Add(MkRow("gfxvign", "Winieta", "% przyciemnienia rogów", C, G, K_VALUE, 0, 0, 100)); St(ST_NEW, "nowe w build 16");
+    }
     const char* I = "ESP przedmiotów";
     CardTitle("Główny wyłącznik");
     tog("espitm", "ESP przedmiotów i skrzyń", I, true, ST_NEW, "nowe w build 10: wyłącza przedmioty i skrzynie bez odznaczania opcji (#15)"); Icon(ICN_BAG);

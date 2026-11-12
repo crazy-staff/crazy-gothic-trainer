@@ -18,6 +18,7 @@ DECL_MODULE(Esp)
 DECL_MODULE(Teleport)
 DECL_MODULE(Marvin)
 DECL_MODULE(Photo)
+DECL_MODULE(Combat)
 void Photo_Request(void* npc);
 void Photo_Refresh(void* npc);
 void Cam_Override(const float* m12);   // camera matrix for this frame (noclip)

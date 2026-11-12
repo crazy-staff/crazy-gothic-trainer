@@ -172,9 +172,24 @@ void PortraitClear() {
     g_pics.clear(); g_missing.clear();
 }
 // build 15: a screenshot of the game frame (without the trainer's menu) -> report attachment + clipboard
-static std::atomic<bool> g_shotReq{ false };
-void ShotRequest() { g_shotReq = true; }
-static void ShotGrab(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc) {
+static std::atomic<int> g_shotReq{ 0 };   // 1 whole frame, 2 frame kept for selecting an area (Shift+F11)
+static std::vector<uint32_t> g_held; static int g_heldW = 0, g_heldH = 0; static std::atomic<bool> g_isHeld{ false };
+void ShotRequest(bool area) { g_shotReq = area ? 2 : 1; }
+bool ShotHeld() { return g_isHeld; }
+void ShotSize(int& w, int& h) { w = g_heldW; h = g_heldH; }
+void ShotCancel() { g_isHeld = false; g_held.clear(); }
+void ShotCommit(int x0, int y0, int x1, int y1) {
+    if (!g_isHeld) return;
+    x0 = std::max(0, std::min(x0, g_heldW)); x1 = std::max(0, std::min(x1, g_heldW)); y0 = std::max(0, std::min(y0, g_heldH)); y1 = std::max(0, std::min(y1, g_heldH));
+    if (x1 < x0) std::swap(x0, x1); if (y1 < y0) std::swap(y0, y1);
+    int w = x1 - x0, h = y1 - y0;
+    if (w < 4 || h < 4) { ShotCancel(); return; }
+    std::vector<uint32_t> out((size_t)w * h);
+    for (int y = 0; y < h; y++) std::copy(g_held.begin() + (size_t)(y0 + y) * g_heldW + x0, g_held.begin() + (size_t)(y0 + y) * g_heldW + x1, out.begin() + (size_t)y * w);
+    ShotCancel();
+    tst::ShotDone(std::move(out), w, h);
+}
+static void ShotGrab(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc, bool hold) {
     ID3D11Texture2D* bb = nullptr;
     if (FAILED(sc->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&bb)) || !bb) return;
     D3D11_TEXTURE2D_DESC bd; bb->GetDesc(&bd);
@@ -197,11 +212,12 @@ static void ShotGrab(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain
         }
     }
     ctx->Unmap(stg, 0); stg->Release();
+    if (hold) { g_held = std::move(px); g_heldW = (int)bd.Width; g_heldH = (int)bd.Height; g_isHeld = true; return; }
     tst::ShotDone(std::move(px), (int)bd.Width, (int)bd.Height);
 }
 void PortraitPresent(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc) {
     g_dev = dev;
-    if (g_shotReq.exchange(false)) ShotGrab(dev, ctx, sc);
+    if (int r = g_shotReq.exchange(0)) ShotGrab(dev, ctx, sc, r == 2);
     if (!g_del.empty()) {
         std::lock_guard<std::recursive_mutex> l(g_mx);
         for (auto& key : g_del) {

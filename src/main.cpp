@@ -14,6 +14,7 @@
 #include "trainer.h"
 #include "ui.h"
 #include "portrait.h"
+#include "gfx.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
@@ -105,6 +106,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
             bool repeat = (l >> 30) & 1;
             if (UiCapturingKey()) { if (!repeat) UiBindKey(vk); return 0; }
             if (!repeat && vk == VK_INSERT) { SetMenu(!T.menuOpen); return 0; }
+            if (!repeat && vk == VK_ESCAPE && T.shotSelect) { ShotCancel(); T.shotSelect = false; return 0; }
             if (!repeat && vk == VK_ESCAPE && T.menuOpen && !UiTyping()) { SetMenu(false); return 0; }
             if (!repeat && vk == VK_ESCAPE && T.snap.photoBatch) { Act_PhotoCancel(); return 0; }
             if (!repeat && vk == VK_ESCAPE && !T.menuOpen) {   // Esc leaves no-clip first (game menu/saving then sees a normal hero)
@@ -113,7 +115,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
             bool typing = T.menuOpen && ImGui::GetIO().WantTextInput;
             if (!repeat && !typing && GetForegroundWindow() == h) T.Hotkey(vk);
         }
-        if (T.menuOpen) {
+        if (T.menuOpen || T.shotSelect) {
             if (m != WM_MOUSEWHEEL || !g_mouseHook) ImGui_ImplWin32_WndProcHandler(h, m, w, l);
             else if (m == WM_MOUSEWHEEL) { /* delivered by the hook */ }
             switch (m) {
@@ -154,7 +156,8 @@ static HRESULT __stdcall hkPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
     if (g_imgui && g_rtv) {
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
-        if (T.menuOpen && GetForegroundWindow() == g_hwnd) {
+        ImGui::GetIO().MouseDrawCursor = T.menuOpen || T.shotSelect;
+        if ((T.menuOpen || T.shotSelect) && GetForegroundWindow() == g_hwnd) {
             // after alt-tab the game may re-grab the mouse: poll it ourselves so the menu always works
             ClipCursor(nullptr);
             POINT pt; GetCursorPos(&pt); ScreenToClient(g_hwnd, &pt);
@@ -172,6 +175,7 @@ static HRESULT __stdcall hkPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
         {   // portraits: capture the clean game frame before our overlay is drawn
             static std::string lastWorld; std::string wn;
             { std::lock_guard<std::mutex> l(T.mtx); wn = T.snap.world; }
+            GfxApply(g_dev, g_ctx, sc);   // build 16: graphics override (colour pass) before shots and overlay
             PortraitPresent(g_dev, g_ctx, sc);
         }
         ImGui::NewFrame();
@@ -190,6 +194,7 @@ static HRESULT __stdcall hkPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
 }
 
 static HRESULT __stdcall hkResize(IDXGISwapChain* sc, UINT n, UINT w, UINT h, DXGI_FORMAT f, UINT fl) {
+    GfxRelease();
     if (g_rtv) { g_rtv->Release(); g_rtv = nullptr; }
     if (g_imgui) ImGui_ImplDX11_InvalidateDeviceObjects();
     HRESULT hr = oResize(sc, n, w, h, f, fl);

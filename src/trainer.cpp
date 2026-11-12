@@ -209,7 +209,7 @@ static void __fastcall hkMenu(void* self, void* edx, int a) { T.inGameMenu = tru
 void InstallGameHooks() {
     MH_CreateHook((LPVOID)F_OCGAME_RENDER, (LPVOID)&hkRender, (LPVOID*)&oRender);
     MH_CreateHook((LPVOID)0x4279F0, (LPVOID)&hkMenu, (LPVOID*)&oMenu);
-    Player_Hooks(); Items_Hooks(); Npcs_Hooks(); Target_Hooks(); Chaos_Hooks(); World_Hooks(); Esp_Hooks(); Teleport_Hooks(); Marvin_Hooks(); Photo_Hooks();
+    Player_Hooks(); Items_Hooks(); Npcs_Hooks(); Target_Hooks(); Chaos_Hooks(); World_Hooks(); Esp_Hooks(); Teleport_Hooks(); Marvin_Hooks(); Photo_Hooks(); Combat_Hooks();
     MH_EnableHook(MH_ALL_HOOKS);
 }
 
@@ -229,17 +229,9 @@ void Trainer::Tick() {
     static bool escHold = false;
     if (menuOpen) escHold = true;
     else if (escHold && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000)) escHold = false;
-    bool wantK = !menuOpen && !escHold && !((On("noclip") || On("glide")) && inGame), wantM = !menuOpen;
-    // build 14 (UI-02): Win+Shift+S - the game holds mouse and keyboard through DirectInput, so the snipping overlay
-    // could not be used. A pressed Windows key hands both back to Windows for 8 s and frees the cursor.
-    static double winAt = -100;
-    if (((GetAsyncKeyState(VK_LWIN) | GetAsyncKeyState(VK_RWIN)) & 0x8000) && On("winkeyfix")) {
-        if (NowSec() - winAt > 8.0) { ClipCursor(nullptr); Log("klawisz Windows: oddaję mysz i klawiaturę systemowi na 8 s"); }
-        winAt = NowSec();
-    }
-    if (NowSec() - winAt < 8.0) { wantK = false; wantM = false; ClipCursor(nullptr); }
+    bool wantK = !menuOpen && !shotSelect && !escHold && !((On("noclip") || On("glide")) && inGame), wantM = !menuOpen && !shotSelect;
     HookDirectInput();
-    g_blockInput = menuOpen || escHold;
+    g_blockInput = menuOpen || shotSelect || escHold;
     if (wantK != lastK || wantM != lastM || (menuOpen && NowSec() - lastInput > 0.03) || ((!wantK || !wantM) && NowSec() - lastInput > 0.25)) {
         SetGameInput2(wantK, wantM); lastK = wantK; lastM = wantM; lastInput = NowSec();
     }
@@ -258,7 +250,7 @@ void Trainer::Tick() {
         g_cat.BuildWaypoints();
         ClearWorldState();
         TrackMainHero();
-        Player_World(); Items_World(); Npcs_World(); Target_World(); Chaos_World(); World_World(); Esp_World(); Teleport_World(); Marvin_World(); Photo_World();
+        Player_World(); Items_World(); Npcs_World(); Target_World(); Chaos_World(); World_World(); Esp_World(); Teleport_World(); Marvin_World(); Photo_World(); Combat_World();
         LoadPositions(WorldName());
         Snapshot t; SelfTest(t); diag = t.diag;
     }
@@ -271,7 +263,7 @@ void Trainer::Tick() {
     TickCtx c{ h, Game(), std::min(0.1f, at<float>(ZTIMER + 4) / 1000.f), paused, s };
     struct { const char* n; void (*f)(TickCtx&); } mods[] = {
         { "player", Player_Tick }, { "world", World_Tick }, { "chaos", Chaos_Tick }, { "npcs", Npcs_Tick },
-        { "target", Target_Tick }, { "items", Items_Tick }, { "teleport", Teleport_Tick }, { "marvin", Marvin_Tick }, { "esp", Esp_Tick }, { "photo", Photo_Tick } };
+        { "target", Target_Tick }, { "items", Items_Tick }, { "teleport", Teleport_Tick }, { "marvin", Marvin_Tick }, { "esp", Esp_Tick }, { "photo", Photo_Tick }, { "combat", Combat_Tick } };
     g_crumb = "schedule"; RunSchedule();
     for (auto& m : mods) { g_crumb = m.n; m.f(c); }
     g_crumb = "tick";
@@ -289,7 +281,7 @@ void Trainer::Tick() {
 void Trainer::Init() {
     rows.clear();
     Player_Register(); Items_Register(); Npcs_Register(); Target_Register(); Chaos_Register(); World_Register();
-    Esp_Register(); Teleport_Register(); Marvin_Register(); Photo_Register();
+    Esp_Register(); Teleport_Register(); Marvin_Register(); Photo_Register(); Combat_Register();
     for (auto& r : rows) if (Crashed("row:" + r.id)) { r.status = ST_CRASH; r.hist = "crashowało w poprzedniej sesji (wykryte automatycznie)"; }
     // statuses confirmed by the tester's reports (build 9 + 10) - overrides what the modules registered
     static const char* okIds[] = { "hclock", "hcpocket", "hcsneak", "nohit", "noweapon", "mana", "ncignore", "kitwar", "kitarcher", "kitmage",
@@ -298,10 +290,16 @@ void Trainer::Init() {
         "ncmouse", "allykeep", "peace", "killall", "tpto", "tpull", "noclip", "speedallies", "arenareward", "hud", "hudalpha", "hudsize",
         "hudfps", "hudpos", "hudspeed", "hudtime", "hudworld", "hudstats", "hudtarget",
         "pvauto", "esptype", "rescuedialog", "rescuehero", "rescuetarget", "radar", "radarrot", "radardead", "radaritems", "radarchests",
-        "radarnames", "glmouse", "glignore", "allynotalk" };
-    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9-14)"; }
+        "radarnames", "glmouse", "glignore", "allynotalk", "autoloot", "lootanim", "lootc0", "lootc1", "lootc2", "lootc3", "lootc4", "lootc5",
+        "lootc6", "lootc7", "lootc8", "lootc9", "lootc10", "lootc11", "lootore", "tphoto", "zombz", "zombsk", "zombot", "zombhunt", "zombfat", "zombclear",
+        "polyhum", "polymon", "polyparty", "polyimm", "polyanim", "polybeast", "polyundead", "polyorc", "polyfx", "polyhostile", "polykeep",
+        "raden", "radne", "radmo", "radpa", "shot" };
+    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9-15)"; }
     struct Bad { const char* id; const char* why; };
-    static const Bad bad[] = { { "winkeyfix", "build 14: dalej nie działa - gra blokuje Win+Shift+S; build 15: zamiast tego Zrzut ekranu gry (F11)" },
+    static const Bad bad[] = { { "lootbotback", "build 15: po zatrzymaniu bot nie wracał; build 16: powrót też po Esc / Zatrzymaj" },
+        { "partyinfight", "build 15: inni bili ścierwojada, on bił człowieka; build 16: kontrola celów co 0,5 s + Diagnostyka › Test drużyny + ESP › Kogo atakuje" },
+        { "zombmortal", "build 15: zombie dalej nieśmiertelne; build 16: bez nieumarłych fabularnych + ponowne ustawienie po wstawieniu" },
+        { "zombname", "build 15: wszyscy nazywali się Zombie; build 16: „<nazwa> apokalipsy”" },
         { "glcoll", "build 14: działało odwrotnie (zła flaga raytrace: 8 = ramki obiektów); build 15: poprawione + pomija obiekty bez kolizji" },
         { "allyfightbreak", "build 13: krwiopijca dalej leciał do przeciwnika; build 14: potwory też; build 15: bez ustawiania ciebie jako celu (potwór gryzł po teleporcie)" } };
     for (auto& b : bad) if (Row* r = Get(b.id)) { r->status = ST_BUG; r->hist = b.why; }
@@ -312,9 +310,9 @@ void ApplyRow(Row& r) {
     switch (r.kind) {
     case K_TOGGLE: case K_SLIDER:
         if (!r.on) {   // mutually exclusive features
-            for (auto& id : r.excl) if (Row* o = T.Get(id)) if (o->on) {
-                T.Toast("Nie możesz włączyć \"" + r.name + "\", bo masz włączone \"" + o->name + "\"");
-                return;
+            for (auto& id : r.excl) if (Row* o = T.Get(id)) if (o->on) {   // build 16: the other mode is switched off
+                ApplyRow(*o);
+                T.Toast("\"" + o->name + "\" wyłączone - włączam \"" + r.name + "\"");
             }
         }
         r.on = !r.on;

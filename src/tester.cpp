@@ -392,12 +392,13 @@ std::string AttachDir() {
     return d;
 }
 void ShotDone(std::vector<uint32_t> px, int w, int h) {
-    if (px.empty() || w <= 0 || h <= 0) { AttDone("", "Nie udało się zrobić zrzutu (format ekranu)"); return; }
+    if (px.empty() || w <= 0 || h <= 0) return;
     std::thread([px = std::move(px), w, h]() mutable {
         HRESULT co = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-        std::string name = UniqueName(".png"), msg;
-        if (SavePng(AttachDir() + "\\" + name, px.data(), w, h)) msg = "Zrzut ekranu zapisany (dołączę go do następnego zgłoszenia) i skopiowany do schowka";
-        else { msg = "Nie udało się zapisać zrzutu"; name.clear(); }
+        // build 16: saved to its own folder + clipboard only (no automatic report attachment - Ctrl+V adds it to a report)
+        std::string dir = DataPath("G1CrazyTrainer_zrzuty"); CreateDirectoryA(dir.c_str(), nullptr);
+        std::string name = UniqueName(".png");
+        SavePng(dir + "\\" + name, px.data(), w, h);
         // clipboard: 32-bit bottom-up DIB
         size_t sz = sizeof(BITMAPINFOHEADER) + (size_t)w * h * 4;
         if (HGLOBAL g = GlobalAlloc(GMEM_MOVEABLE, sz)) {
@@ -408,7 +409,6 @@ void ShotDone(std::vector<uint32_t> px, int w, int h) {
             GlobalUnlock(g);
             if (OpenClipboard(nullptr)) { EmptyClipboard(); if (!SetClipboardData(CF_DIB, g)) GlobalFree(g); CloseClipboard(); } else GlobalFree(g);
         }
-        AttDone(name, msg);
         if (SUCCEEDED(co)) CoUninitialize();
     }).detach();
 }
