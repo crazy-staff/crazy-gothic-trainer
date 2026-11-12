@@ -26,7 +26,7 @@ Zakładka **+ Nowe zgłoszenie** — formularz dla błędu, crasha, propozycji a
 - **Czego dotyczy** — wybierz opcję z listy (jest wyszukiwarka) albo „Ogólne”. Pod spodem zobaczysz znane problemy tej opcji: sprawdź, czy twój już tam nie jest.
 - **Kroki** — co robiłeś po kolei. To najważniejsze pole: z dobrych kroków da się błąd powtórzyć i naprawić.
 - **Dołącz stan gry** (zostaw włączone) — trainer sam dopisze świat, pozycję, włączone opcje i ostatnie zdarzenia.
-- **Załączniki**: zrób zrzut (Win+Shift+S albo PrtScr) i naciśnij **Ctrl+V** w formularzu, albo „Dodaj plik z dysku”. Zrzuty trafiają do raportu (.zip).
+- **Załączniki**: zrób zrzut (**F11**, a **Shift+F11** dla obszaru) i naciśnij **Ctrl+V** w formularzu, albo „Dodaj plik z dysku”. Zrzuty trafiają do raportu (.zip).
 - Zgłaszać można też **całą kategorię, podkategorię, kartę albo aspekt** (UI, UX, wydajność…): flaga przy nagłówku karty / podkategorii albo wybór w polu „Czego dotyczy”.
 
 Zakładka **Dziennik** pokazuje, co trainer zanotował w tej sesji (włączenia opcji, akcje, złapane błędy). Dziennik sam dołącza się do zgłoszeń.

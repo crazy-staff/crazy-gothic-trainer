@@ -1,0 +1,22 @@
+# Keeps the text of published releases in sync with docs/release/bN.md (new releases are made by release.yml)
+name: Release notes
+on:
+  push:
+    branches: [main]
+    paths: ["docs/release/b*.md"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update existing releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for f in docs/release/b*.md; do
+            t=$(basename "$f" .md)
+            if gh release view "$t" >/dev/null 2>&1; then gh release edit "$t" --notes-file "$f" && echo "updated $t"; fi
+          done

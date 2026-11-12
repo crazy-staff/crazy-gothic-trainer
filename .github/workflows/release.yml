@@ -46,7 +46,7 @@ jobs:
           N=${TAG#b}
           mkdir pkg && cp out/G1CrazyTrainer.dll pkg/
           python3 tools/known_issues.py pkg/G1CrazyTrainer_znane.txt
-          sed "s/{BUILD}/$N/" tools/INSTRUKCJA.txt | sed 's/$/\r/' > pkg/INSTRUKCJA.txt
+          sed "s/{BUILD}/$N/" tools/INSTRUKCJA.txt | sed 's/$/\r/' > pkg/README.txt
           (cd pkg && zip -q ../G1CrazyTrainer_build$N.zip *)
           ls -l G1CrazyTrainer_build$N.zip
       - name: Publish release
