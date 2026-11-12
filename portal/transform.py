@@ -52,6 +52,12 @@ EDITS = {
          "import { getPublicArticlePageFn } from '@/lib/server/functions/help-center'\nimport { DocsArticlePage } from '@/custom-docs/pages'\n"),
         ("  component: ArticleDetailPage,\n", "  component: DocsArticlePage,\n"),
     ],
+    # one copy of fumadocs-core: bun can install two (different peer sets), and two copies mean
+    # two React contexts ("wrap your application inside FrameworkProvider")
+    "../vite.config.ts": [
+        ("    resolve: {\n      tsconfigPaths: true,\n    },\n",
+         "    resolve: {\n      tsconfigPaths: true,\n      dedupe: ['fumadocs-core', 'fumadocs-ui', '@fuma-translate/react'],\n    },\n"),
+    ],
     # styles: Fumadocs theme mapped onto the portal theme
     "globals.css": [
         ('@import "tw-animate-css";\n', '@import "tw-animate-css";\n@import "./custom-docs/fumadocs.css";\n'),
