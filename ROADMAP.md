@@ -1,6 +1,6 @@
 # Gothic 1 Crazy Trainer — mapa drogowa
 
-Lista generuje się automatycznie z [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) (ostatnio: 2026-11-12 06:14 UTC).  
+Lista generuje się automatycznie z [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) (ostatnio: 2026-11-12 07:59 UTC).  
 **Głosowanie:** otwórz zgłoszenie i daj 👍 — kolejność w sekcjach to liczba głosów.  
 Nowy pomysł albo błąd: [zgłoś tutaj](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose).
 
@@ -13,21 +13,27 @@ _Znane problemy, które jeszcze nie są naprawione._
 |---:|---:|---|---|
 | 0 | [#97](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/97) | Ślizg: kolizja z obiektami działała odwrotnie | błąd, obszar:noclip, priorytet:wysoki, priorytet:niski, plan |
 
-## Do sprawdzenia w grze (52)
+## Do sprawdzenia w grze (58)
 
 _Poprawione w ostatnim buildzie - czeka na potwierdzenie testerów._
 
 | 👍 | # | Zgłoszenie | Etykiety |
 |---:|---:|---|---|
+| 0 | [#126](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/126) | Centrum testera: zwijana historia, przewijanie kółkiem w formularzu | błąd, obszar:tester, priorytet:średni, do-weryfikacji |
+| 0 | [#125](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/125) | Drużyna: potwór blokuje się na celu po wyłączeniu atakowania; lepsza scena testowa | błąd, obszar:drużyna, priorytet:wysoki, do-weryfikacji |
+| 0 | [#124](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/124) | Zrzuty ekranu: z menu, zamrożony obraz przy zaznaczaniu | błąd, obszar:tester, priorytet:średni, do-weryfikacji |
+| 0 | [#123](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/123) | ESP: ptaszki, znaczniki krawędzi powiązane z ramką, ukrywanie broni w rękach i pocisków | propozycja, obszar:esp, priorytet:średni, do-weryfikacji |
+| 0 | [#122](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/122) | Grafika: ustawienia GD3D11 (zasięgi rysowania) i presety | propozycja, obszar:esp, priorytet:średni, do-weryfikacji |
+| 0 | [#121](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/121) | Widżety: osobne kategorie radar/kompas, podgląd w proporcjach, pasek celu, amunicja, XP, więcej informacji | propozycja, obszar:esp, priorytet:średni, do-weryfikacji |
+| 0 | [#120](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/120) | Celownik: osobne ustawienia dla każdego kształtu, kropka, kolor w presetach | propozycja, obszar:esp, priorytet:średni, do-weryfikacji |
+| 0 | [#119](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/119) | Aimbot: crash, nie działa, Alt = skok | błąd, obszar:postać, priorytet:wysoki, do-weryfikacji |
+| 0 | [#118](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/118) | Swobodne celowanie: celowanie w pionie (łuk, kusza, czary) | błąd, obszar:postać, priorytet:wysoki, do-weryfikacji |
 | 0 | [#117](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/117) | Bot zbierający: nie wraca na miejsce po zatrzymaniu | błąd, obszar:narzędzia, priorytet:niski, do-weryfikacji |
-| 0 | [#116](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/116) | Apokalipsa: nieśmiertelne zombie, złe nazwy; podział opcji | błąd, priorytet:średni, do-weryfikacji, obszar:arena |
 | 0 | [#115](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/115) | Drużyna: dalej walczą (ścierwojad vs człowiek, inni biją ścierwojada) | błąd, obszar:drużyna, priorytet:wysoki, do-weryfikacji |
 | 0 | [#114](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/114) | Zrzuty: Shift+F11 obszar, bez automatycznego dołączania | propozycja, obszar:tester, priorytet:niski, do-weryfikacji |
-| 0 | [#113](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/113) | Konfiguracja w zakładkach + opcje wyglądu menu | propozycja, obszar:ui, priorytet:niski, do-weryfikacji |
 | 0 | [#112](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/112) | Grafika: nadpisywanie obrazu (jasność, gamma, kontrast, nasycenie, filtry) | propozycja, obszar:esp, priorytet:średni, do-weryfikacji |
 | 0 | [#111](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/111) | Celownik: edytor i presety | propozycja, obszar:esp, priorytet:średni, do-weryfikacji |
 | 0 | [#110](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/110) | ESP: strzałki wokół celownika, znaczniki na krawędziach, kogo atakuje | propozycja, obszar:esp, priorytet:średni, do-weryfikacji |
-| 0 | [#109](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/109) | Widżety w jednym doku + kompas u góry ekranu | propozycja, obszar:esp, priorytet:średni, do-weryfikacji |
 | 0 | [#108](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/108) | UI: przełącznik trybów w jednej karcie (No-clip\|Ślizg, Aimbot\|Trigger bot, Duch\|Broń) | propozycja, obszar:ui, priorytet:średni, do-weryfikacji |
 | 0 | [#107](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/107) | Walka: aimbot, trigger bot, swobodne celowanie, szybkość ataku, nieskończona amunicja | propozycja, obszar:postać, priorytet:wysoki, do-weryfikacji |
 | 0 | [#104](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/104) | Wyszukiwarki pamiętają tekst po zmianie zakładki | propozycja, obszar:ui, priorytet:niski, do-weryfikacji |
@@ -121,12 +127,15 @@ _Daj 👍 pod zgłoszeniem na GitHubie - najwyżej ocenione robimy najpierw._
 | 0 | [#51](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/51) | Zapisy gry: zarządzanie w trenerze (wczytaj, zapisz, edytuj) | propozycja, obszar:narzędzia, priorytet:niski |
 | 0 | [#25](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/25) | Testy automatyczne: symulacja w grze | propozycja, obszar:stabilność, priorytet:niski |
 
-## Zrobione (24)
+## Zrobione (27)
 
 _Ostatnio zamknięte._
 
 | 👍 | # | Zgłoszenie | Etykiety |
 |---:|---:|---|---|
+| 0 | [#116](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/116) | Apokalipsa: nieśmiertelne zombie, złe nazwy; podział opcji | błąd, priorytet:średni, do-weryfikacji, obszar:arena |
+| 0 | [#113](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/113) | Konfiguracja w zakładkach + opcje wyglądu menu | propozycja, obszar:ui, priorytet:niski, do-weryfikacji |
+| 0 | [#109](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/109) | Widżety w jednym doku + kompas u góry ekranu | propozycja, obszar:esp, priorytet:średni, do-weryfikacji |
 | 0 | [#105](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/105) | Radar: ptaszki zamiast filtra, obracający się podgląd | propozycja, obszar:esp, priorytet:niski, do-weryfikacji |
 | 0 | [#103](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/103) | Portrety: szybkie generowanie w Celu/Otoczeniu, reset ikon w Kompendium | propozycja, obszar:portrety, priorytet:niski, do-weryfikacji |
 | 0 | [#61](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/61) | Wizualia › Radar | propozycja, obszar:ui, priorytet:średni, do-weryfikacji |
