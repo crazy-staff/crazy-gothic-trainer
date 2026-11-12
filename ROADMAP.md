@@ -1,6 +1,6 @@
 # Gothic 1 Crazy Trainer — mapa drogowa
 
-Lista generuje się automatycznie z [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) (ostatnio: 2026-11-12 08:51 UTC).  
+Lista generuje się automatycznie z [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) (ostatnio: 2026-11-12 08:52 UTC).  
 **Głosowanie:** pomysły są w [Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — każdy pomysł to osobny wątek, głosuj strzałką w górę lub 👍.  
 Błąd: [zgłoś tutaj](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose). Nowy pomysł: [załóż wątek w Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=ideas).
 
@@ -73,12 +73,22 @@ _Zaplanowane na kolejne buildy - w kolejności priorytetu (od góry)._
 | 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/140) | Wyzwania i osiągnięcia trenera |  |
 | 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/151) | Skróty klawiszowe do stron i makr |  |
 
-## Pomysły - głosuj (4)
+## Pomysły - głosuj (14)
 
 _Każdy pomysł to osobny wątek w Dyskusjach: zagłosuj strzałką w górę lub 👍 - najwyżej ocenione robimy najpierw._
 
 | 👍 | # | Zgłoszenie | Etykiety |
 |---:|---:|---|---|
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/182) | Tryb hardcore: śmierć usuwa zapis, zapis tylko przy wyjściu |  |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/181) | Zmiana animacji stylu walki z bindem |  |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/180) | Przełącznik akrobatyki bez oduczania |  |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/179) | Regeneracja życia i many w czasie |  |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/178) | Całkowite wyłączenie skoku pod prawym przyciskiem myszy |  |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/177) | Pomijanie zakolejkowanych dialogów |  |
+| 0 | [Pluginy Uniona](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/176) | Port kolejnych pluginów Uniona do trenera |  |
+| 0 | [Pluginy Uniona](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/175) | Rozszerzona konsola (jak MarvinHelper, tylko lepsza) |  |
+| 0 | [Pluginy Uniona](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/174) | Poprawki błędów silnika z pluginów Uniona (zBugFixes, G1Fixes i inne) |  |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/173) | Własne motywy menu: lista stylów do edycji i wczytywania |  |
 | 0 | [Grafika i kamera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/172) | Dyndająca broń przy pasie |  |
 | 0 | [Grafika i kamera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/171) | Ukrywanie roślinności, która zasłania bohatera |  |
 | 0 | [Grafika i kamera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/170) | Wyłączenie efektu wizualnego pod wodą |  |
