@@ -8,6 +8,7 @@ import { useMemo } from 'react'
 import { TanstackProvider } from 'fumadocs-core/framework/tanstack'
 import { SearchProvider } from 'fumadocs-ui/contexts/search'
 import { DocsLayout } from 'fumadocs-ui/layouts/docs'
+import { createDocsSearchDialog } from './search-dialog'
 import type * as PageTree from 'fumadocs-core/page-tree'
 import { BookOpenIcon } from '@heroicons/react/20/solid'
 import { CategoryIcon } from '@/components/help-center/category-icon'
@@ -45,11 +46,14 @@ export function CustomDocsLayout({
   children: ReactNode
 }) {
   const tree = useMemo(() => docsTree(nav, locale), [nav, locale])
-  const tags = useMemo(() => nav.map((c) => ({ name: c.name, value: c.slug })), [nav])
+  const SearchDialog = useMemo(
+    () => createDocsSearchDialog(nav.map((c) => ({ name: c.name, value: c.slug }))),
+    [nav]
+  )
   const home = localizedHcPath(locale, '/hc')
   return (
     <TanstackProvider>
-      <SearchProvider options={{ type: 'fetch', api: '/api/docs-search', tags, allowClear: true }}>
+      <SearchProvider SearchDialog={SearchDialog}>
         <div className="custom-docs">
           <DocsLayout
             tree={tree}

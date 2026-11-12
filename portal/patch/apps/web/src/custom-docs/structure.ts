@@ -41,12 +41,18 @@ function blockText(lang: string, raw: string): string {
   if (lang === 'media') return raw
   try {
     const strings: string[] = []
-    const walk = (v: unknown) => {
-      if (typeof v === 'string') strings.push(v)
-      else if (Array.isArray(v)) v.forEach(walk)
-      else if (v && typeof v === 'object') Object.values(v).forEach(walk)
+    const SKIP = new Set(['t', 'href', 'icon', 'url'])
+    const walk = (v: unknown, depth = 0) => {
+      if (typeof v === 'string') {
+        if (!/^(\/|https?:|doc:)/.test(v)) strings.push(v)
+      } else if (Array.isArray(v)) v.forEach((x) => walk(x, depth + 1))
+      else if (v && typeof v === 'object')
+        for (const [k, x] of Object.entries(v)) {
+          if (lang === 'options' && depth === 0) strings.push(k)
+          if (!SKIP.has(k) && !(lang === 'options' && depth === 1 && k !== 'description')) walk(x, depth + 1)
+        }
     }
-    walk(JSON.parse(raw))
+    walk(JSON.parse(raw), 0)
     return strings.join(' ').replace(/[`*_#>\[\]()]/g, ' ').replace(/\s+/g, ' ').trim()
   } catch {
     return raw

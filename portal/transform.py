@@ -47,6 +47,21 @@ EDITS = {
          "import { getPublicCollectionPageFn } from '@/lib/server/functions/help-center'\nimport { DocsCategoryPage } from '@/custom-docs/pages'\n"),
         ("  component: CollectionPage,\n", "  component: DocsCategoryPage,\n"),
     ],
+    # no help-center hero/search above articles: the docs layout must be the direct parent
+    "routes/_portal/hc/$locale/articles/$idSlug.tsx": [
+        ("""  return (
+    <>
+      <HelpCenterHero variant="compact">
+        <HelpCenterHeroSearch locale={locale} askAiEnabled={askAiEnabled} />
+      </HelpCenterHero>
+      <div className="mx-auto max-w-7xl">
+        <Outlet />
+      </div>
+    </>
+  )""", """  void locale
+  void askAiEnabled
+  return <Outlet />"""),
+    ],
     "routes/_portal/hc/$locale/articles/$idSlug/index.tsx": [
         ("import { getPublicArticlePageFn } from '@/lib/server/functions/help-center'\n",
          "import { getPublicArticlePageFn } from '@/lib/server/functions/help-center'\nimport { DocsArticlePage } from '@/custom-docs/pages'\n"),

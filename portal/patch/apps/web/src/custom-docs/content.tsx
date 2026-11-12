@@ -29,6 +29,7 @@ import { Accordion, Accordions } from 'fumadocs-ui/components/accordion'
 import { File, Files, Folder } from 'fumadocs-ui/components/files'
 import { TypeTable } from 'fumadocs-ui/components/type-table'
 import { DynamicCodeBlock } from 'fumadocs-ui/components/dynamic-codeblock'
+import { TranslationProvider } from '@fuma-translate/react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { PhotoIcon, VideoCameraIcon } from '@heroicons/react/20/solid'
@@ -277,7 +278,7 @@ function Block({ lang, raw }: { lang: string; raw: string }) {
           {
             type: o.type ?? '',
             default: o.default,
-            required: o.required,
+            required: o.required ?? true,
             description: (
               <span className="inline-flex flex-wrap items-center gap-2">
                 {o.status && <StatusBadge value={o.status} />}
@@ -287,7 +288,11 @@ function Block({ lang, raw }: { lang: string; raw: string }) {
           },
         ])
       )
-      return <TypeTable type={type} />
+      return (
+        <TranslationProvider translations={{ 'Prop(type table)': 'Option', 'Type(type table)': 'Kind' }}>
+          <TypeTable type={type} />
+        </TranslationProvider>
+      )
     }
     case 'keys': {
       const rows = parse<{ keys: string; action: string }[]>(raw)
