@@ -24,7 +24,9 @@ def http(url, body=None, method=None, headers=HDR):
     r = urllib.request.Request(url, json.dumps(body).encode() if body is not None else None, headers, method=method)
     try:
         resp = urllib.request.urlopen(r); raw = resp.read().decode("utf-8", "replace")
-        if raw.strip() and not raw.lstrip().startswith(("{", "[")): print("non-JSON from", url, resp.status, raw[:300])
+        raw = raw.lstrip("\ufeff\x00 \r\n\t")
+        if raw and not raw.startswith(("{", "[")):
+            i = raw.find("{"); print("non-JSON prefix from", url, repr(raw[:40])); raw = raw[i:] if i >= 0 else ""
     except urllib.error.HTTPError as e:
         print("HTTP", e.code, url, e.read().decode("utf-8", "replace")[:300]); raise
     return json.loads(raw) if raw.strip() else {}
