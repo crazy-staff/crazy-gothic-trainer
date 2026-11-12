@@ -7,7 +7,7 @@
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 16
+#define TRAINER_BUILD 17
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]
@@ -36,6 +36,7 @@ struct Row {
     std::string icon;                            // Fork Awesome glyph (utf8)
     bool live = false;                           // value applies immediately (no button)
     std::vector<std::string> excl;               // rows that cannot be on together with this one
+    std::vector<std::string> req;                // build 17: rows that must be on before this one can be switched on
 };
 
 struct Label {
@@ -62,7 +63,14 @@ struct NearNpc {                  // npc list for pickers (ally picker etc.)
 struct RadarDot {                 // build 14: radar - position relative to the hero (cm), world axes
     float x, z; unsigned color; int type;   // 0 npc 1 item 2 chest 3 party
     std::string name, info;
+    int cat = -1;   // build 17: 0 enemy 1 neutral 2 monster 3 party 4 dead 5 item 6 chest (radar and compass filter separately)
 };
+// build 17: radar / compass "what to show" (row ids per category)
+inline const char* RadarCatId(int cat, bool compass) {
+    static const char* r[7] = { "raden", "radne", "radmo", "radpa", "radardead", "radaritems", "radarchests" };
+    static const char* c[7] = { "cmen", "cmne", "cmmo", "cmpa", "cmdead", "cmitems", "cmchests" };
+    return cat < 0 || cat > 6 ? nullptr : (compass ? c[cat] : r[cat]);
+}
 struct MapItem {                  // build 15: every item lying in the world (Ekwipunek › Zbieranie)
     uintptr_t ptr; int sym, cat, value, amount; std::string name, id; float x, y, z, dist;
 };
@@ -84,8 +92,11 @@ struct Snapshot {
     std::vector<NearNpc> nearby, party, spawned, env;
     std::shared_ptr<const std::vector<MapItem>> mapItems; bool botOn = false; int botLeft = 0, botGot = 0;   // build 15
     std::string aimTarget;   // build 16
+    bool faOn = false, faHas = false; float faX = 0, faY = 0;   // build 17: free aim active / pointed target (screen 0..1)
     int thrCount = 0; std::string thrName, weapon; float thrDist = 0;   // build 16 widgets
+    int arrows = 0, bolts = 0, npcCount = 0, itemCount = 0; float tickMs = 0, memMB = 0;   // build 17 widgets
     std::vector<RadarDot> ind;   // build 16: ESP direction arrows (world-relative, like radar dots)
+    std::vector<RadarDot> edges; // build 17: ESP boxes outside the screen -> marker on the edge (x,z = screen 0..1)
     std::vector<RadarDot> radar; float rfx = 0, rfz = 1, rrx = 1, rrz = 0;   // build 14: radar dots + hero forward/right   // env: build 14 Otoczenie page (incl. party, dead)
     std::string subjectName; uintptr_t subjectPtr = 0;
     bool quicksilver = false;

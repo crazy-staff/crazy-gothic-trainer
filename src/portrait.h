@@ -1,4 +1,6 @@
 #pragma once
+#include <d3d11.h>
+#include <dxgi.h>
 // Character portraits / item icons rendered by the game itself. The game thread parks the camera in
 // front of the subject (frame A), then hides the subject (frame B); Present cuts the difference out
 // -> transparent background, faded at the bottom. Results are cached as files by key (instance id).
@@ -21,3 +23,6 @@ bool ShotHeld();                             // build 16: a frame is waiting for
 void ShotSize(int& w, int& h);
 void ShotCommit(int x0, int y0, int x1, int y1);   // pixels of the held frame
 void ShotCancel();
+bool ShotPending();
+void* ShotHeldTex();                         // build 17: SRV of the frozen frame
+void ShotPostRender(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc);

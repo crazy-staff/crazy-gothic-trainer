@@ -124,3 +124,99 @@ void GfxApply(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc) {
     rtv->Release();
 }
 void GfxRelease() { if (g_srv) { g_srv->Release(); g_srv = nullptr; } if (g_copy) { g_copy->Release(); g_copy = nullptr; } g_cd = {}; }
+
+// ---- build 17: GD3D11 renderer settings ---------------------------------------------------------------------
+// GD3D11 (ddraw.dll) exports GDX_Get/SetXxx. Offsets inside its settings struct are found by probing: a setter is
+// called with a marker value, the changed float is located, the old value is put back. Draw distances are read
+// relative to GlobalWindStrength for the two struct layouts in use (checked by value ranges), else left out.
+namespace {
+using fnGet = void* (__cdecl*)(unsigned int&);
+using fnSetF = void(__cdecl*)(float);
+using fnSetB = void(__cdecl*)(bool);
+struct Gdx { bool tried = false, ok = false, layout = false; char* base = nullptr; unsigned size = 0;
+             int oWind = -1, oFog = -1, oSun = -1, oShadow = -1, oSection = -1, oIndoor = -1, oOutdoor = -1, oSkel = -1, oSmall = -1, oFx = -1;
+             float origF[16]{}; int origSection = 0; bool saved = false; fnSetB scatter = nullptr; std::string version; } G;
+int Probe(fnSetF set) {
+    if (!set || !G.base) return -1;
+    std::vector<char> before(G.base, G.base + G.size);
+    const float mark = 12345.6789f;
+    set(mark);
+    int found = -1;
+    for (unsigned o = 0; o + 4 <= G.size; o += 4) if (*(float*)(G.base + o) == mark) { found = (int)o; break; }
+    if (found >= 0) memcpy(G.base + found, before.data() + found, 4); else memcpy(G.base, before.data(), G.size);
+    return found;
+}
+bool InRange(int o, float lo, float hi) { if (o < 0 || o + 4 > (int)G.size) return false; float v = *(float*)(G.base + o); return v >= lo && v <= hi; }
+bool InRangeI(int o, int lo, int hi) { if (o < 0 || o + 4 > (int)G.size) return false; int v = *(int*)(G.base + o); return v >= lo && v <= hi; }
+void GdxInit() {
+    if (G.tried) return;
+    G.tried = true;
+    HMODULE m = GetModuleHandleA("ddraw.dll");
+    if (!m) return;
+    auto get = (fnGet)GetProcAddress(m, "GDX_GetRendererSettings");
+    if (!get) return;
+    if (auto ver = (const char* (__cdecl*)())GetProcAddress(m, "GDX_GetVersionString")) { const char* v = ver(); if (v) G.version = v; }
+    G.base = (char*)get(G.size);
+    if (!G.base || G.size < 64 || G.size > 65536) return;
+    G.oWind = Probe((fnSetF)GetProcAddress(m, "GDX_SetGlobalWindStrength"));
+    G.oFog = Probe((fnSetF)GetProcAddress(m, "GDX_SetFogDensity"));
+    G.oSun = Probe((fnSetF)GetProcAddress(m, "GDX_SetSunStrength"));
+    G.oShadow = Probe((fnSetF)GetProcAddress(m, "GDX_SetShadowStrength"));
+    G.scatter = (fnSetB)GetProcAddress(m, "GDX_SetAtmosphericScattering");
+    G.ok = G.oWind >= 0;
+    if (G.ok) {
+        struct L { int sec, ind, out, skel, small, fx; } lay[2] = { { -60, -56, -52, -48, -44, -40 }, { -52, -48, -44, -40, -36, -32 } };
+        for (auto& l : lay) {
+            int w = G.oWind;
+            if (InRangeI(w + l.sec, 1, 128) && InRange(w + l.ind, 100.f, 2e6f) && InRange(w + l.out, 100.f, 2e6f) && InRange(w + l.skel, 100.f, 2e6f) &&
+                InRange(w + l.small, 100.f, 2e6f) && InRange(w + l.fx, 100.f, 2e6f)) {
+                G.oSection = w + l.sec; G.oIndoor = w + l.ind; G.oOutdoor = w + l.out; G.oSkel = w + l.skel; G.oSmall = w + l.small; G.oFx = w + l.fx; G.layout = true; break;
+            }
+        }
+    }
+    Log("GD3D11: %s, ustawienia %u B, wiatr@%d mgla@%d slonce@%d cienie@%d zasiegi=%s", G.version.c_str(), G.size, G.oWind, G.oFog, G.oSun, G.oShadow, G.layout ? "tak" : "nie");
+}
+float& F(int o) { return *(float*)(G.base + o); }
+}
+bool GdxAvailable() { GdxInit(); return G.ok; }
+bool GdxDistances() { GdxInit(); return G.layout; }
+std::string GdxInfo() { GdxInit(); return !G.base ? "nie znaleziono GD3D11 (ddraw.dll)" : !G.ok ? "GD3D11 bez dostępu do ustawień" : (G.version.empty() ? std::string("GD3D11") : G.version) + (G.layout ? "" : " - zasięgi rysowania niedostępne w tej wersji"); }
+// called every second from the game thread: on = apply rows, off = put the original values back once
+void GdxTick() {
+    using namespace gx;
+    GdxInit();
+    if (!G.ok) return;
+    const int offs[9] = { G.oOutdoor, G.oSmall, G.oSkel, G.oFx, G.oIndoor, G.oFog, G.oSun, G.oShadow, G.oWind };
+    if (On("gdx")) {
+        if (!G.saved) {
+            for (int i = 0; i < 9; i++) if (offs[i] >= 0) G.origF[i] = F(offs[i]);
+            if (G.oSection >= 0) G.origSection = *(int*)(G.base + G.oSection);
+            G.saved = true;
+            if (Row* r = T.Get("gdxinit")) if (r->val == 0) {   // first use: start from the game's own values
+                auto set = [](const char* id, float v) { if (Row* q = T.Get(id)) q->val = std::max(q->vmin, std::min(q->vmax, v)); };
+                if (G.oOutdoor >= 0) set("gdxdraw", G.origF[0] / 100.f);
+                if (G.oSmall >= 0) set("gdxsmall", G.origF[1] / 100.f);
+                if (G.oSkel >= 0) set("gdxnpc", G.origF[2] / 100.f);
+                if (G.oFx >= 0) set("gdxfx", G.origF[3] / 100.f);
+                if (G.oSection >= 0) set("gdxsect", (float)G.origSection);
+                r->val = 1; T.Save();
+            }
+        }
+        if (G.oOutdoor >= 0) F(G.oOutdoor) = Val("gdxdraw") * 100.f;
+        if (G.oIndoor >= 0) F(G.oIndoor) = std::max(G.origF[4], Val("gdxdraw") * 50.f);
+        if (G.oSmall >= 0) F(G.oSmall) = Val("gdxsmall") * 100.f;
+        if (G.oSkel >= 0) F(G.oSkel) = Val("gdxnpc") * 100.f;
+        if (G.oFx >= 0) F(G.oFx) = Val("gdxfx") * 100.f;
+        if (G.oSection >= 0) *(int*)(G.base + G.oSection) = (int)Val("gdxsect");
+        if (G.oFog >= 0) F(G.oFog) = G.origF[5] * Val("gdxfog") / 100.f;
+        if (G.oSun >= 0) F(G.oSun) = G.origF[6] * Val("gdxsun") / 100.f;
+        if (G.oShadow >= 0) F(G.oShadow) = G.origF[7] * Val("gdxshadow") / 100.f;
+        if (G.oWind >= 0) F(G.oWind) = G.origF[8] * Val("gdxwind") / 100.f;
+        static int lastSc = -1; int sc = On("gdxscatter") ? 1 : 0;
+        if (G.scatter && sc != lastSc) { G.scatter(sc != 0); lastSc = sc; }
+    } else if (G.saved) {
+        for (int i = 0; i < 9; i++) if (offs[i] >= 0) F(offs[i]) = G.origF[i];
+        if (G.oSection >= 0) *(int*)(G.base + G.oSection) = G.origSection;
+        G.saved = false;
+    }
+}

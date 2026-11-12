@@ -186,6 +186,7 @@ static HRESULT __stdcall hkPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
         g_ctx->OMGetRenderTargets(1, &old, &oldDs);
         g_ctx->OMSetRenderTargets(1, &g_rtv, nullptr);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+        ShotPostRender(g_dev, g_ctx, sc);   // build 17: screenshots include the menu and the overlay
         g_ctx->OMSetRenderTargets(1, &old, oldDs);
         if (old) old->Release();
         if (oldDs) oldDs->Release();

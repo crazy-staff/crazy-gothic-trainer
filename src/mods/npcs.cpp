@@ -326,6 +326,9 @@ void Party_BreakFight(void* n) {
     Schedule(0.05, [n] {
         if (!NpcAlive(n) || !NpcReady(n)) return;
         // build 15: no Npc_SetTarget(you) any more - for a monster that made YOU the one to bite after a teleport
+        // build 17: also forget the engine's enemy (oCNpc::enemy 0x37C, hasLockedEnemy 0x370 - Ikarus oCNpc.d);
+        // with the enemy kept the wolf stood frozen on its old target and kept "resetting"
+        fld<void*>(n, 0x37C) = nullptr; fld<int>(n, 0x370) = 0;
         CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
         CallExt("Npc_SetAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
         CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
@@ -340,7 +343,7 @@ static void Calm(void* n, void* about = nullptr) {
     static double logAt = 0;   // build 16: visible in reports (party fights were hard to test)
     if (T.gameClock - logAt > 2.0) { logAt = T.gameClock; tst::Event("party", "przerwano walkę: " + InstName(n) + (about ? " -> " + InstName(about) : std::string())); }
     if (IsAlly(n)) { Party_BreakFight(n); return; }
-    Schedule(0.0, [n] { if (NpcAlive(n) && NpcReady(n)) Peace(n); });
+    Schedule(0.0, [n] { if (NpcAlive(n) && NpcReady(n)) { fld<void*>(n, 0x37C) = nullptr; fld<int>(n, 0x370) = 0; Peace(n); } });
 }
 bool Party_BlockDamage(void* victim, void* att) {
     if (!IsNpc(att) || !IsNpc(victim) || att == victim || g_allies.empty()) return false;
@@ -640,19 +643,22 @@ void Npcs_Register() {
     {   // build 16: a test scene for the party fight options (Narzędzia › Diagnostyka)
         static std::vector<void*> scene;
         CardTitle("Test drużyny");
-        T.Add(MkRow("partytest", "Scena testowa drużyny", "wokół ciebie: człowiek i wilk w drużynie, neutralny kopacz, ścierwojad; potem zmieniaj opcje w karcie Walki", "Narzędzia", "Diagnostyka", K_ACTION, 0, 0, 0, [](Row&) {
+        // build 17: every party option can be seen: guard + rogue (neutral fighters that hate monsters / each other),
+        // digger (neutral, never fights), molerat (neutral-ish animal), scavenger (hostile)
+        T.Add(MkRow("partytest", "Scena testowa drużyny", "w drużynie: Thorus i wilk; neutralni: strażnik, szkodnik, kopacz, kretoszczur; wrogi: ścierwojad", "Narzędzia", "Diagnostyka", K_ACTION, 0, 0, 0, [](Row&) {
             for (void* n : scene) if (NpcExists(n)) RemoveVob(n);
             scene.clear();
             struct P { const char* inst; int role; float ang; };   // role 0 ally, 1 neutral, 2 hostile
-            static const P ps[] = { { "GRD_200_THORUS", 0, 0.f }, { "WOLF", 0, 1.57f }, { "VLK_581_SNAF", 1, 3.14f }, { "SCAVENGER", 2, 4.71f } };
+            static const P ps[] = { { "GRD_200_THORUS", 0, 0.f }, { "WOLF", 0, 0.9f }, { "GRD_254_ORRY", 1, 1.8f }, { "ORG_819_DRAX", 1, 2.7f },
+                                    { "VLK_581_SNAF", 1, 3.6f }, { "MOLERAT", 1, 4.5f }, { "SCAVENGER", 2, 5.4f } };
             for (auto& p : ps) {
                 int sym = SymIndex(p.inst);
-                if (sym < 0) { for (auto& e : g_cat.npcs) if ((p.role == 1 && e.group == NG_OLDCAMP) || (p.role == 0 && !std::string(p.inst).empty() && e.group == NG_OLDCAMP)) { sym = e.sym; break; } }
                 if (sym < 0) continue;
-                void* n = SpawnNpc(sym, SpawnPointNear(500.f, 600.f, p.ang), true);
+                void* n = SpawnNpc(sym, SpawnPointNear(600.f, 700.f, p.ang), true);
                 if (!n) continue;
                 scene.push_back(n); g_spawnedNpcs.push_back({ n, T.gameClock });
                 if (p.role == 0) MakeAlly(n);
+                else if (p.role == 1) { void* me = n; Schedule(0.3, [me] { if (NpcReady(me)) Peace(me); }); }
             }
             T.Toast("Scena testowa: " + std::to_string(scene.size()) + " postaci (włącz ESP › Kogo atakuje)");
             tst::Event("partytest", "scena: " + std::to_string(scene.size())); }));

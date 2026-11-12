@@ -48,6 +48,8 @@ void Icon(const char* u) { T.rows.back().icon = u; }
 void Hidden() { T.rows.back().hidden = true; }
 void Live() { T.rows.back().live = true; }
 void Excl(std::vector<std::string> ids) { T.rows.back().excl = std::move(ids); }
+float g_tickMs = 0;
+void Req(std::vector<std::string> ids) { T.rows.back().req = std::move(ids); }
 std::function<void(Row&)> NeedT(std::function<void(void*)> f) {
     return [f](Row&) { void* t = Target(); if (!t) { T.Toast("Brak celu - spójrz na NPC albo zapisz cel"); return; } f(t); };
 }
@@ -214,6 +216,8 @@ void InstallGameHooks() {
 }
 
 void Trainer::Tick() {
+    LARGE_INTEGER tq0; QueryPerformanceCounter(&tq0);   // build 17: trainer time per frame (info widget)
+    struct TickTimer { LARGE_INTEGER t0; ~TickTimer() { LARGE_INTEGER t1, f; QueryPerformanceCounter(&t1); QueryPerformanceFrequency(&f); g_tickMs = (float)((t1.QuadPart - t0.QuadPart) * 1000.0 / f.QuadPart); } } tickTimer{ tq0 };
     std::vector<std::pair<std::string, std::function<void()>>> q;
     { std::lock_guard<std::mutex> l(mtx); q.swap(queue); }
     bool inGame = InGame();
@@ -269,6 +273,7 @@ void Trainer::Tick() {
     g_crumb = "tick";
     s.inGame = true;
     s.paused = paused;
+    s.tickMs = g_tickMs;
     s.diag = diag;
     std::lock_guard<std::mutex> l(mtx);
     s.marvinOut = snap.marvinOut;
@@ -293,13 +298,18 @@ void Trainer::Init() {
         "radarnames", "glmouse", "glignore", "allynotalk", "autoloot", "lootanim", "lootc0", "lootc1", "lootc2", "lootc3", "lootc4", "lootc5",
         "lootc6", "lootc7", "lootc8", "lootc9", "lootc10", "lootc11", "lootore", "tphoto", "zombz", "zombsk", "zombot", "zombhunt", "zombfat", "zombclear",
         "polyhum", "polymon", "polyparty", "polyimm", "polyanim", "polybeast", "polyundead", "polyorc", "polyfx", "polyhostile", "polykeep",
-        "raden", "radne", "radmo", "radpa", "shot" };
-    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9-15)"; }
+        "raden", "radne", "radmo", "radpa", "shot", "partytest", "partytestclear", "zombname", "esparrows", "esptarget", "wmenu", "whp", "wmana",
+        "wthreat", "wweapon", "wfps", "compass", "compmark", "xhair", "xhdot", "xhoutline", "gfx", "gfxreset", "atkspeed", "infammo" };
+    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9-16)"; }
     struct Bad { const char* id; const char* why; };
-    static const Bad bad[] = { { "lootbotback", "build 15: po zatrzymaniu bot nie wracał; build 16: powrót też po Esc / Zatrzymaj" },
-        { "partyinfight", "build 15: inni bili ścierwojada, on bił człowieka; build 16: kontrola celów co 0,5 s + Diagnostyka › Test drużyny + ESP › Kogo atakuje" },
-        { "zombmortal", "build 15: zombie dalej nieśmiertelne; build 16: bez nieumarłych fabularnych + ponowne ustawienie po wstawieniu" },
-        { "zombname", "build 15: wszyscy nazywali się Zombie; build 16: „<nazwa> apokalipsy”" },
+    static const Bad bad[] = { { "partymonatk", "build 16: po wyłączeniu wilk stał zablokowany na celu; build 17: czyszczony też wróg w silniku" },
+        { "partyothersatk", "build 16: nic się nie działo (kopacz nie walczy); build 17: scena testowa ze strażnikiem i szkodnikiem" },
+        { "partyhumatk", "build 16: nie do sprawdzenia w scenie; build 17: scena ze strażnikiem, szkodnikiem i kretoszczurem" },
+        { "zombmortal", "build 16: wyłączone też dało się zabić; build 17: wyłączone = nieśmiertelni" },
+        { "espedge", "build 16: nie trzymały się ramki; build 17: znacznik w miejscu ramki poza ekranem" },
+        { "shotarea", "build 16: bez menu na zrzucie, menu dało się ruszać; build 17: zrzut całego ekranu z menu, zamrożony obraz przy zaznaczaniu" },
+        { "freeaim", "build 16: tylko lewo-prawo; build 17: kamera z celowaniem góra-dół, strzał w postać pod celownikiem" },
+        { "aimbot", "build 16: nie działał, crash, Alt = skok; build 17: obrót silnikiem gry, nowe klawisze, wymaga swobodnego celowania" },
         { "glcoll", "build 14: działało odwrotnie (zła flaga raytrace: 8 = ramki obiektów); build 15: poprawione + pomija obiekty bez kolizji" },
         { "allyfightbreak", "build 13: krwiopijca dalej leciał do przeciwnika; build 14: potwory też; build 15: bez ustawiania ciebie jako celu (potwór gryzł po teleporcie)" } };
     for (auto& b : bad) if (Row* r = Get(b.id)) { r->status = ST_BUG; r->hist = b.why; }
@@ -309,6 +319,10 @@ void ApplyRow(Row& r) {
     Row* rp = &r;
     switch (r.kind) {
     case K_TOGGLE: case K_SLIDER:
+        if (!r.on) for (auto& id : r.req) if (Row* q = T.Get(id)) if (!q->on) {   // build 17: needs another option first
+            T.Toast("Najpierw włącz \"" + q->name + "\"");
+            return;
+        }
         if (!r.on) {   // mutually exclusive features
             for (auto& id : r.excl) if (Row* o = T.Get(id)) if (o->on) {   // build 16: the other mode is switched off
                 ApplyRow(*o);

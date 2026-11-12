@@ -174,10 +174,13 @@ void PortraitClear() {
 // build 15: a screenshot of the game frame (without the trainer's menu) -> report attachment + clipboard
 static std::atomic<int> g_shotReq{ 0 };   // 1 whole frame, 2 frame kept for selecting an area (Shift+F11)
 static std::vector<uint32_t> g_held; static int g_heldW = 0, g_heldH = 0; static std::atomic<bool> g_isHeld{ false };
+static ID3D11ShaderResourceView* g_heldSrv = nullptr; static std::vector<IUnknown*> g_heldFree;   // build 17: frozen frame shown while selecting
+bool ShotPending() { return g_shotReq != 0; }
+void* ShotHeldTex() { return g_heldSrv; }
 void ShotRequest(bool area) { g_shotReq = area ? 2 : 1; }
 bool ShotHeld() { return g_isHeld; }
 void ShotSize(int& w, int& h) { w = g_heldW; h = g_heldH; }
-void ShotCancel() { g_isHeld = false; g_held.clear(); }
+void ShotCancel() { g_isHeld = false; g_held.clear(); if (g_heldSrv) { g_heldFree.push_back(g_heldSrv); g_heldSrv = nullptr; } }
 void ShotCommit(int x0, int y0, int x1, int y1) {
     if (!g_isHeld) return;
     x0 = std::max(0, std::min(x0, g_heldW)); x1 = std::max(0, std::min(x1, g_heldW)); y0 = std::max(0, std::min(y0, g_heldH)); y1 = std::max(0, std::min(y1, g_heldH));
@@ -212,12 +215,26 @@ static void ShotGrab(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain
         }
     }
     ctx->Unmap(stg, 0); stg->Release();
-    if (hold) { g_held = std::move(px); g_heldW = (int)bd.Width; g_heldH = (int)bd.Height; g_isHeld = true; return; }
+    if (hold) {
+        g_held = std::move(px); g_heldW = (int)bd.Width; g_heldH = (int)bd.Height;
+        D3D11_TEXTURE2D_DESC td2{}; td2.Width = bd.Width; td2.Height = bd.Height; td2.MipLevels = 1; td2.ArraySize = 1; td2.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        td2.SampleDesc.Count = 1; td2.Usage = D3D11_USAGE_DEFAULT; td2.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        D3D11_SUBRESOURCE_DATA sd{ g_held.data(), (UINT)(bd.Width * 4), 0 };
+        ID3D11Texture2D* t = nullptr;
+        if (SUCCEEDED(dev->CreateTexture2D(&td2, &sd, &t))) { dev->CreateShaderResourceView(t, nullptr, &g_heldSrv); t->Release(); }
+        g_isHeld = true; return;
+    }
     tst::ShotDone(std::move(px), (int)bd.Width, (int)bd.Height);
+}
+// build 17: after the overlay and the menu are drawn - the shot shows exactly what is on the screen
+void ShotPostRender(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc) {
+    for (auto* u : g_heldFree) u->Release();
+    g_heldFree.clear();
+    if (int r = g_shotReq.exchange(0)) ShotGrab(dev, ctx, sc, r == 2);
 }
 void PortraitPresent(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc) {
     g_dev = dev;
-    if (int r = g_shotReq.exchange(0)) ShotGrab(dev, ctx, sc, r == 2);
+
     if (!g_del.empty()) {
         std::lock_guard<std::recursive_mutex> l(g_mx);
         for (auto& key : g_del) {

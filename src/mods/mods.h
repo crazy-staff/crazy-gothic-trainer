@@ -46,6 +46,7 @@ void Icon(const char* utf8);
 void Hidden();
 void Live();
 void Excl(std::vector<std::string> ids);
+void Req(std::vector<std::string> ids);   // build 17
 std::function<void(Row&)> NeedT(std::function<void(void*)> f);
 
 // Fork Awesome glyphs (utf8)

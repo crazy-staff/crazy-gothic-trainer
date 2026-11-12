@@ -109,8 +109,7 @@ void Act_BotStart(const std::vector<uintptr_t>& items) {
 void BotFinish(void* h, const char* why) {
     if (!g_bot) return;
     g_bot = false;
-    if (On("lootbotback") && h) SafeSetPos(h, g_botHome);
-    T.Toast(std::string(why) + ": zebrano " + std::to_string(g_botGot) + (On("lootbotback") ? " - wracasz na miejsce startu" : ""));
+    T.Toast(std::string(why) + ": zebrano " + std::to_string(g_botGot));
     tst::Event("lootbot", std::string(why) + ": " + std::to_string(g_botGot));
 }
 void Act_BotStop() { T.Queue("item:botstop", [] { BotFinish(Player(), "Bot zatrzymany"); }); }
@@ -194,7 +193,7 @@ void Items_Register() {
         T.Add(MkRow("lootore", "Ruda", "", C, Z, K_TOGGLE)); T.rows.back().on = true; Hidden(); St(ST_NEW, "nowe w build 15");
         CardTitle("Bot zbierający");
         T.Add(MkRow("lootbotdelay", "Odstęp między przedmiotami", "sekund", C, Z, K_VALUE, 0.4f, 0.05f, 3.f, nullptr, true)); St(ST_NEW, "nowe w build 15");
-        T.Add(MkRow("lootbotback", "Wróć na miejsce po zebraniu", "", C, Z, K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 15");
+        T.Add(MkRow("lootbotback", "Wróć na miejsce po zebraniu", "", C, Z, K_TOGGLE)); Hidden(); St(ST_NEW, "build 17: usunięte (zbędne)");
     }
     const char* S = "Zestawy";
     CardTitle("Gotowe zestawy");

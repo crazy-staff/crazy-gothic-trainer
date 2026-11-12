@@ -279,6 +279,7 @@ void Chaos_Register() {
             auto apply = [z, hp, pr, mortal, protOff]() {   // build 16: again after insertion - scripts reset values
                 if (!NpcExists(z)) return;
                 if (mortal) { MakeMortal(z); fld<int>(z, NPC_FLAGS) &= ~2; }
+                else fld<int>(z, NPC_FLAGS) |= 2;   // build 17: switched off = they cannot be killed
                 for (int k = 0; k < 8; k++) fld<int>(z, protOff + 4 * k) = pr[k];
                 if (Attr(z, 1) != hp) { SetAttr(z, 1, hp); SetAttr(z, 0, hp); }
             };
@@ -301,7 +302,7 @@ void Chaos_Register() {
     NoVal(); Icon(ICN_TRASH); St(ST_NEW, "nowe w build 15");
     auto chk = [&](const char* id, const char* name, bool def, const char* note = "") { T.Add(MkRow(id, name, note, C, I, K_TOGGLE)); T.rows.back().on = def; Hidden(); St(ST_NEW, "nowe w build 15"); };
     chk("zombz", "Zombie", true); chk("zombsk", "Szkielety", false); chk("zombot", "Inni nieumarli", false);
-    chk("zombhunt", "Od razu atakują ciebie", true); chk("zombmortal", "Da się ich zabić (bez odporności ze skryptów)", true);
+    chk("zombhunt", "Od razu atakują ciebie", true); chk("zombmortal", "Da się ich zabić (wyłączone = nieśmiertelni)", true);
     chk("zombfat", "Losowa tusza", true); chk("zombname", "Nazwa „… apokalipsy”", true);
 
     CardTitle("Polimorfia");

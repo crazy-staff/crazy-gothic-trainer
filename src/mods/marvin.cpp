@@ -106,6 +106,13 @@ void Marvin_Register() {
             { "hudstats", "HP i mana", "", false },
             { "hudtarget", "Cel", "imię i HP postaci, w którą celujesz", false },
             { "hudmods", "Liczba włączonych opcji", "", false },
+            { "hudgraph", "Wykres FPS / czasu klatki", "ostatnie 2 sekundy", false },
+            { "hudframe", "Czas klatki", "ms, średni i najgorszy", false },
+            { "hudtick", "Czas pracy trenera", "ms na klatkę", false },
+            { "hudmem", "Pamięć gry", "MB", false },
+            { "hudcount", "Postacie i przedmioty w świecie", "", false },
+            { "hudheading", "Kierunek", "stopnie", false },
+            { "hudclock", "Godzina (komputer)", "", false },
         };
         for (auto& it : items) { T.Add(MkRow(it.id, it.name, it.note, "Wizualia", N, K_TOGGLE)); T.rows.back().on = it.on; Hidden(); St(ST_OK, "build 12: działa"); }
     }

@@ -4,6 +4,7 @@
 #include "ui.h"
 #include "trainer.h"
 #include "portrait.h"
+#include "gfx.h"
 #include "core/catalog.h"
 #include "core/common.h"
 #include "mods/mods.h"
@@ -668,6 +669,32 @@ void TabbedCard(std::vector<CardSpec>& cards, const char* title, std::vector<std
     cards.erase(std::remove_if(cards.begin(), cards.end(), [](const CardSpec& k) { return k.rows.empty() && !k.custom && k.tabs.empty(); }), cards.end());
     if (at < 0 || at > (int)cards.size()) at = (int)cards.size();
     cards.insert(cards.begin() + at, c);
+}
+// build 17: several titled groups of checkmarks inside ONE existing card (everything about a feature in one place)
+void ChecksSections(std::vector<CardSpec>& cards, const char* title, std::vector<std::pair<const char*, std::vector<const char*>>> secs) {
+    float h = 6 * S; for (auto& sc : secs) h += 34 * S + (sc.second.size() + 1) / 2 * 34 * S;
+    auto fn = [secs, h](float x, float y, float cw) -> float {
+        float yy = y + 6 * S;
+        for (auto& sc : secs) {
+            DL()->AddLine(ImVec2(x + 18 * S, yy), ImVec2(x + cw - 18 * S, yy), U32(C_LINE));
+            Text(ImVec2(x + 18 * S, yy + 8 * S), fBold, C_TEXT, sc.first);
+            yy += 34 * S;
+            int i = 0;
+            for (auto id : sc.second) {
+                Row* r = T.Get(id); if (!r) continue;
+                float cx = x + 18 * S + (i % 2) * (cw - 36 * S) * 0.5f, cy = yy + (i / 2) * 34 * S;
+                ImGui::PushID(id);
+                if (Check("##c", r->on, ImVec2(cx, cy))) { r->on = !r->on; tst::Event(r->id, r->on ? "włączono" : "wyłączono"); T.Save(); }
+                ImGui::PopID();
+                Text(ImVec2(cx + 28 * S, cy + 1 * S), fReg, r->on ? C_TEXT : C_DIM, r->name.c_str());
+                i++;
+            }
+            yy += (i + 1) / 2 * 34 * S;
+        }
+        return h;
+    };
+    if (CardSpec* c = FindCard(cards, title)) { c->customH = h; c->custom = fn; return; }
+    CardSpec cs{ title, {}, nullptr, h, false }; cs.custom = fn; cards.push_back(cs);
 }
 // build 15: a card of checkmarks for hidden toggle rows (2 columns); added to an existing card of that title or as a new one
 void ChecksCard(std::vector<CardSpec>& cards, const char* title, std::vector<const char*> ids, const char* header = nullptr) {
@@ -2057,7 +2084,7 @@ std::set<std::string> g_tOpen;                     // expanded history in the ch
 struct KnownIssue { const char* id; const char* text; Status st = ST_NEW; };
 const KnownIssue kIssues[] = {
     { "UI-01", "Scroll kółkiem myszy w menu", ST_OK },
-    { "UI-02", "Zrzut ekranu: F11 cały, Shift+F11 obszar (Win+Shift+S nieobsługiwane)", ST_NEW },
+    { "UI-02", "Zrzut ekranu: F11 cały, Shift+F11 obszar - z menu, jak Win+Shift+S", ST_NEW },
     { "UI-03", "Esc w menu trainera tylko zamyka menu", ST_OK },
     { "UI-04", "ESP i napisy chowają się w menu pauzy gry (Esc)", ST_OK },
     { "UI-05", "Suwaki: wartość nad suwakiem, równe wyrównanie", ST_OK },
@@ -2151,27 +2178,40 @@ bool MultiBox(const char* id, char* buf, size_t n, const char* hint, float w, fl
 void FieldLabel(const char* t) { PF(fSmall); ImGui::TextColored(C_DIM, "%s", t); ImGui::PopFont(); }
 
 // history of one option: known issues (GitHub), developer notes, every ticket ever written for it
+// build 17: long histories are folded - the 5 newest entries, the rest behind "show all"
+std::set<std::string> g_histOpen;
 void HistoryBlock(const std::string& id, float w) {
     auto known = tst::KnownFor(id);
     auto mine = tst::For(id);
     Row* r = T.Get(id);
     ImGui::Indent(14 * S);
     if (r && !r->hist.empty()) { PF(fSmall); ImGui::TextColored(C_DIM, "Od autora:"); ImGui::SameLine(); ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + w - 120 * S); ImGui::TextColored(C_TEXT, "%s", r->hist.c_str()); ImGui::PopTextWrapPos(); ImGui::PopFont(); }
-    for (auto* k : known) {
+    int total = (int)known.size() + (int)mine.size();
+    bool open = g_histOpen.count(id) != 0;
+    int shown = 0, limit = open ? 1 << 30 : 5;
+    for (int i = (int)mine.size() - 1; i >= 0 && shown < limit; i--, shown++) {   // newest first
+        auto* t = mine[i];
+        PF(fSmall);
+        ImGui::TextColored(TypeCol(t->type), "%s", tst::kTypeNames[t->type]); ImGui::SameLine();
+        ImGui::TextColored(C_FAINT, "b%d · %s · %s%s", t->build, t->time.c_str(), t->nick.c_str(), t->sent ? " · wysłane" : "");
+        std::string body = t->title;
+        if (!t->actual.empty() && t->actual != t->title) body += (body.empty() ? "" : " - ") + t->actual;
+        if (!body.empty()) { ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + w - 60 * S); ImGui::TextColored(C_TEXT, "%s", body.c_str()); ImGui::PopTextWrapPos(); }
+        ImGui::PopFont();
+    }
+    for (size_t i = 0; i < known.size() && shown < limit; i++, shown++) {
+        auto* k = known[i];
         PF(fSmall);
         ImGui::TextColored(k->state == "open" ? C_ST_BUG : C_ST_OK, "#%d %s", k->issue, k->state == "open" ? "otwarte" : "rozwiązane");
         ImGui::SameLine(); ImGui::TextColored(C_TEXT, "%s", k->title.c_str());
         if (k->build) { ImGui::SameLine(); ImGui::TextColored(C_FAINT, "(build %d)", k->build); }
         ImGui::PopFont();
     }
-    for (auto* t : mine) {
-        PF(fSmall);
-        ImGui::TextColored(TypeCol(t->type), "%s", tst::kTypeNames[t->type]); ImGui::SameLine();
-        ImGui::TextColored(C_FAINT, "b%d · %s · %s%s", t->build, t->time.c_str(), t->nick.c_str(), t->sent ? " · wysłane" : ""); 
-        std::string body = t->title;
-        if (!t->actual.empty() && t->actual != t->title) body += (body.empty() ? "" : " - ") + t->actual;
-        if (!body.empty()) { ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + w - 60 * S); ImGui::TextColored(C_TEXT, "%s", body.c_str()); ImGui::PopTextWrapPos(); }
-        ImGui::PopFont();
+    if (total > 5) {
+        ImGui::PushID(id.c_str());
+        char lb[64]; snprintf(lb, sizeof lb, open ? "\xef\x84\x86  Zwiń historię" : "\xef\x84\x87  Pokaż całą historię (%d)", total);
+        PF(fSmall); if (ImGui::Selectable(lb, false, 0, ImVec2(w * 0.5f, 0))) { if (open) g_histOpen.erase(id); else g_histOpen.insert(id); } ImGui::PopFont();
+        ImGui::PopID();
     }
     if (known.empty() && mine.empty() && !(r && !r->hist.empty())) { PF(fSmall); ImGui::TextColored(C_FAINT, "Brak historii."); ImGui::PopFont(); }
     ImGui::Unindent(14 * S);
@@ -2571,6 +2611,11 @@ void TestsWindow(float dispW) {
     testsDrawing = true;
     TesterPage(ws.x - 50 * S);
     testsDrawing = false;
+    {   // build 17: the mouse wheel scrolls the form even over text boxes and labels
+        ImGuiIO& io = ImGui::GetIO(); ImGuiWindow* hw = GImGui->HoveredWindow; ImGuiWindow* me = ImGui::GetCurrentWindow();
+        if (io.MouseWheel != 0 && hw && hw != me && ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) && hw->ScrollMax.y <= 0.5f)
+            ImGui::SetScrollY(ImGui::GetScrollY() - io.MouseWheel * 90 * S);
+    }
     ImGui::Dummy(ImVec2(0, 8 * S));
     ImGui::EndChild();
     ImGui::End();
@@ -2652,6 +2697,7 @@ void DrawRadar(ImDrawList* dl, ImVec2 c, float R, const std::vector<RadarDot>& d
     ImVec2 mouse = ImGui::GetIO().MousePos; int best = -1; float bestD = 9 * S * 9 * S;
     for (size_t i = 0; i < dots.size(); i++) {
         const RadarDot& d = dots[i];
+        if (d.cat >= 0 && !gx::On(RadarCatId(d.cat, false))) continue;   // build 17: radar's own categories
         if (d.x * d.x + d.z * d.z > range * range) continue;
         ImVec2 p = map(d.x, d.z);
         ImU32 col = (d.color & 0x00FFFFFF) | 0xFF000000;
@@ -2674,16 +2720,19 @@ void DrawRadar(ImDrawList* dl, ImVec2 c, float R, const std::vector<RadarDot>& d
 }
 void PreviewScene(float x, float y, float w, float h);
 // ---- build 16: crosshair ---------------------------------------------------------------------------------
-struct Xhair { std::string name; int style; float gap, len, thick, rot, spin; bool dot, outline; int r, g, b; bool builtin; };
+struct Xhair { std::string name; int style; float gap, len, thick, rot, spin; bool dot, outline; int r, g, b; bool builtin; float dotSize = 2; int dotShape = 0; };
 Xhair XhCurrent() {
     using gx::Val; using gx::On;
-    return { "", (int)Val("xhstyle"), Val("xhgap"), Val("xhlen"), Val("xhthick"), Val("xhrot"), Val("xhspin"), On("xhdot"), On("xhoutline"), (int)Val("xhr"), (int)Val("xhg"), (int)Val("xhb"), false };
+    Xhair x{ "", (int)Val("xhstyle"), Val("xhgap"), Val("xhlen"), Val("xhthick"), Val("xhrot"), Val("xhspin"), On("xhdot"), On("xhoutline"), (int)Val("xhr"), (int)Val("xhg"), (int)Val("xhb"), false };
+    x.dotSize = Val("xhdotsize"); x.dotShape = (int)Val("xhdotshape");
+    return x;
 }
 void XhApply(const Xhair& x) {
     auto set = [](const char* id, float v) { if (Row* r = T.Get(id)) r->val = v; };
     auto tog = [](const char* id, bool v) { if (Row* r = T.Get(id)) r->on = v; };
     set("xhstyle", (float)x.style); set("xhgap", x.gap); set("xhlen", x.len); set("xhthick", x.thick); set("xhrot", x.rot); set("xhspin", x.spin);
     tog("xhdot", x.dot); tog("xhoutline", x.outline); set("xhr", (float)x.r); set("xhg", (float)x.g); set("xhb", (float)x.b);
+    set("xhdotsize", x.dotSize); set("xhdotshape", (float)x.dotShape);
     T.Save();
 }
 std::vector<Xhair> g_xhPresets; bool g_xhLoaded = false;
@@ -2691,55 +2740,94 @@ std::string XhFile() { return DataPath("G1CrazyTrainer_celowniki.txt"); }
 void XhLoad() {
     g_xhLoaded = true; g_xhPresets = {
         { "Klasyczny", 0, 4, 12, 2, 0, 0, false, true, 255, 250, 206, true },
-        { "Kropka", 1, 0, 3, 2, 0, 0, true, true, 255, 255, 255, true },
-        { "Długi", 0, 8, 26, 1.5f, 0, 0, false, true, 120, 255, 140, true },
-        { "Ukośny X", 2, 5, 10, 2, 0, 0, true, true, 255, 90, 90, true } };
+        { "Kropka", 1, 0, 0, 2, 0, 0, true, true, 255, 255, 255, true, 4, 0 },
+        { "Okrąg", 2, 10, 0, 2, 0, 0, true, true, 120, 255, 140, true, 2, 0 },
+        { "Ukośny", 0, 5, 10, 2, 45, 0, true, true, 255, 90, 90, true, 2, 2 } };
     if (FILE* f = fopen(XhFile().c_str(), "rb")) {
-        char line[512];
+        char line[512]; bool v2 = false;
         while (fgets(line, sizeof line, f)) {
-            Xhair x{}; char nm[128] = ""; int dot = 0, ol = 0;
-            if (sscanf(line, "%127[^|]|%d|%f|%f|%f|%f|%f|%d|%d|%d|%d|%d", nm, &x.style, &x.gap, &x.len, &x.thick, &x.rot, &x.spin, &dot, &ol, &x.r, &x.g, &x.b) == 12) {
-                x.name = nm; x.dot = dot; x.outline = ol; x.builtin = false; g_xhPresets.push_back(x);
-            }
+            if (!strncmp(line, "#v2", 3)) { v2 = true; continue; }
+            Xhair x{}; char nm[128] = ""; int dot = 0, ol = 0, dsh = 0; float dsz = 2;
+            int n = sscanf(line, "%127[^|]|%d|%f|%f|%f|%f|%f|%d|%d|%d|%d|%d|%f|%d", nm, &x.style, &x.gap, &x.len, &x.thick, &x.rot, &x.spin, &dot, &ol, &x.r, &x.g, &x.b, &dsz, &dsh);
+            if (n < 12) continue;
+            if (!v2) { if (x.style == 2) { x.style = 0; x.rot += 45; } else if (x.style == 3) x.style = 2; else if (x.style == 4) x.style = 3; }
+            x.name = nm; x.dot = dot; x.outline = ol; x.builtin = false; x.dotSize = n >= 13 ? dsz : 2; x.dotShape = n >= 14 ? dsh : 0;
+            g_xhPresets.push_back(x);
         }
         fclose(f);
     }
 }
 void XhSave() {
     if (FILE* f = fopen(XhFile().c_str(), "wb")) {
+        fprintf(f, "#v2\n");
         for (auto& x : g_xhPresets) if (!x.builtin)
-            fprintf(f, "%s|%d|%.2f|%.2f|%.2f|%.2f|%.2f|%d|%d|%d|%d|%d\n", x.name.c_str(), x.style, x.gap, x.len, x.thick, x.rot, x.spin, (int)x.dot, (int)x.outline, x.r, x.g, x.b);
+            fprintf(f, "%s|%d|%.2f|%.2f|%.2f|%.2f|%.2f|%d|%d|%d|%d|%d|%.2f|%d\n", x.name.c_str(), x.style, x.gap, x.len, x.thick, x.rot, x.spin, (int)x.dot, (int)x.outline, x.r, x.g, x.b, x.dotSize, x.dotShape);
         fclose(f);
     }
+}
+void XhDot(ImDrawList* dl, ImVec2 c, float r, int shape, ImU32 col, ImU32 ol, bool outline, float sc) {
+    float o = 1.3f * sc;
+    if (shape == 1) { if (outline) dl->AddRectFilled(ImVec2(c.x - r - o, c.y - r - o), ImVec2(c.x + r + o, c.y + r + o), ol); dl->AddRectFilled(ImVec2(c.x - r, c.y - r), ImVec2(c.x + r, c.y + r), col); }
+    else if (shape == 2) {
+        if (outline) dl->AddQuadFilled(ImVec2(c.x, c.y - r - o * 1.4f), ImVec2(c.x + r + o * 1.4f, c.y), ImVec2(c.x, c.y + r + o * 1.4f), ImVec2(c.x - r - o * 1.4f, c.y), ol);
+        dl->AddQuadFilled(ImVec2(c.x, c.y - r), ImVec2(c.x + r, c.y), ImVec2(c.x, c.y + r), ImVec2(c.x - r, c.y), col);
+    } else { if (outline) dl->AddCircleFilled(c, r + o, ol, 20); dl->AddCircleFilled(c, r, col, 20); }
 }
 void DrawXhair(ImDrawList* dl, ImVec2 c, const Xhair& x, float sc, float alpha) {
     float ang = (x.rot + (float)std::fmod(NowSec() * x.spin, 360.0)) * 0.0174533f;
     ImU32 col = IM_COL32(x.r, x.g, x.b, (int)(alpha * 255)), ol = IM_COL32(0, 0, 0, (int)(alpha * 200));
     float g = x.gap * sc, l = x.len * sc, t = std::max(1.f, x.thick * sc);
-    auto line = [&](float a) {
-        float ca = std::cos(a + ang), sa = std::sin(a + ang);
-        ImVec2 p0(c.x + ca * g, c.y + sa * g), p1(c.x + ca * (g + l), c.y + sa * (g + l));
-        if (x.outline) dl->AddLine(p0, p1, ol, t + 2 * sc);
-        dl->AddLine(p0, p1, col, t);
-    };
     switch (x.style) {
-    case 0: for (int i = 0; i < 4; i++) line(i * 1.5708f); break;
-    case 2: for (int i = 0; i < 4; i++) line(0.7854f + i * 1.5708f); break;
-    case 3: if (x.outline) dl->AddCircle(c, g + l * 0.5f, ol, 32, t + 2 * sc); dl->AddCircle(c, g + l * 0.5f, col, 32, t); break;
-    case 4:
-        for (int i = 0; i < 4; i++) {   // corner brackets
-            float a = 0.7854f + i * 1.5708f + ang, r = g + l * 0.6f;
-            ImVec2 k(c.x + std::cos(a) * r, c.y + std::sin(a) * r);
-            for (float o : { -0.7854f, 0.7854f }) {
-                ImVec2 e(k.x - std::cos(a + o) * l * 0.5f, k.y - std::sin(a + o) * l * 0.5f);
-                if (x.outline) dl->AddLine(k, e, ol, t + 2 * sc);
-                dl->AddLine(k, e, col, t);
-            }
+    case 0:
+        for (int i = 0; i < 4; i++) {
+            float a = i * 1.5708f + ang, ca = std::cos(a), sa = std::sin(a);
+            ImVec2 p0(c.x + ca * g, c.y + sa * g), p1(c.x + ca * (g + l), c.y + sa * (g + l));
+            if (x.outline) dl->AddLine(ImVec2(p0.x - ca * sc, p0.y - sa * sc), ImVec2(p1.x + ca * sc, p1.y + sa * sc), ol, t + 2 * sc);
+            dl->AddLine(p0, p1, col, t);
+        }
+        break;
+    case 1: XhDot(dl, c, std::max(1.f, x.dotSize * sc), x.dotShape, col, ol, x.outline, sc); return;   // the dot is the whole crosshair
+    case 2: if (x.outline) dl->AddCircle(c, std::max(2.f, g), ol, 40, t + 2 * sc); dl->AddCircle(c, std::max(2.f, g), col, 40, t); break;
+    case 3:
+        for (int i = 0; i < 4; i++) {   // corner brackets as one polyline each (no overlap at any thickness)
+            float a = 0.7854f + i * 1.5708f + ang, r = g + t * 0.5f;
+            ImVec2 k(c.x + std::cos(a) * r * 1.4142f, c.y + std::sin(a) * r * 1.4142f);
+            float a1 = a + 3.1416f - 0.7854f, a2 = a + 3.1416f + 0.7854f;
+            ImVec2 pts[3] = { ImVec2(k.x + std::cos(a1) * l, k.y + std::sin(a1) * l), k, ImVec2(k.x + std::cos(a2) * l, k.y + std::sin(a2) * l) };
+            if (x.outline) dl->AddPolyline(pts, 3, ol, t + 2 * sc);
+            dl->AddPolyline(pts, 3, col, t);
         }
         break;
     default: break;
     }
-    if (x.dot || x.style == 1) { float r = std::max(1.5f, (x.style == 1 ? l * 0.5f : t) * sc * 0.6f + 0.5f); if (x.outline) dl->AddCircleFilled(c, r + 1.2f * sc, ol, 16); dl->AddCircleFilled(c, r, col, 16); }
+    if (x.dot) XhDot(dl, c, std::max(1.f, x.dotSize * sc), x.dotShape, col, ol, x.outline, sc);
+}
+// build 17: the Celownik card with only the settings of the chosen shape
+std::vector<Row*> XhRows() {
+    std::vector<const char*> ids = { "xhair", "xhstyle" };
+    int st = (int)gx::Val("xhstyle");
+    if (st == 0) { for (auto id : { "xhgap", "xhlen", "xhthick", "xhrot", "xhspin", "xhdot" }) ids.push_back(id); if (gx::On("xhdot")) { ids.push_back("xhdotsize"); ids.push_back("xhdotshape"); } }
+    if (st == 1) { ids.push_back("xhdotsize"); ids.push_back("xhdotshape"); }
+    if (st == 2) { for (auto id : { "xhgap", "xhthick", "xhdot" }) ids.push_back(id); if (gx::On("xhdot")) { ids.push_back("xhdotsize"); ids.push_back("xhdotshape"); } }
+    if (st == 3) { for (auto id : { "xhgap", "xhlen", "xhthick", "xhrot", "xhspin", "xhdot" }) ids.push_back(id); if (gx::On("xhdot")) { ids.push_back("xhdotsize"); ids.push_back("xhdotshape"); } }
+    ids.push_back("xhalpha"); ids.push_back("xhoutline");
+    std::vector<Row*> v; for (auto id : ids) if (Row* r = T.Get(id)) v.push_back(r);
+    return v;
+}
+float XhColor(float x, float y, float cw, bool draw) {
+    float h = 44 * S; if (!draw) return h;
+    Text(ImVec2(x + 18 * S, y + 12 * S), fReg, C_TEXT, "Kolor");
+    float col[3] = { gx::Val("xhr") / 255.f, gx::Val("xhg") / 255.f, gx::Val("xhb") / 255.f };
+    char hex[12]; snprintf(hex, sizeof hex, "#%02X%02X%02X", (int)gx::Val("xhr"), (int)gx::Val("xhg"), (int)gx::Val("xhb"));
+    TextV(x + cw - 56 * S - TextW(hex, fSmall), y + 22 * S, fSmall, C_DIM, hex);
+    ImGui::SetCursorScreenPos(ImVec2(x + cw - 18 * S - 24 * S, y + 10 * S));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 12 * S);
+    if (ImGui::ColorEdit3("##xhc", col, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) {
+        if (Row* r = T.Get("xhr")) r->val = std::round(col[0] * 255); if (Row* r = T.Get("xhg")) r->val = std::round(col[1] * 255); if (Row* r = T.Get("xhb")) r->val = std::round(col[2] * 255);
+    }
+    if (ImGui::IsItemDeactivatedAfterEdit()) T.Save();
+    ImGui::PopStyleVar();
+    return h;
 }
 float XhPreview(float x, float y, float cw, bool draw) {
     float h = 170 * S;
@@ -2755,14 +2843,14 @@ float XhPresets(float x, float y, float cw, bool draw) {
     if (!g_xhLoaded) XhLoad();
     int cols = 4; float tile = (cw - 36 * S - (cols - 1) * 8 * S) / cols, th = 92 * S;
     int n = (int)g_xhPresets.size();
-    float h = 10 * S + ((n + cols - 1) / cols) * (th + 8 * S) + 46 * S + 34 * S;
+    float h = 10 * S + ((n + cols - 1) / cols) * (th + 8 * S) + 46 * S;
     if (!draw) return h;
     int del = -1;
     Xhair cur = XhCurrent();
     for (int i = 0; i < n; i++) {
         auto& p = g_xhPresets[i];
         ImVec2 a(x + 18 * S + (i % cols) * (tile + 8 * S), y + 10 * S + (i / cols) * (th + 8 * S)), b(a.x + tile, a.y + th);
-        bool same = p.style == cur.style && std::fabs(p.gap - cur.gap) < 0.01f && std::fabs(p.len - cur.len) < 0.01f && p.r == cur.r && p.g == cur.g && p.b == cur.b;
+        bool same = p.style == cur.style && std::fabs(p.gap - cur.gap) < 0.01f && std::fabs(p.len - cur.len) < 0.01f && std::fabs(p.rot - cur.rot) < 0.01f && p.r == cur.r && p.g == cur.g && p.b == cur.b;
         ImGui::SetCursorScreenPos(a); ImGui::PushID(i + 9100);
         bool click = ImGui::InvisibleButton("##xp", ImVec2(tile, th)); bool hv = ImGui::IsItemHovered();
         DL()->AddRectFilled(a, b, U32(same ? Mix(C_CARD2, C_ACC, 0.25f) : hv ? C_HOVER : C_CARD2), R_ITEM());
@@ -2783,22 +2871,84 @@ float XhPresets(float x, float y, float cw, bool draw) {
         Xhair c2 = XhCurrent(); c2.name = g_xhName; for (auto& ch : c2.name) if (ch == '|') ch = '/';
         g_xhPresets.push_back(c2); XhSave(); g_xhName[0] = 0; T.Toast("Zapisano preset celownika");
     }
-    // colour
-    float cy = by + BtnH() + 12 * S;
-    Text(ImVec2(x + 18 * S, cy + 2 * S), fReg, C_TEXT, "Kolor");
-    float col[3] = { gx::Val("xhr") / 255.f, gx::Val("xhg") / 255.f, gx::Val("xhb") / 255.f };
-    ImGui::SetCursorScreenPos(ImVec2(x + cw - 18 * S - 24 * S, cy - 2 * S));
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 12 * S);
-    if (ImGui::ColorEdit3("##xhc", col, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) {
-        if (Row* r = T.Get("xhr")) r->val = std::round(col[0] * 255); if (Row* r = T.Get("xhg")) r->val = std::round(col[1] * 255); if (Row* r = T.Get("xhb")) r->val = std::round(col[2] * 255);
-    }
-    if (ImGui::IsItemDeactivatedAfterEdit()) T.Save();
-    ImGui::PopStyleVar();
     return h;
+}
+// ---- build 17: generic presets for a set of rows (Grafika) ------------------------------------------------
+struct RowPreset { std::string name; std::vector<std::pair<std::string, float>> v; bool builtin; };
+struct PresetSet { std::string file; std::vector<std::string> ids; std::vector<RowPreset> list; bool loaded = false; char name[48] = ""; };
+void PresetLoad(PresetSet& ps, const std::vector<RowPreset>& builtins) {
+    ps.loaded = true; ps.list = builtins;
+    if (FILE* f = fopen(DataPath(ps.file.c_str()).c_str(), "rb")) {
+        char line[2048];
+        while (fgets(line, sizeof line, f)) {
+            std::string l = line; while (!l.empty() && (l.back() == '\n' || l.back() == '\r')) l.pop_back();
+            size_t bar = l.find('|'); if (bar == std::string::npos) continue;
+            RowPreset p{ l.substr(0, bar), {}, false };
+            std::string rest = l.substr(bar + 1); size_t pos = 0;
+            while (pos < rest.size()) { size_t e = rest.find(';', pos); std::string kv = rest.substr(pos, e == std::string::npos ? std::string::npos : e - pos);
+                size_t eq = kv.find('='); if (eq != std::string::npos) p.v.push_back({ kv.substr(0, eq), (float)atof(kv.substr(eq + 1).c_str()) });
+                if (e == std::string::npos) break; pos = e + 1; }
+            ps.list.push_back(p);
+        }
+        fclose(f);
+    }
+}
+void PresetSave(PresetSet& ps) {
+    if (FILE* f = fopen(DataPath(ps.file.c_str()).c_str(), "wb")) {
+        for (auto& p : ps.list) if (!p.builtin) { fprintf(f, "%s|", p.name.c_str()); for (auto& kv : p.v) fprintf(f, "%s=%.3f;", kv.first.c_str(), kv.second); fprintf(f, "\n"); }
+        fclose(f);
+    }
+}
+void PresetApply(const RowPreset& p) {
+    for (auto& kv : p.v) if (Row* r = T.Get(kv.first)) { if (r->kind == K_TOGGLE) r->on = kv.second > 0.5f; else r->val = kv.second; }
+    T.Save(); T.Toast("Preset: " + p.name);
+}
+float PresetsCard(PresetSet& ps, float x, float y, float cw, bool draw) {
+    int cols = 3; float tile = (cw - 36 * S - (cols - 1) * 8 * S) / cols, th = 40 * S;
+    int n = (int)ps.list.size();
+    float h = 10 * S + ((n + cols - 1) / cols) * (th + 8 * S) + 46 * S;
+    if (!draw) return h;
+    int del = -1;
+    for (int i = 0; i < n; i++) {
+        auto& p = ps.list[i];
+        ImVec2 a(x + 18 * S + (i % cols) * (tile + 8 * S), y + 10 * S + (i / cols) * (th + 8 * S)), b(a.x + tile, a.y + th);
+        ImGui::SetCursorScreenPos(a); ImGui::PushID(i + 9500 + (int)ps.file.size());
+        bool click = ImGui::InvisibleButton("##pp", ImVec2(tile, th)); bool hv = ImGui::IsItemHovered();
+        DL()->AddRectFilled(a, b, U32(hv ? C_HOVER : C_CARD2), R_ITEM());
+        TextV(a.x + 12 * S, (a.y + b.y) * 0.5f, fReg, C_TEXT, p.name.c_str());
+        if (click) PresetApply(p);
+        if (!p.builtin && IconButton("##pd", ICN_TIMES, "Usuń preset", ImVec2(b.x - 26 * S, a.y + (th - 20 * S) * 0.5f), 20 * S, C_DIM)) del = i;
+        ImGui::PopID();
+    }
+    if (del >= 0) { ps.list.erase(ps.list.begin() + del); PresetSave(ps); }
+    float by = y + 10 * S + ((n + cols - 1) / cols) * (th + 8 * S) + 6 * S;
+    ImGui::SetCursorScreenPos(ImVec2(x + 18 * S, by));
+    float bw = ButtonW("Zapisz obecne jako preset");
+    ImGui::PushID(ps.file.c_str());
+    InputBox("##psn", ps.name, sizeof ps.name, "nazwa presetu", cw - 36 * S - bw - 8 * S);
+    if (Button("##pss", "Zapisz obecne jako preset", ImVec2(x + cw - 18 * S - bw, by), ps.name[0] != 0) && ps.name[0]) {
+        RowPreset p{ ps.name, {}, false }; for (auto& c : p.name) if (c == '|' || c == ';') c = '/';
+        for (auto& id : ps.ids) if (Row* r = T.Get(id)) p.v.push_back({ id, r->kind == K_TOGGLE ? (r->on ? 1.f : 0.f) : r->val });
+        ps.list.push_back(p); PresetSave(ps); ps.name[0] = 0; T.Toast("Zapisano preset");
+    }
+    ImGui::PopID();
+    return h;
+}
+PresetSet g_gfxPresets{ "G1CrazyTrainer_grafika.txt", { "gfx", "gfxmode", "gfxbright", "gfxgamma", "gfxcontrast", "gfxsat", "gfxtemp", "gfxsharp", "gfxvign",
+    "gdx", "gdxdraw", "gdxsmall", "gdxnpc", "gdxfx", "gdxsect", "gdxfog", "gdxsun", "gdxshadow", "gdxwind", "gdxscatter" } };
+const std::vector<RowPreset>& GfxBuiltins() {
+    static const std::vector<RowPreset> b = {
+        { "Domyślne", { { "gfx", 0 }, { "gfxmode", 0 }, { "gfxbright", 0 }, { "gfxgamma", 100 }, { "gfxcontrast", 100 }, { "gfxsat", 100 }, { "gfxtemp", 0 }, { "gfxsharp", 0 }, { "gfxvign", 0 }, { "gdx", 0 } }, true },
+        { "Jasne noce", { { "gfx", 1 }, { "gfxmode", 0 }, { "gfxbright", 4 }, { "gfxgamma", 150 }, { "gfxcontrast", 100 }, { "gfxsat", 105 }, { "gfxtemp", 0 }, { "gfxsharp", 10 }, { "gfxvign", 0 } }, true },
+        { "Kinowy", { { "gfx", 1 }, { "gfxmode", 0 }, { "gfxbright", -2 }, { "gfxgamma", 95 }, { "gfxcontrast", 118 }, { "gfxsat", 85 }, { "gfxtemp", 15 }, { "gfxsharp", 15 }, { "gfxvign", 40 } }, true },
+        { "Żywe kolory", { { "gfx", 1 }, { "gfxmode", 0 }, { "gfxbright", 0 }, { "gfxgamma", 105 }, { "gfxcontrast", 110 }, { "gfxsat", 145 }, { "gfxtemp", 5 }, { "gfxsharp", 30 }, { "gfxvign", 0 } }, true },
+        { "Daleki widok", { { "gdx", 1 }, { "gdxdraw", 1200 }, { "gdxsmall", 300 }, { "gdxnpc", 300 }, { "gdxfx", 300 }, { "gdxsect", 12 }, { "gdxfog", 50 } }, true } };
+    return b;
 }
 // build 16: Shift+F11 - drag a rectangle over the frozen frame; Esc cancels
 void ShotSelectOverlay(float W, float H) {
     ImDrawList* fg = ImGui::GetForegroundDrawList();
+    if (void* tex = ShotHeldTex()) fg->AddImage((ImTextureID)(intptr_t)tex, ImVec2(0, 0), ImVec2(W, H));   // the frozen frame (with the menu)
     ImGuiIO& io = ImGui::GetIO();
     static bool drag = false; static ImVec2 a;
     ImVec2 m = io.MousePos;
@@ -2826,6 +2976,7 @@ void ShotSelectOverlay(float W, float H) {
 }
 // ---- build 16: widget dock, compass, direction arrows ------------------------------------------------------
 float g_fps = 0;
+std::vector<float> g_ft(120, 16.f); size_t g_ftPos = 0;   // build 17: frame times for the info graph
 float DrawDock(ImDrawList* dl, ImVec2 origin, float wPx, const Snapshot& s, bool tips, float sc, bool dryRun = false) {
     float a = std::max(0.2f, std::min(1.f, gx::Val("walpha") / 100.f));
     float pad = 10 * sc, gap = 8 * sc, y = origin.y, x = origin.x;
@@ -2870,6 +3021,14 @@ float DrawDock(ImDrawList* dl, ImVec2 origin, float wPx, const Snapshot& s, bool
         }
         y += bh + gap;
     }
+    if (gx::On("wxp")) {   // build 17
+        float bh = 40 * sc; box(x, wPx, bh);
+        float f = s.expNext > 0 ? std::max(0.f, std::min(1.f, (float)s.exp / s.expNext)) : 0;
+        snprintf(b, sizeof b, "poziom %d  ·  %d / %d", s.level, s.exp, s.expNext); title(x, wPx, "Doświadczenie", b, IM_COL32(235, 235, 245, 255));
+        if (!dryRun) { float by = y + 26 * sc; dl->AddRectFilled(ImVec2(x + pad, by), ImVec2(x + wPx - pad, by + 5 * sc), IM_COL32(50, 46, 30, 255), 3 * sc);
+            dl->AddRectFilled(ImVec2(x + pad, by), ImVec2(x + pad + (wPx - 2 * pad) * f, by + 5 * sc), IM_COL32(230, 190, 70, 255), 3 * sc); }
+        y += bh + gap;
+    }
     bool wp = gx::On("wweapon"), fp = gx::On("wfps");
     if (wp || fp) {
         float bh = 50 * sc, bw = (wp && fp) ? (wPx - gap) * 0.5f : wPx; float bx = x;
@@ -2880,6 +3039,16 @@ float DrawDock(ImDrawList* dl, ImVec2 origin, float wPx, const Snapshot& s, bool
         };
         if (wp) small("Broń", s.weapon.empty() ? "-" : s.weapon.c_str());
         if (fp) { snprintf(b, sizeof b, "%.0f", g_fps); small("FPS", b); }
+        y += bh + gap;
+    }
+    if (gx::On("wammo")) {   // build 17
+        float bh = 50 * sc, bw = (wPx - gap) * 0.5f, bx = x;
+        for (int k = 0; k < 2; k++) {
+            box(bx, bw, bh); title(bx, bw, k ? "Bełty" : "Strzały", nullptr, 0);
+            if (!dryRun) { snprintf(b, sizeof b, "%d", k ? s.bolts : s.arrows); ImVec2 ts = fBold->CalcTextSizeA(fbz, FLT_MAX, 0, b);
+                dl->AddText(fBold, fbz, ImVec2(bx + bw * 0.5f - ts.x * 0.5f, y + 26 * sc), (k ? s.bolts : s.arrows) ? IM_COL32(235, 235, 245, 255) : IM_COL32(255, 110, 110, 255), b); }
+            bx += bw + gap;
+        }
         y += bh + gap;
     }
     if (gx::On("hud")) {
@@ -2893,8 +3062,28 @@ float DrawDock(ImDrawList* dl, ImVec2 origin, float wPx, const Snapshot& s, bool
         if (gx::On("hudstats")) { snprintf(b, sizeof b, "%d/%d  ·  %d/%d", s.hp, s.hpmax, s.mana, s.manamax); L.push_back({ "HP · mana", b }); }
         if (gx::On("hudtarget")) { if (s.tValid) { snprintf(b, sizeof b, "%s %d/%d", s.tName.c_str(), s.tHp, s.tHpMax); L.push_back({ "Cel", b }); } else L.push_back({ "Cel", "-" }); }
         if (gx::On("hudfps")) { snprintf(b, sizeof b, "%.0f (%.1f ms)", g_fps, g_fps > 0 ? 1000.f / g_fps : 0.f); L.push_back({ "FPS", b }); }
-        if (!L.empty()) {
-            float lh = fsz + 5 * sc, bh = 26 * sc + L.size() * lh + 4 * sc; box(x, wPx, bh); title(x, wPx, "Informacje", nullptr, 0);
+        // build 17: more lines
+        float avg = 0, worst = 0; for (float v : g_ft) { avg += v; worst = std::max(worst, v); } avg /= (float)g_ft.size();
+        if (gx::On("hudframe")) { snprintf(b, sizeof b, "%.1f ms  (max %.1f)", avg, worst); L.push_back({ "Czas klatki", b }); }
+        if (gx::On("hudtick")) { snprintf(b, sizeof b, "%.2f ms", s.tickMs); L.push_back({ "Trener", b }); }
+        if (gx::On("hudmem")) { snprintf(b, sizeof b, "%.0f MB", s.memMB); L.push_back({ "Pamięć", b }); }
+        if (gx::On("hudcount")) { snprintf(b, sizeof b, "%d postaci  ·  %d przedm.", s.npcCount, s.itemCount); L.push_back({ "Świat", b }); }
+        if (gx::On("hudheading")) { float hd = std::atan2(s.rfx, s.rfz) * 57.29578f; if (hd < 0) hd += 360; snprintf(b, sizeof b, "%.0f°", hd); L.push_back({ "Kierunek", b }); }
+        if (gx::On("hudclock")) { SYSTEMTIME st; GetLocalTime(&st); snprintf(b, sizeof b, "%02d:%02d:%02d", st.wHour, st.wMinute, st.wSecond); L.push_back({ "Godzina", b }); }
+        bool graph = gx::On("hudgraph");
+        if (!L.empty() || graph) {
+            float lh = fsz + 5 * sc, gh = graph ? 40 * sc : 0, bh = 26 * sc + L.size() * lh + 4 * sc + gh; box(x, wPx, bh); title(x, wPx, "Informacje", nullptr, 0);
+            if (!dryRun && graph) {   // frame time graph (ms, 0..50)
+                float gx0 = x + pad, gx1 = x + wPx - pad, gy0 = y + bh - gh - 2 * sc, gy1 = y + bh - 6 * sc;
+                dl->AddRectFilled(ImVec2(gx0, gy0), ImVec2(gx1, gy1), IM_COL32(255, 255, 255, 12), 3 * sc);
+                float lim = std::max(20.f, worst * 1.2f);
+                for (size_t i = 1; i < g_ft.size(); i++) {
+                    size_t a = (g_ftPos + i - 1) % g_ft.size(), c2 = (g_ftPos + i) % g_ft.size();
+                    float xa = gx0 + (gx1 - gx0) * (i - 1) / (g_ft.size() - 1), xb = gx0 + (gx1 - gx0) * i / (g_ft.size() - 1);
+                    float ya = gy1 - (gy1 - gy0) * std::min(1.f, g_ft[a] / lim), yb = gy1 - (gy1 - gy0) * std::min(1.f, g_ft[c2] / lim);
+                    dl->AddLine(ImVec2(xa, ya), ImVec2(xb, yb), g_ft[c2] > 33 ? IM_COL32(255, 110, 110, 255) : IM_COL32(120, 220, 140, 255), 1.2f * sc);
+                }
+            }
             if (!dryRun) for (size_t i = 0; i < L.size(); i++) {
                 float ly = y + 26 * sc + i * lh;
                 dl->AddText(fs, fsz, ImVec2(x + pad, ly), IM_COL32(150, 146, 170, 255), L[i].first.c_str());
@@ -2935,6 +3124,7 @@ void DrawCompass(ImDrawList* dl, ImVec2 c, float wPx, float fx, float fz, const 
             dl->AddText(fSmall, fSmall->LegacySize * sc / S * 0.85f, ImVec2(x - ts.x * 0.5f, a.y + 5 * sc), IM_COL32(170, 166, 190, 220), t); }
     }
     if (dots) for (auto& d : *dots) {
+        if (d.cat >= 0 && !gx::On(RadarCatId(d.cat, true))) continue;   // build 17: compass's own categories
         float bear = std::atan2(d.x, d.z) * 57.29578f;
         float diff = std::fmod(bear - head + 540.f, 360.f) - 180.f;
         if (std::fabs(diff) > range * 0.5f) continue;
@@ -2967,26 +3157,42 @@ void DrawArrows(ImDrawList* dl, float W, float H, const std::vector<RadarDot>& i
         }
     }
 }
+// build 17: the preview is the whole screen in miniature - same corner, same proportions, nothing cut off
 float WidgetsPreview(float x, float y, float cw, bool draw) {
-    float h = 380 * S;
+    ImVec2 ds = ImGui::GetIO().DisplaySize;
+    float pw = cw - 36 * S, k = pw / std::max(1.f, ds.x), ph = ds.y * k;
+    float h = ph + 16 * S;
     if (!draw) return h;
-    float px = x + 18 * S, pw = cw - 36 * S, py = y + 8 * S, ph = h - 16 * S;
+    float px = x + 18 * S, py = y + 8 * S;
     PreviewScene(px, py, pw, ph);
     static Snapshot fake; static bool init = false;
     if (!init) { init = true; fake.hp = 68; fake.hpmax = 100; fake.mana = 30; fake.manamax = 50; fake.thrCount = 2; fake.thrName = "Wilk"; fake.thrDist = 14; fake.weapon = "Miecz";
-        fake.px = 1200; fake.py = -450; fake.pz = 8800; fake.day = 2; fake.hour = 14; fake.minute = 5; fake.world = "WORLD.ZEN"; }
+        fake.px = 1200; fake.py = -450; fake.pz = 8800; fake.day = 2; fake.hour = 14; fake.minute = 5; fake.world = "WORLD.ZEN"; fake.arrows = 42; fake.bolts = 0;
+        fake.level = 5; fake.exp = 1300; fake.expNext = 2000; fake.tickMs = 0.4f; fake.memMB = 900; fake.npcCount = 210; fake.itemCount = 1800; fake.tValid = true; fake.tName = "Ścierwojad"; fake.tHp = 40; fake.tHpMax = 80; }
     float yaw = (float)std::fmod(NowSec() * 0.4, 6.2831853);
     fake.rfx = std::sin(yaw); fake.rfz = std::cos(yaw); fake.rrx = fake.rfz; fake.rrz = -fake.rfx;
     float rg = gx::Val("radarrange") * 100.f;
-    fake.radar = { { 0.3f * rg, 0.5f * rg, g_espColors[0], 0, "Wilk", "" }, { -0.4f * rg, 0.2f * rg, g_espColors[2], 0, "Kopacz", "" }, { -0.1f * rg, -0.3f * rg, g_espColors[1], 3, "Diego", "" } };
-    float sc = S * 0.8f;
+    fake.radar.clear();
+    auto add = [&](float a, float b, int col, int type, int cat, const char* n) { RadarDot d{ a * rg, b * rg, g_espColors[col], type, n, "" }; d.cat = cat; fake.radar.push_back(d); };
+    add(0.3f, 0.5f, 0, 0, 0, "Wilk"); add(-0.4f, 0.2f, 2, 0, 1, "Kopacz"); add(0.5f, -0.3f, 3, 0, 2, "Kret"); add(-0.1f, -0.3f, 1, 3, 3, "Diego");
+    add(0.2f, -0.6f, 4, 0, 4, "Martwy"); add(-0.6f, -0.5f, 5, 1, 5, "Miecz"); add(-0.7f, 0.1f, 6, 2, 6, "Skrzynia");
+    float sc = S * k;
     DL()->PushClipRect(ImVec2(px, py), ImVec2(px + pw, py + ph), true);
     PF(fSmall);
-    float wPx = std::min(gx::Val("wwidth") * sc, pw * 0.45f);
-    DrawDock(DL(), ImVec2(px + 10 * S, py + 10 * S), wPx, fake, false, sc);
-    if (gx::On("compass")) DrawCompass(DL(), ImVec2(px + pw * 0.62f, py + 10 * S), std::min(gx::Val("compw") * sc, pw * 0.5f), fake.rfx, fake.rfz, gx::On("compmark") ? &fake.radar : nullptr, sc, 1.f);
+    float wPx = gx::Val("wwidth") * sc, m = 22 * sc;
+    float dh = DrawDock(nullptr, ImVec2(0, 0), wPx, fake, false, sc, true);
+    int pos = (int)gx::Val("wdock");
+    ImVec2 o((pos == 1 || pos == 3) ? px + pw - m - wPx : px + m, pos >= 2 ? py + ph - m - dh : py + m);
+    DrawDock(DL(), o, wPx, fake, false, sc);
+    if (gx::On("compass")) DrawCompass(DL(), ImVec2(px + pw * 0.5f, py + 14 * sc), gx::Val("compw") * sc, fake.rfx, fake.rfz, gx::On("compmark") ? &fake.radar : nullptr, sc, 1.f);
+    if (gx::On("wtarget")) {
+        float bw = 360 * sc, bx = px + pw * 0.5f - bw * 0.5f, by = py + (gx::On("compass") ? 64 : 20) * sc;
+        DL()->AddRectFilled(ImVec2(bx, by), ImVec2(bx + bw, by + 46 * sc), IM_COL32(20, 18, 28, 210), 8 * sc);
+        DL()->AddRectFilled(ImVec2(bx + 12 * sc, by + 32 * sc), ImVec2(bx + 12 * sc + (bw - 24 * sc) * 0.5f, by + 38 * sc), IM_COL32(220, 50, 60, 255), 3 * sc);
+    }
     ImGui::PopFont();
     DL()->PopClipRect();
+    Text(ImVec2(px + 6 * S, py + ph + 0 * S), fSmall, C_FAINT, "");
     return h;
 }
 void RadarOverlay(const Snapshot& s, float W, float H, bool menuOpen) {
@@ -3356,10 +3562,36 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
     if (live) {
         DrawEsp(s, dispW, dispH);
         g_fps = ImGui::GetIO().Framerate;
+        g_ft[g_ftPos] = ImGui::GetIO().DeltaTime * 1000.f; g_ftPos = (g_ftPos + 1) % g_ft.size();
+        if (s.inGame && gx::On("wtarget") && s.tValid) {   // build 17: target health bar, top centre
+            ImDrawList* bgl = ImGui::GetBackgroundDrawList(); float bw = 360 * S, bx = dispW * 0.5f - bw * 0.5f, by = (gx::On("compass") ? 64 : 20) * S;
+            bgl->AddRectFilled(ImVec2(bx, by), ImVec2(bx + bw, by + 46 * S), IM_COL32(20, 18, 28, 210), 8 * S);
+            PF(fBold); bgl->AddText(ImVec2(bx + 12 * S, by + 6 * S), IM_COL32(240, 240, 250, 255), s.tName.c_str()); ImGui::PopFont();
+            char tb[48]; snprintf(tb, sizeof tb, "%d / %d", s.tHp, s.tHpMax); PF(fSmall); ImVec2 ts = ImGui::CalcTextSize(tb);
+            bgl->AddText(ImVec2(bx + bw - 12 * S - ts.x, by + 9 * S), IM_COL32(200, 196, 215, 255), tb); ImGui::PopFont();
+            float f = s.tHpMax > 0 ? std::max(0.f, std::min(1.f, (float)s.tHp / s.tHpMax)) : 0;
+            bgl->AddRectFilled(ImVec2(bx + 12 * S, by + 32 * S), ImVec2(bx + bw - 12 * S, by + 38 * S), IM_COL32(60, 40, 48, 255), 3 * S);
+            bgl->AddRectFilled(ImVec2(bx + 12 * S, by + 32 * S), ImVec2(bx + 12 * S + (bw - 24 * S) * f, by + 38 * S), IM_COL32(220, 50, 60, 255), 3 * S);
+        }
         if (s.inGame && (!menuOpen || gx::On("wmenu"))) DockOverlay(s, dispW, dispH, menuOpen);
         if (s.inGame && gx::On("compass")) { PF(fSmall); DrawCompass(ImGui::GetBackgroundDrawList(), ImVec2(dispW * 0.5f, 14 * S), gx::Val("compw") * S, s.rfx, s.rfz, gx::On("compmark") ? &s.radar : nullptr, S, 1.f); ImGui::PopFont(); }
-        if (s.inGame && (gx::On("esparrows") || gx::On("espedge")) && gx::On("espnpc"))
-            DrawArrows(ImGui::GetBackgroundDrawList(), dispW, dispH, s.ind, s.rfx, s.rfz, s.rrx, s.rrz, S, gx::On("esparrows"), gx::On("espedge"));
+        if (s.inGame && gx::On("esparrows") && gx::On("espnpc"))
+            DrawArrows(ImGui::GetBackgroundDrawList(), dispW, dispH, s.ind, s.rfx, s.rfz, s.rrx, s.rrz, S, true, false);
+        if (s.inGame && gx::On("espedge") && gx::On("espnpc")) {   // build 17: boxes outside the screen
+            ImDrawList* bgl = ImGui::GetBackgroundDrawList(); float m = 30 * S, cx = dispW * 0.5f, cy = dispH * 0.5f;
+            for (auto& e : s.edges) {
+                float x = e.x * dispW - cx, y = e.z * dispH - cy;
+                float tx = std::fabs(x) > 1e-3f ? (cx - m) / std::fabs(x) : 1e9f, ty = std::fabs(y) > 1e-3f ? (cy - m) / std::fabs(y) : 1e9f, t = std::min(1.f, std::min(tx, ty));
+                ImVec2 p(cx + x * t, cy + y * t); ImU32 col = (e.color & 0x00FFFFFF) | 0xE6000000;
+                bgl->AddRectFilled(ImVec2(p.x - 9 * S, p.y - 9 * S), ImVec2(p.x + 9 * S, p.y + 9 * S), IM_COL32(20, 18, 28, 200), 4 * S);
+                bgl->AddRect(ImVec2(p.x - 9 * S, p.y - 9 * S), ImVec2(p.x + 9 * S, p.y + 9 * S), col, 4 * S, 1.6f * S);
+                bgl->AddCircleFilled(p, 3 * S, col, 10);
+            }
+        }
+        if (s.inGame && s.faHas && !menuOpen) {   // build 17: free aim - the character under the crosshair
+            ImVec2 q(s.faX * dispW, s.faY * dispH);
+            ImGui::GetBackgroundDrawList()->AddTriangleFilled(ImVec2(q.x, q.y + 4 * S), ImVec2(q.x - 7 * S, q.y - 8 * S), ImVec2(q.x + 7 * S, q.y - 8 * S), IM_COL32(255, 80, 80, 230));
+        }
         if (s.inGame && gx::On("xhair") && !menuOpen) DrawXhair(ImGui::GetBackgroundDrawList(), ImVec2(dispW * 0.5f, dispH * 0.5f), XhCurrent(), S, gx::Val("xhalpha") / 100.f);
         std::vector<std::string> hud;
         if (s.paused) hud.push_back("PAUZA  ·  menu trainera");
@@ -3404,7 +3636,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
             PF(fSmall); ImVec2 hs = ImGui::CalcTextSize(h); dl->AddText(ImVec2(dispW * 0.5f - hs.x * 0.5f, b0.y + 18 * S), U32(C_DIM), h); ImGui::PopFont();
         }
     }
-    if ((live || menuOpen) && NowSec() < toastUntil && !toast.empty()) {
+    if ((live || menuOpen) && NowSec() < toastUntil && !toast.empty() && !ShotPending() && !T.shotSelect) {
         PF(fBold);
         ImVec2 ts = ImGui::CalcTextSize(toast.c_str());
         ImVec2 p(dispW * 0.5f - ts.x * 0.5f, dispH * (menuOpen ? 0.94f : 0.80f));
@@ -3414,7 +3646,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         fg->AddText(p, U32(C_ACC), toast.c_str());
         ImGui::PopFont();
     }
-    if (!menuOpen) { editRow = nullptr; bindRow = nullptr; return; }
+    if (!menuOpen || T.shotSelect) { editRow = nullptr; bindRow = nullptr; return; }   // build 17: no live menu while selecting
 
     ImGui::SetNextWindowSize(ImVec2(std::min(dispW * 0.92f, 1080 * S), std::min(dispH * 0.88f, 780 * S)), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(dispW * 0.5f, dispH * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
@@ -3551,9 +3783,9 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
             Masonry(cards, w);
         }
         else if (cat == "Postać" && sub == "Walka") {
-            TabbedCard(cards, "Celowanie", { { "Aimbot", { "aimbot", "aimkey", "aimdelay", "aimprio", "aimfov", "aimdist", "aimspeed", "aimsmooth", "aimstick", "aimnonvis" } },
-                                             { "Trigger bot", { "trigbot", "trigrange", "trigfov", "trigdelay", "trigcd", "trigkeys", "aimprio", "aimdist", "aimnonvis" } } });
-            ChecksCard(cards, "Swobodne celowanie", { "freemelee", "freeranged", "freemagic" }, "Dla");
+            TabbedCard(cards, "Celowanie", { { "Aimbot", { "aimbot", "aimkey", "aimdelay", "aimprio", "aimfov", "aimdist", "aimstick", "aimnonvis" } },
+                                             { "Trigger bot", { "trigbot", "trigdelay", "trigcd", "trigkeys", "aimdist" } } });
+            ChecksCard(cards, "Swobodne celowanie", { "freeranged", "freemagic" }, "Dla");
             ChecksCard(cards, "Cele aimbota i trigger bota", { "aimen", "aimne", "aimmo", "aimhu" });
             Masonry(cards, w);
         }
@@ -3577,11 +3809,10 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         else if (cat == "Postacie" && sub == "Otoczenie") { Masonry(cards, w); EnvPage(s, w); }
         else if (cat == "Fun" && sub == "Walka") {
             // build 16: options split by meaning: who / how (apocalypse); whom / into what / effects (polymorph)
-            ChecksCard(cards, "Apokalipsa · kto powstaje", { "zombz", "zombsk", "zombot" });
-            ChecksCard(cards, "Apokalipsa · zachowanie", { "zombhunt", "zombmortal", "zombfat", "zombname" });
-            ChecksCard(cards, "Polimorfia · kogo przemieniać", { "polyhum", "polymon", "polyparty", "polyimm" });
-            ChecksCard(cards, "Polimorfia · w co", { "polyanim", "polybeast", "polyundead", "polyorc" });
-            ChecksCard(cards, "Polimorfia · efekty", { "polyfx", "polyhostile", "polykeep" });
+            // build 17: all options of a feature in its own card, grouped inside it
+            ChecksSections(cards, "Apokalipsa", { { "Kto powstaje", { "zombz", "zombsk", "zombot" } }, { "Zachowanie", { "zombhunt", "zombmortal", "zombfat", "zombname" } } });
+            ChecksSections(cards, "Polimorfia", { { "Kogo przemieniać", { "polyhum", "polymon", "polyparty", "polyimm" } }, { "W co", { "polyanim", "polybeast", "polyundead", "polyorc" } },
+                                                  { "Efekty", { "polyfx", "polyhostile", "polykeep" } } });
             Masonry(cards, w);
         }
         else if (cat == "Fun" && sub == "Magia") {
@@ -3602,19 +3833,40 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
             else if (sub == "Widżety") f = WidgetsPreview;
             else if (sub == "Celownik") f = XhPreview;
             else if (sub == "Grafika") f = [](float x, float y, float cw, bool draw) -> float {
-                float h = 58 * S; if (!draw) return h;
+                float h = 80 * S; if (!draw) return h;
                 Text(ImVec2(x + 18 * S, y + 10 * S), fReg, C_TEXT, "Podgląd to sama gra - zmiany widać od razu za menu.");
-                Text(ImVec2(x + 18 * S, y + 32 * S), fSmall, C_DIM, "Menu, widżety i ESP nie są filtrowane. Zrzuty ekranu (F11) zapisują obraz już z filtrem.");
+                Text(ImVec2(x + 18 * S, y + 32 * S), fSmall, C_DIM, "Filtr obrazu nie obejmuje menu, widżetów i ESP. Silnik GD3D11: zasięgi, mgła, słońce, cienie, wiatr.");
+                std::string gi = "GD3D11: " + GdxInfo();
+                Text(ImVec2(x + 18 * S, y + 52 * S), fSmall, GdxAvailable() ? C_FAINT : C_ST_BUG, gi.c_str());
                 return h; };
             if (f) { pv.customH = f(0, 0, w, false); pv.custom = [f](float x, float y, float cw2) { return f(x, y, cw2, true); }; cards.insert(cards.begin(), pv); }
+            if (sub == "Grafika") {
+                if (!g_gfxPresets.loaded) PresetLoad(g_gfxPresets, GfxBuiltins());
+                CardSpec gp{ "Presety grafiki", {}, nullptr, PresetsCard(g_gfxPresets, 0, 0, w * 0.5f, false), false };
+                gp.custom = [](float x, float y, float cw2) { return PresetsCard(g_gfxPresets, x, y, cw2, true); };
+                cards.insert(cards.begin() + std::min<size_t>(1, cards.size()), gp);
+                if (!GdxDistances()) for (auto& c : cards) c.rows.erase(std::remove_if(c.rows.begin(), c.rows.end(), [](Row* r) {
+                    return r->id == "gdxdraw" || r->id == "gdxsmall" || r->id == "gdxnpc" || r->id == "gdxfx" || r->id == "gdxsect"; }), c.rows.end());
+                if (!GdxAvailable()) for (auto& c : cards) c.rows.erase(std::remove_if(c.rows.begin(), c.rows.end(), [](Row* r) { return r->id.rfind("gdx", 0) == 0; }), c.rows.end());
+                cards.erase(std::remove_if(cards.begin(), cards.end(), [](const CardSpec& k) { return k.rows.empty() && !k.custom; }), cards.end());
+            }
             if (sub == "Celownik") {
+                // build 17: settings card built from the chosen shape + colour inside it
+                for (auto& c : cards) c.rows.erase(std::remove_if(c.rows.begin(), c.rows.end(), [](Row* r) { return r->id.rfind("xh", 0) == 0; }), c.rows.end());
+                cards.erase(std::remove_if(cards.begin(), cards.end(), [](const CardSpec& k) { return k.rows.empty() && !k.custom; }), cards.end());
+                CardSpec xs{ "Celownik", XhRows(), nullptr, XhColor(0, 0, 0, false), false };
+                xs.custom = [](float x, float y, float cw2) { return XhColor(x, y, cw2, true); };
+                cards.insert(cards.begin() + std::min<size_t>(1, cards.size()), xs);
                 CardSpec ps{ "Presety", {}, nullptr, XhPresets(0, 0, w * 0.5f, false), false };
                 ps.custom = [](float x, float y, float cw2) { return XhPresets(x, y, cw2, true); };
                 cards.push_back(ps);
             }
+            if (sub == "ESP postaci") ChecksCard(cards, "Informacje", { "espname", "espdist", "espguild", "esptype", "esphp", "esphpnum", "espeq", "esptarget", "espdead" }, "Co pokazywać");
+            if (sub == "ESP przedmiotów") ChecksCard(cards, "Co pokazywać", { "espitems", "espchest", "espchestinv", "espactive", "espammo" });
             if (sub == "Widżety") {
-                ChecksCard(cards, "Radar i kompas · co pokazywać", { "raden", "radne", "radmo", "radpa", "radardead", "radaritems", "radarchests", "radarnames" });
-                ChecksCard(cards, "Informacje", { "hudfps", "hudpos", "hudspeed", "hudtime", "hudworld", "hudstats", "hudtarget" }, "Co pokazywać");
+                ChecksCard(cards, "Radar", { "raden", "radne", "radmo", "radpa", "radardead", "radaritems", "radarchests", "radarnames" }, "Co pokazywać");
+                ChecksCard(cards, "Kompas", { "cmen", "cmne", "cmmo", "cmpa", "cmdead", "cmitems", "cmchests" }, "Co pokazywać");
+                ChecksCard(cards, "Informacje", { "hudfps", "hudframe", "hudgraph", "hudtick", "hudpos", "hudspeed", "hudheading", "hudtime", "hudclock", "hudworld", "hudstats", "hudtarget", "hudmem", "hudcount" }, "Co pokazywać");
             }
             if (sub == "Kolory") {
                 CardSpec col{ "Kolory", {}, nullptr, EspColors(0, 0, 0, false), false };
