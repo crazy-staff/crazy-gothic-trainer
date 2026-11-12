@@ -1,54 +1,37 @@
 /**
- * Gothic 1 Crazy Trainer docs - server side.
- * Pages come from ./manifest.ts, generated at image build time from the trainer repo
- * (docs/pages/**.md + meta.json). Markdown is turned into TipTap JSON with the same
- * converter the help center uses, so pages render exactly like help-center articles.
- * Added on top of Quackback by gothic1-crazy-trainer/portal - new files only.
+ * Gothic 1 Crazy Trainer: docs navigation (every public category with its articles),
+ * for the left sidebar of the documentation (Quackback help center restyled as docs).
  */
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type { DocsNavSection, DocsPageData } from './docs.types'
+import type { DocsNavCategory } from './docs-types'
 
-async function load() {
-  const { DOCS_PAGES, DOCS_SECTIONS } = await import('./manifest')
-  return { pages: DOCS_PAGES, sections: DOCS_SECTIONS }
-}
-
-export const getGothicDocsNavFn = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<DocsNavSection[]> => {
-    const { pages, sections } = await load()
-    const bySlug = new Map(pages.map((p) => [p.slug, p]))
-    return sections.map((s) => ({
-      title: s.title,
-      items: s.pages
-        .map((slug) => bySlug.get(slug))
-        .filter((p): p is NonNullable<typeof p> => !!p)
-        .map((p) => ({ slug: p.slug, title: p.title })),
-    }))
-  }
-)
-
-export const getGothicDocsPageFn = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug: z.string().max(200) }))
-  .handler(async ({ data }): Promise<DocsPageData | null> => {
-    const { pages, sections } = await load()
-    const order = sections.flatMap((s) => s.pages)
-    const page = pages.find((p) => p.slug === (data.slug.replace(/^\/+|\/+$/g, '') || 'index'))
-    if (!page) return null
-    const { markdownToTiptapJson } = await import('@/lib/server/markdown-tiptap')
-    const i = order.indexOf(page.slug)
-    const link = (slug?: string) => {
-      const p = slug ? pages.find((x) => x.slug === slug) : undefined
-      return p ? { slug: p.slug, title: p.title } : null
-    }
-    return {
-      slug: page.slug,
-      title: page.title,
-      description: page.description,
-      section: sections.find((s) => s.pages.includes(page.slug))?.title ?? null,
-      contentJson: markdownToTiptapJson(page.markdown) as DocsPageData['contentJson'],
-      prev: i > 0 ? link(order[i - 1]) : null,
-      next: i >= 0 ? link(order[i + 1]) : null,
-      editUrl: page.source ? `https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/${page.source}` : null,
-    }
+export const getGothicDocsNavFn = createServerFn({ method: 'GET' })
+  .validator(z.object({ locale: z.string().optional() }))
+  .handler(async ({ data }): Promise<DocsNavCategory[]> => {
+    const { listPublicCategoriesForLocale, listPublicArticlesForCategoryLocale } =
+      await import('@/lib/server/domains/help-center/help-center-locale.query')
+    const { resolveHelpPublicViewer } = await import('@/lib/server/functions/help-center')
+    const { DEFAULT_LOCALE } = await import('@/lib/shared/i18n')
+    const locale = data.locale ?? DEFAULT_LOCALE
+    const viewer = await resolveHelpPublicViewer()
+    const categories = (await listPublicCategoriesForLocale(locale, viewer))
+      .filter((c) => c.recursivePublishedArticleCount > 0)
+      .sort((a, b) => a.position - b.position)
+    const withArticles = await Promise.all(
+      categories.map(async (c) => {
+        const articles = (await listPublicArticlesForCategoryLocale(c.id, locale, viewer))
+          .slice()
+          .sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9) || a.title.localeCompare(b.title))
+        return {
+          id: String(c.id),
+          name: c.name,
+          slug: c.slug,
+          urlId: c.urlId,
+          parentId: c.parentId ? String(c.parentId) : null,
+          articles: articles.map((a) => ({ title: a.title, slug: a.slug, urlId: a.urlId })),
+        }
+      })
+    )
+    return withArticles
   })

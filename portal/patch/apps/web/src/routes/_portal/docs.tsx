@@ -1,15 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { getGothicDocsNavFn } from '@/gothic-docs/docs-fns'
-import { GothicDocsLayout } from '@/gothic-docs/docs-layout'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-// Gothic 1 Crazy Trainer docs inside the portal layout (added by gothic1-crazy-trainer/portal).
+// Short link: /docs -> the docs (Quackback's help center, restyled as documentation).
 export const Route = createFileRoute('/_portal/docs')({
-  loader: async () => ({ nav: await getGothicDocsNavFn() }),
-  head: () => ({ meta: [{ title: 'Docs - Gothic 1 Crazy Trainer' }] }),
-  component: DocsLayoutRoute,
+  beforeLoad: () => {
+    throw redirect({ href: '/hc', statusCode: 302 })
+  },
 })
-
-function DocsLayoutRoute() {
-  const { nav } = Route.useLoaderData()
-  return <GothicDocsLayout nav={nav} />
-}
