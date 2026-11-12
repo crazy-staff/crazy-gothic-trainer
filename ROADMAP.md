@@ -1,6 +1,6 @@
 # Gothic 1 Crazy Trainer — roadmap
 
-Generated automatically from [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) and [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions) (last update: 2026-11-12 09:15 UTC).  
+Generated automatically from [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) and [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions) (last update: 2026-11-12 09:17 UTC).  
 **Voting:** every idea is its own thread in [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — vote with the up arrow or 👍.  
 Bug: [report it here](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose). New idea: [start a thread in Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=ideas).  
 _PL: Lista po angielsku; zgłoszenia i pomysły możesz pisać po polsku._
