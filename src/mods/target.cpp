@@ -127,7 +127,7 @@ void Target_Tick(TickCtx& c) {
         s.tValid = true; s.tSaved = t == saved; s.tPtr = (uintptr_t)t;
         s.tName = U(NpcName(t)); s.tGuild = GuildName(fld<int>(t, K.offGuild));
         s.tHp = Attr(t, 0); s.tHpMax = Attr(t, 1); s.tDead = NpcDead(t);
-        s.tLevel = fld<int>(t, K.offLevel); s.tMonster = IsMonster(t);
+        s.tLevel = fld<int>(t, K.offLevel); s.tMonster = IsMonster(t); s.tAlly = IsAlly(t);
         s.tGroup = kNpcGroupNames[NpcGroupOfGuild(fld<int>(t, K.offGuild))];
         const Cached& ci = Info(t);
         s.tInst = ci.inst; s.tPlace = ci.place;
@@ -181,12 +181,12 @@ void Target_Register() {
 
     CardTitle("Akcje");
     T.Add(MkRow("mind", "Dodaj do drużyny", "cel walczy po twojej stronie i idzie za tobą (kontrola umysłu)", C, S, K_ACTION, 0, 0, 0,
-        NeedT([](void* t) { MakeAlly(t); T.Toast(U(NpcName(t)) + " jest teraz twój"); }))); NoVal(); Icon(ICN_MAGIC); Hidden();
+        NeedT([](void* t) { MakeAlly(t); T.Toast(U(NpcName(t)) + " jest teraz twój"); }))); NoVal(); Icon("\xef\x88\xb4"); Hidden();
     St(ST_OK, "build 3: działa (ta sama logika co drużyna)");
     T.Add(MkRow("swap", "Zamiana ciał", "grasz celem; powrót przyciskiem w nagłówku menu", C, S, K_ACTION, 0, 0, 0,
         NeedT([](void* t) {
             if (NpcDead(t)) { T.Toast("Cel nie żyje"); return; }
-            if (On("noclip")) { Row* r = T.Get("noclip"); r->on = false; }
+            for (const char* id : { "noclip", "glide" }) if (On(id)) { Row* r = T.Get(id); r->on = false; }
             if (Player() == MainHero() || !MainHero()) HoldHero(Player());
             SetAsPlayer(t);
             T.Toast("Jesteś teraz: " + U(NpcName(t)));

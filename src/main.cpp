@@ -108,8 +108,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
             if (!repeat && vk == VK_ESCAPE && T.menuOpen && !UiTyping()) { SetMenu(false); return 0; }
             if (!repeat && vk == VK_ESCAPE && T.snap.photoBatch) { Act_PhotoCancel(); return 0; }
             if (!repeat && vk == VK_ESCAPE && !T.menuOpen) {   // Esc leaves no-clip first (game menu/saving then sees a normal hero)
-                Row* nc = T.Get("noclip");
-                if (nc && nc->on) { ApplyRow(*nc); return 0; }
+                for (const char* id : { "noclip", "glide" }) { Row* nc = T.Get(id); if (nc && nc->on) { ApplyRow(*nc); return 0; } }
             }
             bool typing = T.menuOpen && ImGui::GetIO().WantTextInput;
             if (!repeat && !typing && GetForegroundWindow() == h) T.Hotkey(vk);

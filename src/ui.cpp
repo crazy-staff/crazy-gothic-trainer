@@ -417,7 +417,9 @@ bool HasValueLine(const Row& r) {
     default: return false;
     }
 }
-float RowH(const Row& r) { return HasValueLine(r) ? 62 * S : 42 * S; }
+// build 13: a little more room above the slider when the row has a button (screenshot: Broń jednoręczna)
+bool RowHasButton(const Row& r) { return r.kind == K_ACTION || r.kind == K_CHOICE; }
+float RowH(const Row& r) { return HasValueLine(r) ? (RowHasButton(r) ? 70 * S : 62 * S) : 42 * S; }
 
 // hotkey chip: visible when bound, while recording, or when the row is hovered
 float HotkeyChip(Row& r, float right, float cy, bool rowHov) {
@@ -526,7 +528,7 @@ void CardRow(Row& r, float x, float y, float w, bool last) {
         if (r.live) tip += std::string(tip.empty() ? "" : "\n") + "Zmienia się od razu po puszczeniu suwaka.";
         Tip("%s", tip.c_str());
     }
-    if (HasValueLine(r)) SliderTrack(r, x0 + 12 * S, right, y + 45 * S);
+    if (HasValueLine(r)) SliderTrack(r, x0 + 12 * S, right, y + (RowHasButton(r) ? 53 : 45) * S);
     if (!last) DL()->AddLine(ImVec2(x0 + 12 * S, y + h), ImVec2(x1 - 12 * S, y + h), U32(C_LINE));
     ImGui::PopID();
 }
@@ -1187,7 +1189,10 @@ void TargetPage(const Snapshot& s, float w) {
             ImGui::PushID(g.ids[k]);
             ImVec2 bp(gx + labW + k * (bs + gap), gy);
             std::string tip = rw->name + (rw->note.empty() ? "" : "\n" + rw->note) + (rw->hotkey ? "\nSkrót: " + KeyName(rw->hotkey) : "");
-            if (IconButton("##ta", rw->icon.c_str(), tip.c_str(), bp, bs, C_TEXT, false, g.col)) ApplyRow(*rw);
+            // build 13: actions follow the target's state (more of these later)
+            if (rw->id == "mind" && s.tValid && s.tAlly) {
+                if (IconButton("##ta", "\xef\x88\xb5", "Wyrzuć z drużyny", bp, bs, C_TEXT, false, &C_G_ATK)) Act_PartyCmd(s.tPtr, 5);
+            } else if (IconButton("##ta", rw->icon.c_str(), tip.c_str(), bp, bs, C_TEXT, false, g.col)) ApplyRow(*rw);
             ImGui::PopID();
         }
         gy += rowH;
@@ -1879,15 +1884,17 @@ bool MultiBox(const char* id, char* buf, size_t n, const char* hint, float w, fl
         IconAt(DL(), c, ICN_TIMES, U32(hov ? ImVec4(1, 1, 1, 1) : C_DIM), 10 * S);
         if (hov && ImGui::IsMouseClicked(0)) { buf[0] = 0; ImGui::ClearActiveID(); ch = true; }
     }
-    // resize handle on the bottom edge
-    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h - 5 * S));
+    // resize grip in the bottom-right corner (build 13 - like the menu's own window grip)
+    float gs = 16 * S;
+    ImVec2 g0(p.x + w - gs - 2 * S, p.y + h - gs - 2 * S);
+    ImGui::SetCursorScreenPos(g0);
     ImGui::PushID(id);
-    ImGui::InvisibleButton("##rsz", ImVec2(w, 10 * S));
+    ImGui::InvisibleButton("##rsz", ImVec2(gs, gs));
     bool gh = ImGui::IsItemHovered() || ImGui::IsItemActive();
     if (ImGui::IsItemActive()) heights[key] = h = std::max(36 * S, std::min(900 * S, h + ImGui::GetIO().MouseDelta.y));
     ImGui::PopID();
-    float cx = p.x + w * 0.5f, cy = p.y + h - 3 * S;
-    DL()->AddLine(ImVec2(cx - 14 * S, cy), ImVec2(cx + 14 * S, cy), U32(gh ? C_ACC : C_FAINT), 2.f * S);
+    ImVec2 br(p.x + w - 5 * S, p.y + h - 5 * S);
+    for (int k = 1; k <= 3; k++) DL()->AddLine(ImVec2(br.x - k * 4 * S, br.y), ImVec2(br.x, br.y - k * 4 * S), U32(gh ? C_ACC : C_FAINT), 1.3f * S);
     if (gh) Tip("Przeciągnij, żeby zmienić wysokość");
     ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + ImGui::GetStyle().ItemSpacing.y));
     ImGui::Dummy(ImVec2(0, 0));
@@ -2705,36 +2712,59 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         auto cards = CardsFor(cat, sub);
         if (cat == "Postać" && (sub == "Informacje" || sub == "Wygląd")) {
             SubjectBar(s, w);
+            if (sub == "Informacje") {   // build 13: name (filled in, button active only after a change) + portrait refresh
+                static uintptr_t nameFor = 0; static std::string nameOrig;
+                if (nameFor != s.subjectPtr || (!ImGui::IsAnyItemActive() && nameOrig != s.subjectName && std::string(nameBuf) == nameOrig)) {
+                    nameFor = s.subjectPtr; nameOrig = s.subjectName; snprintf(nameBuf, sizeof nameBuf, "%s", s.subjectName.c_str());
+                }
+                CardSpec nm{ "Imię i portret", {}, nullptr, 0, false };
+                nm.customH = 108 * S;
+                std::string key = s.subjectInst; uintptr_t sp = s.subjectPtr;
+                nm.custom = [key, sp](float x, float y, float cw2) -> float {
+                    float pic = 84 * S;
+                    ImVec2 pp(x + 18 * S, y + 12 * S);
+                    DL()->AddRectFilled(pp, ImVec2(pp.x + pic, pp.y + pic), U32(C_CARD2), R_ITEM());
+                    if (void* tex = PortraitFor(key)) DL()->AddImage((ImTextureID)(intptr_t)tex, pp, ImVec2(pp.x + pic, pp.y + pic));
+                    else { IconAt(DL(), ImVec2(pp.x + pic * 0.5f, pp.y + pic * 0.5f), ICN_USER, U32(C_FAINT), 26 * S); AskPhoto(sp, key); }
+                    float ix = pp.x + pic + 14 * S, iw = x + cw2 - 18 * S - ix;
+                    float bw = ButtonW("Zmień");
+                    ImGui::SetCursorScreenPos(ImVec2(ix, y + 14 * S));
+                    InputBox("##name", nameBuf, sizeof nameBuf, "imię postaci", iw - bw - 8 * S);
+                    bool changed = nameBuf[0] && nameOrig != nameBuf;
+                    if (Button("##setn", "Zmień", ImVec2(x + cw2 - 18 * S - bw, y + 14 * S), changed) && changed) { Act_SetName(nameBuf); nameOrig = nameBuf; }
+                    if (Button("##photo", "Odśwież portret", ImVec2(ix, y + 14 * S + BtnH() + 10 * S), false)) Act_Photo(0, true);
+                    return 108 * S;
+                };
+                cards.insert(cards.begin(), nm);
+            }
             if (sub == "Wygląd") {
                 // build 11: no stand-in clone - the card shows the character's portrait and an always visible apply button
-                // build 12: one card - look sliders + portrait + apply
-                CardSpec pv{ "Wygląd", {}, nullptr, 270 * S, false };
+                // build 13: one card - look sliders, preview on a stand-in (auto or on button), apply
+                CardSpec pv{ "Wygląd", {}, nullptr, 296 * S, false };
                 for (const char* id : { "vhead", "vface", "vbody", "vskin" }) if (Row* r = T.Get(id)) pv.rows.push_back(r);
                 cards.erase(std::remove_if(cards.begin(), cards.end(), [](const CardSpec& c) { return c.title == "Twarz i ciało"; }), cards.end());
-                std::string key = s.subjectInst; uintptr_t sp = s.subjectPtr;
+                int sig = (int)gx::Val("vhead") * 1000000 + (int)gx::Val("vface") * 100 + (int)gx::Val("vbody") * 10 + (int)gx::Val("vskin");
+                if (lookSig == 0) lookSig = sig;
+                if (sig != lookSig) { lookSig = sig; lookDirty = true; if (gx::On("pvauto")) lookAt = NowSec() + 0.6; }
+                if (lookAt > 0 && NowSec() > lookAt && !ImGui::IsMouseDown(0)) { lookAt = 0; Act_LookPreview(); }
+                std::string key = PortraitHas("LOOKPREVIEW") ? std::string("LOOKPREVIEW") : s.subjectInst; uintptr_t sp = s.subjectPtr;
                 pv.custom = [key, sp](float x, float y, float cw2) -> float {
                     float sz = 170 * S;
                     ImVec2 c(x + cw2 * 0.5f, y + 8 * S + sz * 0.5f);
                     if (void* tex = PortraitFor(key)) DL()->AddImage((ImTextureID)(intptr_t)tex, ImVec2(c.x - sz * 0.5f, c.y - sz * 0.5f), ImVec2(c.x + sz * 0.5f, c.y + sz * 0.5f));
-                    else { IconAt(DL(), c, ICN_USER, U32(C_FAINT), 40 * S); AskPhoto(sp, key); }
+                    else IconAt(DL(), c, ICN_USER, U32(C_FAINT), 40 * S);
+                    if (key == "LOOKPREVIEW") Text(ImVec2(x + 18 * S, y + 10 * S), fSmall, C_FAINT, "podgląd");
                     float by = y + sz + 16 * S;
-                    float b1 = ButtonW("Zastosuj wygląd"), b2 = ButtonW("Odśwież portret");
+                    float b1 = ButtonW("Zastosuj wygląd"), b2 = ButtonW("Odśwież podgląd");
                     float bx = x + (cw2 - b1 - b2 - 8 * S) * 0.5f;
-                    if (Button("##lookok", "Zastosuj wygląd", ImVec2(bx, by), true)) Act_ApplyLook();
-                    if (Button("##photo", "Odśwież portret", ImVec2(bx + b1 + 8 * S, by), false)) Act_Photo(0, true);
-                    TextClip(ImVec2(x + 18 * S, by + BtnH() + 8 * S), fSmall, C_FAINT, "Ustaw głowę, twarz, ciało i skórę wyżej, potem kliknij \"Zastosuj wygląd\".", x + cw2 - 12 * S);
-                    return 270 * S;
+                    if (Button("##lookpv", "Odśwież podgląd", ImVec2(bx, by), false)) { Act_LookPreview(); lookDirty = false; }
+                    if (Button("##lookok", "Zastosuj wygląd", ImVec2(bx + b2 + 8 * S, by), true)) { Act_ApplyLook(); lookDirty = false; }
+                    ImVec2 cp(x + 18 * S, by + BtnH() + 10 * S);
+                    Row* pa = T.Get("pvauto");
+                    if (pa && Check("##pva", pa->on, cp)) { pa->on = !pa->on; T.Save(); }
+                    Text(ImVec2(cp.x + 26 * S, cp.y + 2 * S), fSmall, C_DIM, "Odświeżaj podgląd przy każdej zmianie (klon pojawia się na chwilę, ekran przygasa)");
+                    return 296 * S;
                 };
-                CardSpec nm{ "Imię", {}, nullptr, 0, false };
-                nm.customH = 60 * S;
-                nm.custom = [](float x, float y, float cw2) -> float {
-                    ImGui::SetCursorScreenPos(ImVec2(x + 18 * S, y + 12 * S));
-                    float bw = ButtonW("Zmień");
-                    InputBox("##name", nameBuf, sizeof nameBuf, "nowe imię...", cw2 - 36 * S - bw - 8 * S);
-                    if (Button("##setn", "Zmień", ImVec2(x + cw2 - 18 * S - bw, y + 14 * S)) && nameBuf[0]) { Act_SetName(nameBuf); nameBuf[0] = 0; }
-                    return 60 * S;
-                };
-                cards.insert(cards.begin(), nm);
                 cards.insert(cards.begin(), pv);
             }
             Masonry(cards, w);
@@ -2767,9 +2797,32 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
             }
             Masonry(cards, w);
         }
+        else if (cat == "Narzędzia" && sub == "Nakładka") {   // build 13: one card, checkmarks for the lines
+            if (!cards.empty()) {
+                static const char* ids[] = { "hudfps", "hudpos", "hudspeed", "hudtime", "hudworld", "hudstats", "hudtarget", "hudmods" };
+                cards[0].full = true;
+                cards[0].customH = 34 * S + ((int)(sizeof ids / sizeof ids[0]) + 1) / 2 * 34 * S + 8 * S;
+                cards[0].custom = [](float x, float y, float cw2) -> float {
+                    Text(ImVec2(x + 18 * S, y + 10 * S), fBold, C_TEXT, "Co pokazywać");
+                    int i = 0;
+                    for (auto id : ids) {
+                        Row* r = T.Get(id); if (!r) continue;
+                        float cx = x + 18 * S + (i % 2) * (cw2 - 36 * S) * 0.5f, cy = y + 40 * S + (i / 2) * 34 * S;
+                        ImGui::PushID(id);
+                        if (Check("##c", r->on, ImVec2(cx, cy))) { r->on = !r->on; T.Save(); }
+                        ImGui::PopID();
+                        Text(ImVec2(cx + 28 * S, cy + 1 * S), fReg, r->on ? C_TEXT : C_DIM, r->name.c_str());
+                        if (!r->note.empty()) Text(ImVec2(cx + 28 * S + TextW(r->name.c_str(), fReg) + 10 * S, cy + 3 * S), fSmall, C_FAINT, r->note.c_str());
+                        i++;
+                    }
+                    return 34 * S + (i + 1) / 2 * 34 * S + 8 * S;
+                };
+            }
+            Masonry(cards, w);
+        }
         else if (cat == "Narzędzia" && sub == "Konsola") { Masonry(cards, w); ConsolePanel(s, w); }
         else if (cat == "Narzędzia" && sub == "Kompendium") CompendiumPage(w);
-        else if (cat == "Narzędzia" && sub == "Diagnostyka") DiagPage(s, w);
+        else if (cat == "Narzędzia" && sub == "Diagnostyka") { Masonry(cards, w); DiagPage(s, w); }
         else Masonry(cards, w);
     }
     ImGui::Dummy(ImVec2(0, 16 * S));

@@ -6,7 +6,7 @@
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 12
+#define TRAINER_BUILD 13
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]
@@ -67,7 +67,7 @@ struct Snapshot {
     int ore = 0, day = 0, hour = 0, minute = 0;
     float px = 0, py = 0, pz = 0;
     std::string world, bodyName, guildName;
-    bool tValid = false, tSaved = false; std::string tName, tGuild, tGroup; int tHp = 0, tHpMax = 0, tLevel = 0; bool tDead = false, tMonster = false;
+    bool tValid = false, tSaved = false, tAlly = false; std::string tName, tGuild, tGroup; int tHp = 0, tHpMax = 0, tLevel = 0; bool tDead = false, tMonster = false;
     std::vector<std::string> savedTargets; int activeSaved = -1;
     std::vector<SavedInfo> saved;
     std::string tInst, tPlace; float tx = 0, ty = 0, tz = 0; uintptr_t tPtr = 0;

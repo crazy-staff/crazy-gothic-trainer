@@ -9,6 +9,7 @@
 
 using namespace g1;
 using namespace gx;
+std::string Npcs_Kind(void* n);   // npcs.cpp
 
 unsigned g_espColors[7] = { 0xFF6E6EFF, 0xFF8CF28C, 0xFF7AD8FF, 0xFF55AAFF, 0xFF9A9AA8, 0xFF7AE07A, 0xFF40C8FF };
 // 0 enemy 1 ally 2 neutral 3 monster 4 dead 5 item 6 chest
@@ -249,6 +250,7 @@ void Esp_Tick(TickCtx& c) {
             std::string sub;
             auto add = [&](const std::string& t) { if (!sub.empty()) sub += "  ·  "; sub += t; };
             if (On("espguild")) add(inf.guild);
+            if (On("esptype")) { std::string k = Npcs_Kind(n); if (!k.empty()) add("[" + k + "]"); }
             if (On("espdist")) { char bb[24]; snprintf(bb, sizeof bb, "%.0fm", d / 100.f); add(bb); }
             if (On("esphpnum")) { char bb[40]; snprintf(bb, sizeof bb, "%d/%d HP", Attr(n, 0), Attr(n, 1)); add(bb); }
             L.sub = sub;
@@ -320,6 +322,7 @@ void Esp_Register() {
     tog("espname", "Imię", P, true, ST_OK, "działa");
     tog("espdist", "Odległość", P, true, ST_OK, "działa");
     tog("espguild", "Gildia", P, false, ST_OK, "działa");
+    tog("esptype", "Typ postaci", P, true, ST_NEW, "nowe w build 13: [Arena] / [Drużyna] / [Zrespiony]");
     tog("esphp", "Pasek HP", P, true, ST_OK, "działa");
     tog("esphpnum", "HP liczbowo", P, false, ST_OK, "działa");
     tog("espeq", "Ekwipunek (do 15 m)", P, false, ST_OK, "build 3: działa; build 4: liczba sztuk");

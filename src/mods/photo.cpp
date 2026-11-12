@@ -135,7 +135,22 @@ void Act_Photo(uintptr_t p, bool force) {
     T.Queue("row:photo", [p, force] { void* n = p ? (void*)p : Subject(); if (force) Photo_Refresh(n); else Photo_Request(n); });
 }
 // preview of a look on a stand-in (same script instance as the edited character, or any human)
-void Act_LookPreview() {}   // build 11: no stand-in clone (left TESTMODEL npcs behind)
+// build 13: look preview on a stand-in again (clones get a body now - oCNpc::Enable). Same instance as the edited
+// character; for the hero (or monsters) a plain human instance - never the TESTMODELL ones.
+void Act_LookPreview() {
+    T.Queue("row:photo", [] {
+        void* sb = Subject();
+        int sym = -1;
+        if (sb && !IsMonster(sb) && sb != MainHero() && sb != Player()) sym = NpcInstance(sb);
+        for (const char* id : { "PC_FIGHTER", "PC_THIEF", "PC_MAGE" }) if (sym < 0) sym = SymIndex(id);
+        if (sym < 0) for (auto& e : g_cat.npcs) if (!e.monster && e.id.find("TEST") == std::string::npos && e.group != NG_MAGES) { sym = e.sym; break; }
+        if (sym < 0) return;
+        for (auto it = g_jobs.begin(); it != g_jobs.end();) { if (it->key == "LOOKPREVIEW") it = g_jobs.erase(it); else ++it; }
+        Job j{ 1, nullptr, sym, "LOOKPREVIEW", true };
+        j.look[0] = (int)Val("vhead"); j.look[1] = (int)Val("vface"); j.look[2] = (int)Val("vbody"); j.look[3] = (int)Val("vskin");
+        g_jobs.push_front(j); g_total++;
+    });
+}
 void Act_PhotoItem(int sym) {
     T.Queue("row:photo", [sym] {
         Sym* s = SymAt(sym); if (!s) return;

@@ -56,13 +56,38 @@ void Marvin_Tick(TickCtx& c) {
     }
 }
 void Marvin_Register() {
+    {   // build 13: rescue tools (Narzędzia › Diagnostyka)
+        const char* D = "Diagnostyka";
+        CardTitle("Ratunek");
+        T.Add(MkRow("rescuedialog", "Zamknij zawieszoną rozmowę", "gdy okno dialogu nie reaguje", "Narzędzia", D, K_ACTION, 0, 0, 0, [](Row&) {
+            void* h = Player(); if (!h) return;
+            CallExt("AI_StopProcessInfos", { Arg::Npc(h) });
+            if (void* f = FocusNpc()) { CallExt("Npc_ClearAIQueue", { Arg::Npc(f) }); CallExt("AI_StopProcessInfos", { Arg::Npc(f) }); }
+            CallExt("Npc_ClearAIQueue", { Arg::Npc(h) });
+            T.Toast("Zamykam rozmowę"); })); NoVal(); St(ST_NEW, "nowe w build 13"); Icon(ICN_TIMES);
+        T.Add(MkRow("rescuehero", "Odblokuj bohatera", "wyłącza no-clip/ślizg, przywraca fizykę i kolizje, stawia na ziemi", "Narzędzia", D, K_ACTION, 0, 0, 0, [](Row&) {
+            for (const char* id : { "noclip", "glide" }) if (Row* r = T.Get(id)) if (r->on) ApplyRow(*r);
+            void* h = Player(); if (!h) return;
+            SetSleeping(h, false);
+            fld<uint32_t>(h, VOB_FLAGS) |= VOBF_PHYSICS | VOBF_COLLSTAT | VOBF_COLLDYN;
+            CallExt("Npc_ClearAIQueue", { Arg::Npc(h) }); CallExt("AI_StandupQuick", { Arg::Npc(h) });
+            zVEC3 p = Pos(h), g;
+            const float* bb = &fld<float>(h, VOB_BBOX);
+            float feet = std::max(40.f, std::min(140.f, p.y - bb[1]));
+            if (FindGround(p, 200.f, 20000.f, g)) SafeSetPos(h, { g.x, g.y + feet + 6.f, g.z });
+            T.Toast("Bohater odblokowany"); })); NoVal(); St(ST_NEW, "nowe w build 13"); Icon(ICN_REFRESH);
+        T.Add(MkRow("rescuetarget", "Odblokuj cel", "przerywa akcje celu, budzi go, stawia na nogi", "Narzędzia", D, K_ACTION, 0, 0, 0, [](Row&) {
+            void* t = Target(); if (!t || !NpcReady(t)) { T.Toast("Brak celu"); return; }
+            SetSleeping(t, false);
+            CallExt("Npc_ClearAIQueue", { Arg::Npc(t) }); CallExt("AI_StandupQuick", { Arg::Npc(t) });
+            T.Toast("Odblokowano: " + U(NpcName(t))); })); NoVal(); St(ST_NEW, "nowe w build 13"); Icon(ICN_USER);
+    }
     {   // build 12: on-screen info window (Narzędzia › Nakładka) - drawn by the UI, these rows only choose what it shows
         const char* N = "Nakładka";
         CardTitle("Okno informacji");
         T.Add(MkRow("hud", "Pokaż okno informacji", "zostaje na ekranie w trakcie gry; przeciągnij je myszką w menu", "Narzędzia", N, K_TOGGLE)); St(ST_NEW, "nowe w build 12"); Icon(ICN_LIST);
         T.Add(MkRow("hudalpha", "Przezroczystość tła", "%", "Narzędzia", N, K_VALUE, 60, 0, 100)); St(ST_NEW, "nowe w build 12");
         T.Add(MkRow("hudsize", "Wielkość tekstu", "%", "Narzędzia", N, K_VALUE, 100, 70, 200)); St(ST_NEW, "nowe w build 12");
-        CardTitle("Co pokazywać");
         struct { const char* id; const char* name; const char* note; bool on; } items[] = {
             { "hudfps", "FPS", "klatki na sekundę i czas klatki", true },
             { "hudpos", "Koordynaty", "X / Y / Z bohatera", true },
@@ -73,7 +98,7 @@ void Marvin_Register() {
             { "hudtarget", "Cel", "imię i HP postaci, w którą celujesz", false },
             { "hudmods", "Liczba włączonych opcji", "", false },
         };
-        for (auto& it : items) { T.Add(MkRow(it.id, it.name, it.note, "Narzędzia", N, K_TOGGLE)); T.rows.back().on = it.on; St(ST_NEW, "nowe w build 12"); }
+        for (auto& it : items) { T.Add(MkRow(it.id, it.name, it.note, "Narzędzia", N, K_TOGGLE)); T.rows.back().on = it.on; Hidden(); St(ST_OK, "build 12: działa"); }
     }
     CardTitle("Tryb debug");
     T.Add(MkRow("marvin", "Tryb Marvina", "konsola F2, klawisze debug - bez wpisywania MARVIN", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_NEW, "build 9: nie wyłącza już Marvina włączonego w grze (#23)"); Icon(ICN_TERMINAL);

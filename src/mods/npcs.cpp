@@ -8,6 +8,7 @@
 
 using namespace g1;
 using namespace gx;
+std::string ToCp1250(const std::string& u);   // player.cpp
 
 namespace {
 std::vector<void*> g_arena;
@@ -29,6 +30,25 @@ void ArenaReward() {
     T.Toast("Nagroda za falę " + std::to_string(g_wave) + ": " + got);
 }
 
+// "Arena: Ork wojownik" - readable name (script name, or the id made readable); testers also see the id
+std::string PrettyId(const std::string& id) {
+    std::string o; bool up = true;
+    for (char c : id) {
+        if (c == '_') { o += ' '; up = true; continue; }
+        if (isdigit((unsigned char)c)) continue;
+        o += up ? (char)toupper((unsigned char)c) : (char)tolower((unsigned char)c); up = false;
+    }
+    while (!o.empty() && o.back() == ' ') o.pop_back();
+    return o;
+}
+void ArenaName(void* n) {
+    static int nameOff = FieldOff("C_NPC.NAME", 0x104);
+    std::string id = InstName(n), nm = U(NpcName(n));
+    bool idLike = nm.empty() || nm == id || std::all_of(nm.begin(), nm.end(), [](char c) { return isupper((unsigned char)c) || isdigit((unsigned char)c) || c == '_'; });
+    std::string full = "Arena: " + (idLike ? PrettyId(id) : nm);
+    if (T.testerMode) full += " (" + id + ")";
+    ZAssign(&fld<zSTRING>(n, nameOff), ToCp1250(full).c_str());
+}
 void ArenaFrame() {
     double now = NowSec();
     g_arena.erase(std::remove_if(g_arena.begin(), g_arena.end(), [](void* n) { return !NpcAlive(n); }), g_arena.end());
@@ -39,12 +59,23 @@ void ArenaFrame() {
     g_rewarded = true;
     if (now < g_next) return;
     if (g_next == 0) { g_next = now + 3; return; }
+    // build 13: start wave + number of waves (0 = endless)
+    int total = (int)Val("arenawaves"), first = std::max(1, (int)Val("arena"));
+    if (total > 0 && g_wave >= first + total - 1) {
+        if (Row* r = T.Get("arena")) r->on = false;
+        T.Toast("ARENA: wygrana! Ukończone fale: " + std::to_string(total));
+        g_wave = 0; g_next = 0;
+        return;
+    }
     g_wave++;
     int cnt = std::min(2 + g_wave, 14);
     std::vector<const NpcEntry*> pool;
     int lo = std::max(0, g_wave * 4 - 8), hi = g_wave * 12 + 10;
     for (auto& e : g_cat.npcs) {
         if (!e.monster || e.id.find("SUMMON") != std::string::npos || e.level <= 0 || T.Crashed("npc:" + e.id)) continue;
+        // build 13: test / story-scripted monsters (immortal or invulnerable on purpose)
+        if (e.id.find("TEST") != std::string::npos || e.id.find("ROCKEFELLER") != std::string::npos || e.id.find("KEEPER") != std::string::npos ||
+            e.id.find("DANCE") != std::string::npos || e.id == "SLEEPER" || e.id.find("XARDAS") != std::string::npos) continue;
         if (e.level >= lo && e.level <= hi) pool.push_back(&e);
     }
     if (pool.empty()) for (auto& e : g_cat.npcs) if (e.monster && e.level > 0 && !T.Crashed("npc:" + e.id)) pool.push_back(&e);
@@ -57,7 +88,12 @@ void ArenaFrame() {
             Guard("npc:" + e->id, [&] { n = SpawnNpc(e->sym, p, true); });
             if (n && (Dist(Pos(n), p) > 400.f || !VobInWorld(n))) EnsureNpcAt(n, p);
         }
-        if (n) { MakeMortal(n); Guard("row:arena:aggro", [&] { Aggro(n, Player()); }); g_arena.push_back(n); }
+        if (n) {
+            MakeMortal(n);
+            if (Attr(n, 1) > 4000) { SetAttr(n, 1, 4000); SetAttr(n, 0, 4000); }   // a few have absurd HP on purpose
+            ArenaName(n);
+            Guard("row:arena:aggro", [&] { Aggro(n, Player()); }); g_arena.push_back(n);
+        }
     }
     g_next = now + 4; g_rewarded = false;
     char b[96]; snprintf(b, sizeof b, "ARENA: fala %d (%d wrogów)", g_wave, cnt);
@@ -224,9 +260,12 @@ void RefreshNearby(void* h) {
     std::sort(g_near.begin(), g_near.end(), [](const NearNpc& a, const NearNpc& b) { return a.dist < b.dist; });
 }
 // allies that wandered off into their routine/dialog get put back into follow mode
+// build 13: never touch the party while a dialogue is open - restarting their state inside a dialogue locked it
+bool InDialog() { bool ok = false; int r = CallExt("InfoManager_HasFinished", {}, &ok); return ok && r == 0; }
 void KeepParty() {
     if (T.gameClock - g_keepAt < 1.0) return;   // build 12: 1 s - after a dialogue they walked back to their routine
     g_keepAt = T.gameClock;
+    if (InDialog()) return;
     g_allies.erase(std::remove_if(g_allies.begin(), g_allies.end(), [](void* n) { return !NpcAlive(n); }), g_allies.end());
     for (void* n : g_allies) {
         if (g_pstate.count(n) && g_pstate[n] != 0) continue;   // waiting / at post on purpose
@@ -235,13 +274,23 @@ void KeepParty() {
             if (Dist(Pos(n), hp) > Val("allykeepdist") * 100.f || !VobInWorld(n)) {
                 const float* t = &fld<float>(h, VOB_TRAFO);
                 zVEC3 b = hp; b.x -= t[2] * 250.f; b.z -= t[10] * 250.f;
-                if (NpcReady(n) && VobInWorld(n)) CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
+                bool wasReady = NpcReady(n) && VobInWorld(n);
+                if (wasReady && On("allyfightbreak")) CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
                 EnsureNpcAt(n, b);   // build 10: far allies are taken out of the world by the game - bring the real one back
+                // build 13: after the teleport either drop the fight and follow (default) or keep fighting (switch)
+                if (On("allyfightbreak") && NpcReady(n) && K.stFollow >= 0 && !IsMonster(n))
+                    CallExt("AI_StartState", { Arg::Npc(n), Arg::Int(K.stFollow), Arg::Int(1), Arg::Str("") });
             }
         }
         if (!NpcReady(n) || !VobInWorld(n)) continue;
         if (IsMonster(n)) {   // summoned-like monsters keep forgetting they are friends
             CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
+            // build 13: wolves & co. walked behind you - run mode when they fall behind (at most every 4 s)
+            static std::unordered_map<void*, double> runAt;
+            if (Player() && Dist(Pos(n), Pos(Player())) > 600.f && T.gameClock - runAt[n] > 4.0) {
+                runAt[n] = T.gameClock;
+                CallExt("AI_SetWalkMode", { Arg::Npc(n), Arg::Int(ConstInt("NPC_RUN", 0)) });
+            }
             continue;
         }
         if (K.stFollow < 0) continue;
@@ -279,6 +328,7 @@ void Act_PartyCmd(uintptr_t p, int cmd) {
             MakeAlly(n); T.Toast(U(NpcName(n)) + " idzie za tobą"); break;
         case 1: {
             g_pstate[n] = 1; RoutineOff(n); Wait(n);
+            if (NpcReady(n)) CallExt("AI_Wait", { Arg::Npc(n), Arg::Flt(100000.f) });
             WaitSpot w; w.pos = Pos(n); const float* t = &fld<float>(n, VOB_TRAFO); std::copy(t, t + 12, w.trafo);
             g_waitAt[n] = w;
             T.Toast(U(NpcName(n)) + " czeka tutaj"); break;
@@ -356,6 +406,13 @@ void Arena_PlayerDown() {
         T.Toast("ARENA: przegrana na fali " + std::to_string(w) + " - przeciwnicy usunięci");
     });
 }
+// build 13: what kind of character this is (ESP "typ")
+std::string Npcs_Kind(void* n) {
+    if (Arena_IsEnemy(n)) return "Arena";
+    if (std::find(g_allies.begin(), g_allies.end(), n) != g_allies.end()) return "Drużyna";
+    for (auto& e : g_spawnedNpcs) if (e.first == n) return "Zrespiony";
+    return "";
+}
 bool Arena_IsEnemy(void* n) { return n && std::find(g_arena.begin(), g_arena.end(), n) != g_arena.end(); }
 
 void Npcs_World() { g_savedRtn.clear(); g_spawnedNpcs.clear(); g_waitAt.clear(); g_lost = false; g_rewarded = true; g_arena.clear(); g_frozenSpawn.clear(); g_wave = 0; g_next = 0; g_near.clear(); g_nearAt = -10; g_pstate.clear(); }
@@ -366,18 +423,21 @@ void Npcs_Tick(TickCtx& c) {
     g_spawnedNpcs.erase(std::remove_if(g_spawnedNpcs.begin(), g_spawnedNpcs.end(), [](const std::pair<void*, double>& e) { return !NpcExists(e.first); }), g_spawnedNpcs.end());
     if (T.menuOpen) for (auto& e : g_spawnedNpcs) c.s.spawned.push_back(Describe(e.first, c.hero));
     if (On("allykeep") && !c.paused) Guard("row:allykeep", [] { KeepParty(); });
+    // build 13: "wait" holds the exact spot. Routine is off; every 0.5 s: not fighting and moved > 1.2 m -> back
+    // to the spot and facing; nothing queued -> a long AI_Wait. Never during dialogues, never frozen (can fight).
     static double waitCheck = 0;
-    if (!c.paused && !g_waitAt.empty() && T.gameClock - waitCheck > 1.0) {
+    if (!c.paused && !g_waitAt.empty() && T.gameClock - waitCheck > 0.5 && !InDialog()) {
         waitCheck = T.gameClock;
         for (auto it = g_waitAt.begin(); it != g_waitAt.end();) {
             void* n = it->first;
             if (!NpcAlive(n) || !g_pstate.count(n) || g_pstate[n] != 1) { it = g_waitAt.erase(it); continue; }
-            if (NpcReady(n) && Dist(Pos(n), it->second.pos) > 1500.f) {   // only if something carried it far away
-                CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
+            bool fighting = K.stAttack >= 0 && NpcReady(n) && CallExt("Npc_IsInState", { Arg::Npc(n), Arg::Int(K.stAttack) });
+            if (!fighting && (Dist(Pos(n), it->second.pos) > 120.f || !VobInWorld(n))) {
+                if (NpcReady(n) && VobInWorld(n)) CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
                 EnsureNpcAt(n, it->second.pos);
                 float* t = &fld<float>(n, VOB_TRAFO);
                 for (int i = 0; i < 12; i++) if (i != 3 && i != 7 && i != 11) t[i] = it->second.trafo[i];
-                Wait(n);
+                if (NpcReady(n)) { CallExt("AI_StandupQuick", { Arg::Npc(n) }); CallExt("AI_Wait", { Arg::Npc(n), Arg::Flt(100000.f) }); }
             }
             ++it;
         }
@@ -404,8 +464,9 @@ void Npcs_Tick(TickCtx& c) {
 void Npcs_Register() {
     const char* C = "Postacie";
     CardTitle("Arena");
-    T.Add(MkRow("arena", "Tryb Areny", "fale wrogów 6-10 m od ciebie; wróg cię tylko powala - powalenie = przegrana", "Fun", "Walka", K_SLIDER, 1, 1, 20));
+    T.Add(MkRow("arena", "Tryb Areny", "fala startowa; wrogowie 6-10 m od ciebie, tylko powalają - powalenie = przegrana", "Fun", "Walka", K_SLIDER, 1, 1, 20));
     St(ST_NEW, "build 7: powalenie zamiast śmierci, przegrana usuwa wrogów"); Icon(ICN_CROSSHAIR);
+    T.Add(MkRow("arenawaves", "Liczba fal", "0 = bez końca; suwak areny = od której fali zaczynasz", "Fun", "Walka", K_VALUE, 0, 0, 50)); St(ST_NEW, "nowe w build 13");
     T.Add(MkRow("arenareward", "Nagrody po fali", "ruda + 1-2 losowe przedmioty", "Fun", "Walka", K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 7");
     const char* D = "Drużyna";
     CardTitle("Drużyna");
@@ -423,6 +484,8 @@ void Npcs_Register() {
     T.rows.back().on = true; St(ST_NEW, "nowe w build 4");
     T.Add(MkRow("allykeep", "Pilnuj drużyny", "co 3 s kto wypadł z podążania wraca za tobą; kto jest za daleko, zostaje przeniesiony", C, D, K_TOGGLE));
     T.rows.back().on = true; St(ST_NEW, "build 7: przenosi tych, co zostali daleko");
+    T.Add(MkRow("allyfightbreak", "Po teleporcie przerywa walkę", "towarzysz przeniesiony do ciebie idzie za tobą zamiast wracać do przeciwnika", C, D, K_TOGGLE));
+    T.rows.back().on = true; St(ST_NEW, "nowe w build 13");
     T.Add(MkRow("allykeepdist", "Przenieś z odległości", "m", C, D, K_VALUE, 30, 10, 150)); St(ST_NEW, "nowe w build 7");
     T.Add(MkRow("allyradius", "Promień listy wyboru", "m", C, D, K_VALUE, 30, 5, 150)); St(ST_NEW, "nowe w build 4");
 }
