@@ -14,16 +14,3 @@ Guide:   https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/TESTING
 Reports: https://github.com/dawidseipold/gothic1-crazy-trainer/issues
 Ideas:   https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas
 
-----------------------------------------------------------------
-PL
-
-Wymagania: Gothic 1 (Steam, GothicMod.exe 1.08k_mod) + Union + renderer GD3D11.
-
-Instalacja:
- 1. Skopiuj G1CrazyTrainer.dll i G1CrazyTrainer_znane.txt do folderu  Gothic\system\Autorun
-    (jeśli folderu Autorun nie ma - utwórz go).
- 2. Uruchom grę, wczytaj zapis.
- 3. Insert = menu, Esc = zamknij.
-
-Testujesz? Konfiguracja -> Tryb testera -> Otwórz Centrum testera. Wpisz nick.
-Instrukcja: https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/TESTOWANIE.md

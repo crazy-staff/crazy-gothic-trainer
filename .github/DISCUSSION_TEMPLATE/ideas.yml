@@ -1,0 +1,32 @@
+title: ""
+labels: ["status: pending"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)).
+        **One idea per thread.** Please check the [list of ideas](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) first — if a similar one exists, vote for it (up arrow) and add your details in a comment there.
+        After posting, a bot adds a category and checks for duplicates. The author decides what gets **approved** — approved ideas become issues on the [project board](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md).
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should the trainer do? Short and concrete.
+      placeholder: "e.g. A hotkey that skips all queued dialogue lines at once"
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why / when would you use it
+      description: The situation where this helps. Optional, but it helps decide the priority.
+  - type: textarea
+    id: how
+    attributes:
+      label: How it could look in the menu
+      description: Options, sliders, hotkeys — anything you have in mind. Screenshots or mockups welcome.
+  - type: input
+    id: source
+    attributes:
+      label: Existing mod or plugin that does something similar
+      description: Link to open-source code we could build on (with credit), e.g. a Union plugin.

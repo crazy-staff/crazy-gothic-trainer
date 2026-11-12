@@ -1,12 +1,12 @@
 # File name and field ids are used by the in-game tester hub (prefilled links) - do not rename them.
 name: Change to an existing option
-description: Change or extend something that already exists. Brand-new features → Discussions (Ideas). PL - zmiana istniejącej opcji.
+description: Change or extend something that already exists. Brand-new features → Discussions (Ideas).
 title: "[Suggestion] "
 labels: ["type: enhancement"]
 body:
   - type: markdown
     attributes:
-      value: "This form is for changes to existing options. New features are collected in [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — vote for a similar idea there or start a new thread. _PL: Możesz pisać po polsku._"
+      value: "**Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)). This form is for changes to existing options. New features are collected in [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — vote for a similar idea there or start a new thread."
   - type: input
     id: opcja
     attributes:

@@ -30,8 +30,8 @@ def fetch_ideas():
         try: d = json.load(urllib.request.urlopen(req))["data"]["repository"]["discussions"]
         except Exception as e: print("discussions unavailable:", e); return out
         for t in d["nodes"]:
-            if t["closed"] or t["category"]["slug"] != "ideas": continue
             labs = [l["name"] for l in t["labels"]["nodes"]]
+            if t["category"]["slug"] != "ideas" or (t["closed"] and "status: done" not in labs): continue
             kat = next((l.split(":", 1)[1].strip() for l in labs if l.startswith("category:")), None)
             up = t["upvoteCount"] + sum(g["reactors"]["totalCount"] for g in t["reactionGroups"] if g["content"] == "THUMBS_UP")
             out.append({"idea": True, "ref": kat or "to review", "number": t["number"], "title": t["title"][:120], "html_url": t["url"],
@@ -51,13 +51,14 @@ def section(i):
         st = next((l["name"][8:] for l in i.get("labels", []) if l["name"].startswith("status: ")), "pending")
         return {"rejected": None, "done": "done", "in progress": "doing", "planned": "plans", "approved": "plans"}.get(st, "ideas")
     labels = {l["name"] for l in i.get("labels", [])}
+    if "<!-- idea-discussion:" in (i.get("body") or ""): return None   # shown through its idea thread
     if i["state"] == "closed":
         return "done" if i.get("state_reason") != "not_planned" else None
-    if "type: epic" in labels: return None
+    if "type: epic" in labels or "moderation: spam" in labels: return None
     if "status: in progress" in labels: return "doing"
     if "status: needs verification" in labels: return "verify"
     if labels & {"type: bug", "type: crash"}: return "bugs"
-    if "status: planned" in labels: return "plans"
+    if labels & {"status: planned", "status: approved"}: return "plans"
     if labels & {"type: idea", "type: enhancement"}: return "ideas"
     return "other"
 
@@ -92,8 +93,7 @@ def md(groups, now):
     o = [f"# Gothic 1 Crazy Trainer — roadmap\n",
          f"Generated automatically from [GitHub Issues](https://github.com/{REPO}/issues) and [Discussions](https://github.com/{REPO}/discussions) (last update: {now} UTC).  ",
          f"**Voting:** every idea is its own thread in [Discussions](https://github.com/{REPO}/discussions/categories/ideas) — vote with the up arrow or 👍.  ",
-         f"Bug: [report it here](https://github.com/{REPO}/issues/new/choose). New idea: [start a thread in Discussions](https://github.com/{REPO}/discussions/new?category=ideas).  ",
-         "_PL: Lista po angielsku; zgłoszenia i pomysły możesz pisać po polsku._\n"]
+         f"Bug: [report it here](https://github.com/{REPO}/issues/new/choose). New idea: [start a thread in Discussions](https://github.com/{REPO}/discussions/new?category=ideas).\n"]
     for k, title, desc in SECTIONS:
         g = groups[k]
         if not g: continue

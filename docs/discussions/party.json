@@ -10,11 +10,7 @@
     81
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Rozkazy drużyny: formacje, idź tam gdzie celuję, atakuj cel",
-    "desc": "Szybkie rozkazy z klawiszy: formacja, atak na cel, trzymaj pozycję, rozproszenie."
-   }
+   "status": "pending"
   },
   {
    "key": "i82",
@@ -25,11 +21,7 @@
     82
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Rozwój towarzyszy: statystyki i ekwipunek drużyny",
-    "desc": "Zmiana atrybutów/umiejętności towarzyszy jak u bohatera."
-   }
+   "status": "pending"
   },
   {
    "key": "i79",
@@ -40,11 +32,7 @@
     79
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Wojny obozów: każ dwóm grupom walczyć",
-    "desc": "Stary Obóz vs Nowy Obóz, orkowie vs ludzie itd. - z wyborem promienia i stron."
-   }
+   "status": "pending"
   }
  ]
 }

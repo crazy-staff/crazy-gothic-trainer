@@ -11,11 +11,7 @@
     51
    ],
    "priority": "high",
-   "status": "pending",
-   "pl": {
-    "title": "Zapisy gry: menedżer slotów, kopie zapasowe, szybki zapis z trenera",
-    "desc": "Lista zapisów z datą i miejscem, kopia zapasowa przed nadpisaniem, wczytanie/zapis jednym kliknięciem (#51).\n\nUwaga techniczna: najpierw potrzebny pewny adres zapisu gry (CGameManager::Write_Savegame) dla 1.08k."
-   }
+   "status": "pending"
   },
   {
    "key": "i67",
@@ -26,11 +22,7 @@
     67
    ],
    "priority": "medium",
-   "status": "pending",
-   "pl": {
-    "title": "Dziennik zadań: podgląd i zmiana statusu questów",
-    "desc": "Lista zadań z dziennika, ustawianie: w toku / ukończone / nieudane, pomoc gdy quest się zablokował."
-   }
+   "status": "pending"
   },
   {
    "key": "i68",
@@ -41,11 +33,7 @@
     68
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Zmienne fabularne i rozdziały: podgląd i edycja",
-    "desc": "Przeglądarka zmiennych skryptów (np. kto już coś powiedział), zmiana wartości, ostrzeżenia co może zepsuć fabułę."
-   }
+   "status": "pending"
   }
  ]
 }

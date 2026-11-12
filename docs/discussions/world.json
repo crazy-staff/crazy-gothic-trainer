@@ -10,11 +10,7 @@
     75
    ],
    "priority": "high",
-   "status": "pending",
-   "pl": {
-    "title": "Edytor skrzyń: zawartość pojemników",
-    "desc": "Podgląd i edycja zawartości skrzyni, na którą patrzysz."
-   }
+   "status": "pending"
   },
   {
    "key": "i74",
@@ -25,11 +21,7 @@
     74
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Budowanie: stawianie obiektów (skrzynie, ogniska, beczki)",
-    "desc": "Spawner obiektów świata (vobów) z obracaniem i zapisem w grze."
-   }
+   "status": "pending"
   },
   {
    "key": "i71",
@@ -40,11 +32,7 @@
     71
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Pogoda i niebo: deszcz, mgła, natychmiastowa zmiana",
-    "desc": "Sterowanie deszczem/mgłą/niebem, zatrzymanie pogody."
-   }
+   "status": "pending"
   },
   {
    "key": "i85",
@@ -55,11 +43,7 @@
     85
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Tryb zdjęć: wolna kamera bez HUD",
-    "desc": "Wolna kamera, zatrzymanie czasu, zrzut w wysokiej rozdzielczości."
-   }
+   "status": "pending"
   }
  ]
 }

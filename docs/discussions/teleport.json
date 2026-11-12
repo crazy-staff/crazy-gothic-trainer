@@ -12,16 +12,11 @@
    "addenda": [
     {
      "key": "itemmap",
-     "text": "item map based on [ItemMap](https://github.com/Sefaris/ItemMap) (Sefaris) — integrate ItemMapPlugin or our own implementation based on its code, with credit.",
-     "pl": "mapa z przedmiotami na bazie [ItemMap](https://github.com/Sefaris/ItemMap) (Sefaris) — integracja ItemMapPlugin albo własna implementacja na bazie jego kodu, z creditem."
+     "text": "item map based on [ItemMap](https://github.com/Sefaris/ItemMap) (Sefaris) — integrate ItemMapPlugin or our own implementation based on its code, with credit."
     }
    ],
    "priority": "high",
-   "status": "pending",
-   "pl": {
-    "title": "Mapa świata w trenerze (klik = teleport)",
-    "desc": "Mapa z pozycją bohatera, drużyny, NPC i przedmiotów; kliknięcie teleportuje."
-   }
+   "status": "pending"
   },
   {
    "key": "i96",
@@ -32,11 +27,7 @@
     96
    ],
    "priority": "high",
-   "status": "pending",
-   "pl": {
-    "title": "Teleport do NPC po imieniu (nawet poza zasięgiem)",
-    "desc": "Wyszukaj postać i teleportuj się do niej, gdziekolwiek jest w świecie."
-   }
+   "status": "pending"
   },
   {
    "key": "i73",
@@ -47,11 +38,7 @@
     73
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Ścieżki teleportu: nagraj trasę i odtwórz",
-    "desc": "Zapisuj kolejne punkty jako trasę, odtwarzaj automatycznie (zwiedzanie, bot, nagrania)."
-   }
+   "status": "pending"
   }
  ]
 }

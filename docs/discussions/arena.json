@@ -10,11 +10,7 @@
     77
    ],
    "priority": "medium",
-   "status": "pending",
-   "pl": {
-    "title": "Bossowie elitarni: losowy potwór z mnożnikami i nagrodą",
-    "desc": "Wzmocniony potwór (HP, obrażenia, rozmiar, aura) z lepszą nagrodą."
-   }
+   "status": "pending"
   },
   {
    "key": "i76",
@@ -25,11 +21,7 @@
     76
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Tryb hordy: rozszerzona arena z rankingiem",
-    "desc": "Własne listy przeciwników, modyfikatory fal, czas przetrwania, tabela wyników."
-   }
+   "status": "pending"
   },
   {
    "key": "i80",
@@ -40,11 +32,7 @@
     80
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Manekin treningowy",
-    "desc": "Postać, która nie atakuje i mierzy obrażenia (testy broni i czarów)."
-   }
+   "status": "pending"
   },
   {
    "key": "i92",
@@ -55,11 +43,7 @@
     92
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Wyzwania i osiągnięcia trenera",
-    "desc": "Np. przetrwaj 10 fal, zbierz 500 przedmiotów, pokonaj bossa - z odznakami."
-   }
+   "status": "pending"
   }
  ]
 }

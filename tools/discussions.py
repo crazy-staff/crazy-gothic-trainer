@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Ideas live in GitHub Discussions (category "Ideas"): ONE discussion per idea, sorted by labels "category: ...".
 Vote = upvote / 👍 on the discussion. Source of truth: docs/discussions/<category>.json:
-  {"label": "category: Teleport", "ideas": [{"key", "title", "desc", "pl": {"title", "desc"}, "priority": "high|medium|low",
-    "status": "pending", "order"?, "note"?, "related"?: [..], "credit"?, "issues"?: [n], "discussion"?: n, "addenda"?: [{"key", "text", "pl"}]}]}
+  {"label": "category: Teleport", "ideas": [{"key", "title", "desc", "priority": "high|medium|low",
+    "status": "pending", "order"?, "note"?, "related"?: ["#N" or "idea:KEY"], "credit"?, "issues"?: [n], "discussion"?: n, "addenda"?: [{"key", "text"}]}]}
 - idea without "discussion": a discussion is created; the hidden marker <!-- idea:KEY --> makes reruns safe,
   and title/body are updated when the JSON changes
 - idea with "discussion": n -> someone's own thread, only labelled (their text is never touched)
 - priority / status labels are set only when missing, so later changes made on GitHub win
 - "issues": old issues are closed with a link
-English first, Polish version in a collapsed <details> block.
+Everything on GitHub is in English.
 Run by .github/workflows/discussions.yml (GraphQL needs the Actions GITHUB_TOKEN)."""
 import json, os, glob, urllib.request, urllib.parse, urllib.error
 
@@ -51,21 +51,22 @@ def label_id(name):
         _labels[name] = l["node_id"]
     return _labels[name]
 
+import re
+REF = re.compile(r"idea:(\w[\w-]*)")   # "idea:KEY" in related -> current discussion number of that idea
+KEYNUM = {}
+
 def idea_body(i):
     o = f"<!-- idea:{i['key']} -->\n{i['desc']}\n"
     if i.get("order"): o += f"\nOrder: {i['order']} _(author's priority)_\n"
-    if i.get("related"): o += "\nRelated: " + ", ".join(i["related"]) + "\n"
+    if i.get("related"): o += "\nRelated: " + ", ".join(REF.sub(lambda m: f"#{KEYNUM.get(m.group(1), '?')}", r) for r in i["related"]) + "\n"
     if i.get("credit"): o += f"\n**Source / credit:** {i['credit']}\n"
     if i.get("issues"): o += "\n_Previously: " + ", ".join(f"#{n}" for n in i["issues"]) + "_\n"
     if i.get("note"): o += f"\n_{i['note']}_\n"
     o += "\n**Vote:** up arrow or 👍 on this thread. Details and feedback go in the comments.\n"
-    if i.get("pl"):
-        o += f"\n<details><summary>🇵🇱 Po polsku</summary>\n\n**{i['pl']['title']}**\n\n{i['pl']['desc']}\n\nGłosuj strzałką w górę albo 👍. Możesz komentować po polsku.\n</details>\n"
     return o
 
 def addendum_body(a):
     o = f"<!-- add:{a['key']} -->\n**Merged idea:** {a['text']}"
-    if a.get("pl"): o += f"\n\n<details><summary>🇵🇱 Po polsku</summary>\n\n{a['pl']}\n</details>"
     return o
 
 def main():
@@ -78,6 +79,7 @@ def main():
             gql("mutation($d:ID!){deleteDiscussion(input:{id:$d}){discussion{id}}}", d=d["id"]); print("deleted old theme thread", d["number"])
     by_mark = {d["body"].split("-->")[0] + "-->": d for d in discs if d["body"].startswith("<!-- idea:")}
     by_num = {d["number"]: d for d in discs}
+    KEYNUM.update({k[len("<!-- idea:"):-len(" -->")]: d["number"] for k, d in by_mark.items()})
     for f in sorted(glob.glob("docs/discussions/*.json")):
         t = json.load(open(f, encoding="utf-8"))
         for i in t["ideas"]:
@@ -114,6 +116,7 @@ def main():
                 elif c["body"].strip() != body.strip():
                     gql("mutation($c:ID!,$b:String!){updateDiscussionComment(input:{commentId:$c,body:$b}){comment{id}}}", c=c["id"], b=body)
                     print("  updated addendum", a["key"])
+            KEYNUM[i["key"]] = d["number"]
             have = {l["name"] for l in d["labels"]["nodes"]}
             want = [t["label"]] + i.get("labels", [])
             if i.get("priority") and not any(x.startswith("priority:") for x in have): want.append("priority: " + i["priority"])

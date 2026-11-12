@@ -8,11 +8,7 @@
    "note": "Suggested by the author (idea list, 2026-11-12).",
    "credit": "[zBugFixes](https://github.com/UnresolvedExternal/Plugins_2021/tree/main/src/zBugFixes/Workspace/Entry) (UnresolvedExternal), [G1Fixes](https://github.com/Sefaris/G1Fixes) (Sefaris)",
    "priority": "high",
-   "status": "pending",
-   "pl": {
-    "title": "Poprawki błędów silnika z pluginów Uniona (zBugFixes, G1Fixes i inne)",
-    "desc": "Wbudowane poprawki błędów silnika, każda jako osobna opcja do włączenia."
-   }
+   "status": "pending"
   },
   {
    "key": "n-console",
@@ -21,11 +17,7 @@
    "note": "Suggested by the author (idea list, 2026-11-12).",
    "credit": "[Union_MarvinHelper](https://github.com/UnresolvedExternal/Union_AlterDamage/tree/master/src/Union_MarvinHelper) (UnresolvedExternal)",
    "priority": "medium",
-   "status": "pending",
-   "pl": {
-    "title": "Rozszerzona konsola (jak MarvinHelper, tylko lepsza)",
-    "desc": "Więcej komend konsoli, podpowiedzi, historia i wyszukiwanie — na bazie pomysłów z MarvinHelper."
-   }
+   "status": "pending"
   },
   {
    "key": "n-unionports",
@@ -34,11 +26,7 @@
    "note": "Suggested by the author (idea list, 2026-11-12).",
    "credit": "[lista pluginów Uniona](https://sefaris.eu/union/plugins)",
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Port kolejnych pluginów Uniona do trenera",
-    "desc": "Zbiorczy wątek: które pluginy z listy warto przenieść do trenera (z creditem). Dopisujcie propozycje w komentarzach — każdy większy dostanie własny wątek."
-   }
+   "status": "pending"
   }
  ]
 }

@@ -10,11 +10,7 @@
     86
    ],
    "priority": "medium",
-   "status": "pending",
-   "pl": {
-    "title": "Makra: nagrywanie i odtwarzanie sekwencji akcji trenera",
-    "desc": "Nagraj kliknięcia/akcje trenera i odtwarzaj (z powtórzeniami i opóźnieniami)."
-   }
+   "status": "pending"
   },
   {
    "key": "i87",
@@ -25,11 +21,7 @@
     87
    ],
    "priority": "medium",
-   "status": "pending",
-   "pl": {
-    "title": "Profile ustawień (np. speedrun, chaos, testy)",
-    "desc": "Zapis i wczytanie całych zestawów włączonych opcji."
-   }
+   "status": "pending"
   },
   {
    "key": "i93",
@@ -40,11 +32,7 @@
     93
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Ulubione opcje (pinezka) na pierwszej stronie",
-    "desc": "Przypinanie najczęściej używanych opcji do własnej zakładki."
-   }
+   "status": "pending"
   },
   {
    "key": "i94",
@@ -55,11 +43,7 @@
     94
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Skróty klawiszowe do stron i makr",
-    "desc": "Własne skróty otwierające konkretne zakładki lub uruchamiające makra."
-   }
+   "status": "pending"
   },
   {
    "key": "i90",
@@ -70,11 +54,7 @@
     90
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Sprawdzanie aktualizacji trenera w grze",
-    "desc": "Informacja o nowym buildzie z linkiem do pobrania (bez automatycznego podmieniania plików)."
-   }
+   "status": "pending"
   },
   {
    "key": "i91",
@@ -85,11 +65,7 @@
     91
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Angielska wersja interfejsu",
-    "desc": "Przełącznik języka PL/EN."
-   }
+   "status": "pending"
   },
   {
    "key": "i70",
@@ -100,11 +76,7 @@
     70
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Statystyki sesji: zabici, zebrane przedmioty, dystans, czas",
-    "desc": "Okno ze statystykami gry na żywo i za całą sesję."
-   }
+   "status": "pending"
   },
   {
    "key": "i25",
@@ -114,11 +86,7 @@
     25
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Testy automatyczne: symulacja w grze",
-    "desc": "Na później: automatyczne testy, które same symulują rzeczy w Gothicu (włączanie opcji, sprawdzanie efektu) i raportują wynik."
-   }
+   "status": "pending"
   },
   {
    "key": "n-themes",
@@ -126,11 +94,7 @@
    "desc": "Themes stored in files (colours, rounding, fonts), a list of ready styles and the option to load your own or share them.",
    "note": "Suggested by the author (idea list, 2026-11-12).",
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Własne motywy menu: lista stylów do edycji i wczytywania",
-    "desc": "Motywy zapisane w plikach (kolory, zaokrąglenia, czcionki), lista gotowych stylów i możliwość wgrania własnych lub udostępnienia innym."
-   }
+   "status": "pending"
   }
  ]
 }

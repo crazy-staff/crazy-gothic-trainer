@@ -1,0 +1,31 @@
+# AI triage + moderation of new issues and discussions (GitHub Models). See tools/ai_triage.py.
+# Manual test that changes nothing: Actions → AI triage → Run workflow (kind, number, dry run).
+name: AI triage
+on:
+  issues:
+    types: [opened]
+  discussion:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      kind: { description: "issue or discussion", required: true, default: "issue" }
+      number: { description: "number", required: true }
+      dry_run: { description: "only print the result", required: true, default: "true" }
+permissions:
+  contents: read
+  issues: write
+  discussions: write
+  models: read
+concurrency:
+  group: ai-triage-${{ github.event.issue.number || github.event.discussion.number || inputs.number }}
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/ai_triage.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ITEM_KIND: ${{ inputs.kind }}
+          ITEM_NUMBER: ${{ inputs.number }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}

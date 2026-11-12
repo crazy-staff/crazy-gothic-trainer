@@ -1,15 +1,15 @@
 # File name and field ids are used by the in-game tester hub (prefilled links) - do not rename them.
 name: Crash (the game closed)
-description: The game closed or froze. After a crash the trainer prepares a draft in the Tester hub. PL - gra się wyłączyła.
+description: The game closed or froze. After a crash the trainer prepares a draft in the Tester hub.
 title: "[Crash] "
 labels: ["type: crash", "status: needs verification"]
 body:
   - type: markdown
     attributes:
       value: |
+        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)).
         **The report file matters most.** In the game: Tester hub → Send → *Export unsent*, then drag the file from the `G1CrazyTrainer_raporty` folder into the "Report" field below.
         Without the game: attach `G1CrazyTrainer.log` and `G1CrazyTrainer_crashes.txt` from `Gothic\system\Autorun`.
-        _PL: Możesz pisać po polsku._
   - type: input
     id: opcja
     attributes:

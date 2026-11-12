@@ -1,0 +1,18 @@
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)).
+        Show what you did with the trainer: screenshots, videos, funny moments, presets (crosshair, graphics, settings) to share.
+  - type: textarea
+    id: text
+    attributes:
+      label: What are you showing
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots / video / preset file
+      description: Drag files here or paste a link.

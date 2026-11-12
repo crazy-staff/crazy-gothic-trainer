@@ -10,11 +10,7 @@
     88
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Tryb streamera: losowe zdarzenia chaosu co X minut",
-    "desc": "Automatyczne zdarzenia (deszcz meteorów, polimorf, zombie...) z odliczaniem na ekranie."
-   }
+   "status": "pending"
   },
   {
    "key": "i89",
@@ -25,11 +21,7 @@
     89
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Integracja z czatem Twitch (głosowanie na chaos)",
-    "desc": "Widzowie głosują na zdarzenia, które trener uruchamia."
-   }
+   "status": "pending"
   }
  ]
 }

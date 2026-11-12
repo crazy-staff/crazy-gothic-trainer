@@ -1,6 +1,6 @@
 # Gothic 1 Crazy Trainer
 
-🇬🇧 English · 🇵🇱 [Polski](README.pl.md)
+🇬🇧 English · 🇵🇱 [Polski](README.pl.md) · 🇩🇪 [Deutsch](README.de.md) · 🇷🇺 [Русский](README.ru.md)
 
 > 🗺️ **[Roadmap: bugs, plans, ideas — vote 👍](ROADMAP.md)** · site: https://dawidseipold.github.io/gothic1-crazy-trainer/
 > 💡 **[Ideas & discussion](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas)** — every idea is its own thread, vote with the up arrow.
@@ -64,7 +64,7 @@ Want to help test? Read **[TESTING.md](TESTING.md)** — the in-game Tester hub 
 [Report a crash](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=crash.yml) ·
 [Suggest a feature (Discussions)](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas)
 
-You can write in English or Polish.
+**Please read [CONTRIBUTING.md](CONTRIBUTING.md) first** — where to post what, how ideas become features, and the rule that everything on GitHub is in English.
 
 Files the trainer creates in `system\Autorun`:
 
@@ -75,13 +75,6 @@ Files the trainer creates in `system\Autorun`:
 | `G1CrazyTrainer_zgloszenia.txt` | history of your reports and ratings |
 | `G1CrazyTrainer_raporty\` | exported reports for the author |
 | `G1CrazyTrainer_obrazki\` | character portraits and item icons (safe to delete, they regenerate) |
-
-## Labels
-
-Every label is `kind: value`:
-`type:` (bug, crash, enhancement, idea, epic…) · `status:` (pending, approved, planned, in progress, needs verification, done, rejected) ·
-`priority:` (high, medium, low) · `area:` (code area of an issue) · `category:` (topic of an idea in Discussions) ·
-`source:`, `resolution:`, `help:`, `option: <id>`, `build: N`.
 
 ## For developers
 
@@ -102,8 +95,10 @@ Layout:
 - `tools/reports.py` – merges tester reports into one overview and files issues (`--github`)
 - `tools/known_issues.py` – generates `G1CrazyTrainer_znane.txt` (known problems shown in game) from GitHub issues
 - `tools/discussions.py` + `docs/discussions/*.json` – ideas in Discussions (one thread per idea, `category:` labels)
+- `tools/ai_triage.py` – AI triage and moderation of new issues and discussions (GitHub Models)
+- `tools/idea_flow.py` – approved idea → linked issue → idea done
 - `tools/roadmap.py` – builds `ROADMAP.md` and the roadmap site from issues and Discussions
 - `.github/workflows/release.yml` – adding `docs/release/bN.md` on main builds the DLL and publishes release `bN`
 - `.github/ISSUE_TEMPLATE` – web report forms, `.github/workflows/triage.yml` – automatic `option: <id>`, `build: N` labels and duplicate hints
 
-Commits, issues and discussions are in English (Polish welcome in comments).
+Commits, issues and discussions are in English — see [CONTRIBUTING.md](CONTRIBUTING.md).

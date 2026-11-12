@@ -12,16 +12,11 @@
    "addenda": [
     {
      "key": "partygive",
-     "text": "giving items to companions (and taking them back) straight from the inventory.",
-     "pl": "przekazywanie przedmiotów towarzyszom (i odbieranie od nich) prosto z ekwipunku."
+     "text": "giving items to companions (and taking them back) straight from the inventory."
     }
    ],
    "priority": "high",
-   "status": "pending",
-   "pl": {
-    "title": "Edytor ekwipunku bohatera i towarzyszy",
-    "desc": "Lista posiadanych przedmiotów: zmiana ilości, usuwanie, zakładanie, przekazanie towarzyszowi."
-   }
+   "status": "pending"
   },
   {
    "key": "i69",
@@ -32,11 +27,7 @@
     69
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Presety postaci: zapisz i wczytaj wygląd + statystyki",
-    "desc": "Zapisz „buildy” postaci (atrybuty, umiejętności, wygląd, gildia) i wczytuj jednym kliknięciem."
-   }
+   "status": "pending"
   }
  ]
 }

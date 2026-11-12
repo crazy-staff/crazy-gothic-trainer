@@ -1,0 +1,24 @@
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)).
+        Questions about installing or using the trainer. Something is broken? Please [report a bug](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose) instead.
+        Mark the reply that helped as the answer.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: Trainer build
+      description: Shown in the menu (Settings) or in the release file name.
+  - type: textarea
+    id: setup
+    attributes:
+      label: Your setup
+      description: Game version, Union / GD3D11 versions, other mods — if it matters.

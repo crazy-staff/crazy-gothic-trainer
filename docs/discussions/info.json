@@ -10,11 +10,7 @@
     78
    ],
    "priority": "medium",
-   "status": "pending",
-   "pl": {
-    "title": "Liczby obrażeń nad głową i licznik DPS",
-    "desc": "Wyskakujące liczby obrażeń, podsumowanie walki, DPS."
-   }
+   "status": "pending"
   },
   {
    "key": "i83",
@@ -25,11 +21,7 @@
     83
    ],
    "priority": "medium",
-   "status": "pending",
-   "pl": {
-    "title": "Rutyny NPC: gdzie postać będzie o danej godzinie",
-    "desc": "Podgląd planu dnia postaci na ESP / mapie, z teleportem do miejsca."
-   }
+   "status": "pending"
   },
   {
    "key": "i84",
@@ -40,11 +32,7 @@
     84
    ],
    "priority": "medium",
-   "status": "pending",
-   "pl": {
-    "title": "Podświetlanie postaci ważnych (questy, handlarze, nauczyciele)",
-    "desc": "Znaczniki na ESP i radarze dla handlarzy, nauczycieli i postaci z zadaniami."
-   }
+   "status": "pending"
   },
   {
    "key": "i95",
@@ -55,11 +43,7 @@
     95
    ],
    "priority": "low",
-   "status": "pending",
-   "pl": {
-    "title": "Kompendium bestiariusza: statystyki wszystkich potworów i postaci",
-    "desc": "HP, obrażenia, ochrona, gildia, gdzie występuje - z portretami."
-   }
+   "status": "pending"
   }
  ]
 }

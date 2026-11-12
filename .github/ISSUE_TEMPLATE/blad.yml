@@ -1,20 +1,20 @@
 # File name and field ids are used by the in-game tester hub (prefilled links) - do not rename them.
 name: Bug report
-description: Something does not work or works wrong. Easiest from the game (Tester hub → flag next to an option). PL - błąd.
+description: Something does not work or works wrong. Easiest from the game (Tester hub → flag next to an option).
 title: ""
 labels: ["type: bug", "status: needs verification"]
 body:
   - type: markdown
     attributes:
       value: |
+        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)).
         Thanks for the report! When sent from the game, the fields are already filled in — check them and click **Submit new issue**.
         Please look at the [open issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) first — if it is already there, add 👍 and a comment.
-        _PL: Możesz pisać po polsku — pola po angielsku, treść w dowolnym języku._
   - type: input
     id: opcja
     attributes:
       label: What is it about
-      description: Option name from the menu (its ID in brackets, e.g. `rain`) or "general". PL - czego dotyczy.
+      description: Option name from the menu (its ID in brackets, e.g. `rain`) or "general".
     validations:
       required: true
   - type: textarea

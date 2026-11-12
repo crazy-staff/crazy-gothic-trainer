@@ -1,7 +1,5 @@
 # How to test and report problems
 
-🇬🇧 English · 🇵🇱 [Polski](TESTOWANIE.md)
-
 Thanks for helping! Everything you need is in the game — in the **Tester hub**.
 The in-game menu is in Polish for now, so the Polish menu names are given in *italics*.
 
@@ -48,7 +46,7 @@ Sent reports are marked and are not sent twice. **You can edit your reports from
 - The title says what happens: "Spell rain closes the game with 10 targets", not "does not work".
 - Steps one by one, starting from loading the game.
 - Text fields can be resized — drag the bottom edge.
-- English or Polish — both are fine.
+- Write in English.
 
 ## Privacy
 
