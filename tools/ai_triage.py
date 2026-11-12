@@ -107,11 +107,19 @@ def ask(item, labels, items):
                       areas=", ".join(l for l in labels if l.startswith("area:")),
                       cats=", ".join(l for l in labels if l.startswith("category:")),
                       items="\n".join(items[:250]))
-    r = http("https://models.github.ai/inference/chat/completions",
-             {"model": MODEL, "temperature": 0, "response_format": {"type": "json_object"},
-              "messages": [{"role": "system", "content": "You are a careful GitHub triage assistant. Output JSON only."},
-                           {"role": "user", "content": p}]},
-             headers={"Authorization": f"Bearer {TOK}", "Content-Type": "application/json", "Accept": "application/json"})
+    body = {"model": MODEL, "temperature": 0,
+            "messages": [{"role": "system", "content": "You are a careful GitHub triage assistant. Output JSON only."},
+                         {"role": "user", "content": p}]}
+    h = {"Authorization": f"Bearer {TOK}", "Content-Type": "application/json", "Accept": "application/vnd.github+json",
+         "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "triage-bot"}
+    r = {}
+    for url, model in (("https://models.github.ai/inference/chat/completions", MODEL),
+                       ("https://models.inference.ai.azure.com/chat/completions", MODEL.split("/")[-1])):
+        try: r = http(url, {**body, "model": model}, headers=h)
+        except Exception as e: print("model endpoint failed:", url, e); continue
+        if r.get("choices"): break
+        print("no choices from", url, str(r)[:200])
+    if not r.get("choices"): raise RuntimeError("no model response")
     txt = (r["choices"][0]["message"].get("content") or "").strip()
     m = re.search(r"\{.*\}", txt, re.S)   # tolerate ```json fences or text around the object
     if not m: raise RuntimeError(f"no JSON in model reply: {txt[:300]!r}")
