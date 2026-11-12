@@ -73,7 +73,7 @@
    "desc": "After death the save is deleted. The game can only be saved when quitting.",
    "note": "Suggested by the author (idea list, 2026-11-12).",
    "related": [
-    "#167 (save manager)"
+    "#214 (save manager)"
    ],
    "priority": "low",
    "status": "pending",

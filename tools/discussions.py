@@ -73,6 +73,9 @@ def main():
     cats = {c["slug"]: c for c in repo["discussionCategories"]["nodes"]}
     cat = cats.get("ideas")
     if not cat: raise SystemExit(f"No Ideas category: {list(cats)}")
+    for d in discs:   # retired layout (one thread per theme, Polish) - closed threads whose links are dead now
+        if d["closed"] and d["title"].startswith("Pomysły:"):
+            gql("mutation($d:ID!){deleteDiscussion(input:{id:$d}){discussion{id}}}", d=d["id"]); print("deleted old theme thread", d["number"])
     by_mark = {d["body"].split("-->")[0] + "-->": d for d in discs if d["body"].startswith("<!-- idea:")}
     by_num = {d["number"]: d for d in discs}
     for f in sorted(glob.glob("docs/discussions/*.json")):
