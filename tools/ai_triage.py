@@ -138,7 +138,7 @@ def main():
     kind = os.environ.get("ITEM_KIND") or ("issue" if os.environ["GITHUB_EVENT_NAME"] == "issues" else "discussion")
     ev = None if os.environ.get("ITEM_NUMBER") else json.load(open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8"))
     item = load_item(kind, int(os.environ["ITEM_NUMBER"]) if os.environ.get("ITEM_NUMBER") else None, ev)
-    if item["author_type"] in ("Bot",) or item["author"].endswith("[bot]"): print("bot post - skip"); return
+    if not DRY and (item["author_type"] == "Bot" or item["author"].endswith("[bot]")): print("bot post - skip"); return
     owner = item["author"].lower() == OWNER.lower()
     labels = all_labels()
     try: res = ask(item, labels, context_items())
