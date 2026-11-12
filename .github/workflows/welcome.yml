@@ -1,5 +1,5 @@
-# Nowa dyskusja od kogoś z zewnątrz -> krótka odpowiedź, jak to działa (bez zgadywania kategorii)
-name: Powitanie w Dyskusjach
+# New discussion from someone else -> short reply on how it works; ideas get "status: pending"
+name: Discussions welcome
 on:
   discussion:
     types: [created]
@@ -15,12 +15,15 @@ jobs:
         with:
           script: |
             const d = context.payload.discussion;
-            const ideas = `https://github.com/${context.repo.owner}/${context.repo.repo}/discussions/categories/ideas`;
+            const base = `https://github.com/${context.repo.owner}/${context.repo.repo}`;
+            const pl = (t) => `\n\n<details><summary>🇵🇱 Po polsku</summary>\n\n${t}\n</details>`;
             const body = d.category.slug === 'ideas'
-              ? 'Dzięki za pomysł! Już jest na [mapie drogowej](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/blob/main/ROADMAP.md) — inni mogą na niego głosować strzałką w górę lub 👍. Przy najbliższym przeglądzie dostanie etykietę kategorii (a jeśli jest już bardzo podobny pomysł, podlinkuję go tutaj).'
-              : 'Dzięki! Jeśli to pomysł na funkcję, nie przejmuj się kategorią — przy najbliższym przeglądzie przeniosę go do [Pomysłów](' + ideas + '). Błędy najlepiej zgłaszać przez Centrum testera w grze albo w zakładce Issues.';
+              ? `Thanks for the idea! It is already on the [roadmap](${base}/blob/main/ROADMAP.md) — others can vote for it with the up arrow or 👍. At the next review it gets a category label and a status (if a very similar idea exists, I will link it here).`
+                + pl('Dzięki za pomysł! Już jest na mapie drogowej — inni mogą na niego głosować strzałką w górę lub 👍. Przy najbliższym przeglądzie dostanie etykietę kategorii i status.')
+              : `Thanks! If this is a feature idea, do not worry about the category — it will be moved to [Ideas](${base}/discussions/categories/ideas) at the next review. Bugs are best reported from the in-game Tester hub or in Issues.`
+                + pl('Dzięki! Jeśli to pomysł na funkcję, nie przejmuj się kategorią — przy przeglądzie przeniosę go do Pomysłów. Błędy najlepiej zgłaszać z Centrum testera w grze albo w Issues.');
             if (d.category.slug === 'ideas') {
-              const l = await github.rest.issues.getLabel({ ...context.repo, name: 'status: nowy' });
+              const l = await github.rest.issues.getLabel({ ...context.repo, name: 'status: pending' });
               await github.graphql(`mutation($i:ID!,$l:[ID!]!){addLabelsToLabelable(input:{labelableId:$i,labelIds:$l}){clientMutationId}}`, { i: d.node_id, l: [l.data.node_id] });
             }
             await github.graphql(`mutation($d:ID!,$b:String!){addDiscussionComment(input:{discussionId:$d,body:$b}){comment{id}}}`, { d: d.node_id, b: body });

@@ -1,28 +1,35 @@
 {
+ "label": "category: Stream & chaos",
  "ideas": [
   {
    "key": "i88",
-   "title": "Tryb streamera: losowe zdarzenia chaosu co X minut",
+   "title": "Streamer mode: random chaos events every X minutes",
+   "desc": "Automatic events (meteor shower, polymorph, zombies...) with an on-screen countdown.",
    "order": 29,
-   "desc": "Automatyczne zdarzenia (deszcz meteorów, polimorf, zombie...) z odliczaniem na ekranie.",
    "issues": [
     88
    ],
-   "priority": "niski",
-   "status": "zatwierdzony"
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Tryb streamera: losowe zdarzenia chaosu co X minut",
+    "desc": "Automatyczne zdarzenia (deszcz meteorów, polimorf, zombie...) z odliczaniem na ekranie."
+   }
   },
   {
    "key": "i89",
-   "title": "Integracja z czatem Twitch (głosowanie na chaos)",
+   "title": "Twitch chat integration (vote for chaos)",
+   "desc": "Viewers vote for events that the trainer triggers.",
    "order": 30,
-   "desc": "Widzowie głosują na zdarzenia, które trener uruchamia.",
    "issues": [
     89
    ],
-   "priority": "niski",
-   "status": "zatwierdzony"
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Integracja z czatem Twitch (głosowanie na chaos)",
+    "desc": "Widzowie głosują na zdarzenia, które trener uruchamia."
+   }
   }
- ],
- "label": "kategoria: Stream i chaos",
- "label_desc": "Losowe zdarzenia i integracja z czatem."
+ ]
 }

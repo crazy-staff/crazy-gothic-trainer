@@ -17,7 +17,7 @@ def fetch():
     return out
 
 def fetch_ideas():
-    """Ideas = discussions in the "Ideas" category, one per idea; category = label "kategoria: …". Vote = upvote + 👍."""
+    """Ideas = discussions in the "Ideas" category, one per idea; category = label "category: …". Vote = upvote + 👍."""
     tok = os.environ.get("GITHUB_TOKEN", "")
     if not tok: return []
     o, n = REPO.split("/")
@@ -28,52 +28,52 @@ def fetch_ideas():
         req = urllib.request.Request("https://api.github.com/graphql", json.dumps({"query": q, "variables": {"o": o, "n": n, "c": cur}}).encode(),
                                      {"Authorization": f"Bearer {tok}"})
         try: d = json.load(urllib.request.urlopen(req))["data"]["repository"]["discussions"]
-        except Exception as e: print("dyskusje niedostępne:", e); return out
+        except Exception as e: print("discussions unavailable:", e); return out
         for t in d["nodes"]:
             if t["closed"] or t["category"]["slug"] != "ideas": continue
             labs = [l["name"] for l in t["labels"]["nodes"]]
-            kat = next((l.split(":", 1)[1].strip() for l in labs if l.startswith("kategoria:")), None)
+            kat = next((l.split(":", 1)[1].strip() for l in labs if l.startswith("category:")), None)
             up = t["upvoteCount"] + sum(g["reactors"]["totalCount"] for g in t["reactionGroups"] if g["content"] == "THUMBS_UP")
-            out.append({"idea": True, "ref": kat or "do przejrzenia", "number": t["number"], "title": t["title"][:120], "html_url": t["url"],
-                        "body": t["body"] or "", "state": "open", "labels": [{"name": l} for l in labs if not l.startswith("kategoria:")],
+            out.append({"idea": True, "ref": kat or "to review", "number": t["number"], "title": t["title"][:120], "html_url": t["url"],
+                        "body": t["body"] or "", "state": "open", "labels": [{"name": l} for l in labs if not l.startswith("category:")],
                         "reactions": {"+1": up}})
         if not d["pageInfo"]["hasNextPage"]: return out
         cur = d["pageInfo"]["endCursor"]
 
 def prio(i):
     names = [l["name"] for l in i.get("labels", [])]
-    return 0 if "priorytet:wysoki" in names else 1 if "priorytet:średni" in names else 2
+    return 0 if "priority: high" in names else 1 if "priority: medium" in names else 2
 
 def ref(i): return i.get("ref") or f"#{i['number']}"
 
 def section(i):
     if i.get("idea"):
-        st = next((l["name"][8:] for l in i.get("labels", []) if l["name"].startswith("status: ")), "nowy")
-        return {"odrzucony": None, "zrobione": "done", "w trakcie": "doing", "w planie": "plans", "zatwierdzony": "plans"}.get(st, "ideas")
+        st = next((l["name"][8:] for l in i.get("labels", []) if l["name"].startswith("status: ")), "pending")
+        return {"rejected": None, "done": "done", "in progress": "doing", "planned": "plans", "approved": "plans"}.get(st, "ideas")
     labels = {l["name"] for l in i.get("labels", [])}
     if i["state"] == "closed":
         return "done" if i.get("state_reason") != "not_planned" else None
-    if "epik" in labels: return None
-    if "w-trakcie" in labels: return "doing"
-    if "do-weryfikacji" in labels: return "verify"
-    if labels & {"błąd", "bug", "crash"}: return "bugs"
-    if "plan" in labels: return "plans"
-    if labels & {"pomysł", "propozycja", "sugestia", "enhancement"}: return "ideas"
+    if "type: epic" in labels: return None
+    if "status: in progress" in labels: return "doing"
+    if "status: needs verification" in labels: return "verify"
+    if labels & {"type: bug", "type: crash"}: return "bugs"
+    if "status: planned" in labels: return "plans"
+    if labels & {"type: idea", "type: enhancement"}: return "ideas"
     return "other"
 
 SECTIONS = [
-    ("bugs", "Błędy", "Znane problemy, które jeszcze nie są naprawione."),
-    ("doing", "W trakcie", "Nad tym właśnie pracujemy."),
-    ("verify", "Do sprawdzenia w grze", "Poprawione w ostatnim buildzie - czeka na potwierdzenie testerów."),
-    ("plans", "Plany", "Zatwierdzone pomysły - od najwyższego priorytetu."),
-    ("ideas", "Nowe pomysły - głosuj", "Każdy pomysł to osobny wątek w Dyskusjach: zagłosuj strzałką w górę lub 👍 - najwyżej ocenione robimy najpierw."),
-    ("done", "Zrobione", "Ostatnio zamknięte."),
-    ("other", "Inne", ""),
+    ("bugs", "Bugs", "Known problems that are not fixed yet."),
+    ("doing", "In progress", "Being worked on right now."),
+    ("verify", "To verify in game", "Fixed in the latest build - waiting for testers to confirm."),
+    ("plans", "Planned", "Approved ideas and planned work - highest priority first."),
+    ("ideas", "Ideas - vote", "Every idea is its own thread in Discussions: vote with the up arrow or 👍 - the most voted get reviewed first."),
+    ("done", "Done", "Recently closed."),
+    ("other", "Other", ""),
 ]
 
 def votes(i): return (i.get("reactions") or {}).get("+1", 0)
-def order(i):   # "Kolejność: N" in the body = priority set by the author (plans)
-    m = re.search(r"Kolejno\S*:\s*(\d+)", i.get("body") or "")
+def order(i):   # "Order: N" (old: "Kolejność: N") in the body = priority set by the author (plans)
+    m = re.search(r"(?:Order|Kolejno\S*):\s*(\d+)", i.get("body") or "")
     return int(m.group(1)) if m else 9999
 
 def build(issues):
@@ -89,25 +89,26 @@ def build(issues):
     return groups
 
 def md(groups, now):
-    o = [f"# Gothic 1 Crazy Trainer — mapa drogowa\n",
-         f"Lista generuje się automatycznie z [GitHub Issues](https://github.com/{REPO}/issues) (ostatnio: {now} UTC).  ",
-         f"**Głosowanie:** pomysły są w [Dyskusjach](https://github.com/{REPO}/discussions/categories/ideas) — każdy pomysł to osobny wątek, głosuj strzałką w górę lub 👍.  ",
-         f"Błąd: [zgłoś tutaj](https://github.com/{REPO}/issues/new/choose). Nowy pomysł: [załóż wątek w Dyskusjach](https://github.com/{REPO}/discussions/new?category=ideas).\n"]
+    o = [f"# Gothic 1 Crazy Trainer — roadmap\n",
+         f"Generated automatically from [GitHub Issues](https://github.com/{REPO}/issues) and [Discussions](https://github.com/{REPO}/discussions) (last update: {now} UTC).  ",
+         f"**Voting:** every idea is its own thread in [Discussions](https://github.com/{REPO}/discussions/categories/ideas) — vote with the up arrow or 👍.  ",
+         f"Bug: [report it here](https://github.com/{REPO}/issues/new/choose). New idea: [start a thread in Discussions](https://github.com/{REPO}/discussions/new?category=ideas).  ",
+         "_PL: Lista po angielsku; zgłoszenia i pomysły możesz pisać po polsku._\n"]
     for k, title, desc in SECTIONS:
         g = groups[k]
         if not g: continue
         o.append(f"\n## {title} ({len(g)})\n")
         if desc: o.append(f"_{desc}_\n")
-        o.append("| 👍 | # | Zgłoszenie | Etykiety |\n|---:|---:|---|---|")
+        o.append("| 👍 | # | Item | Labels |\n|---:|---:|---|---|")
         for i in g:
-            labs = ", ".join(l["name"] for l in i.get("labels", []) if not l["name"].startswith("build-"))
+            labs = ", ".join(l["name"] for l in i.get("labels", []) if not l["name"].startswith("build:"))
             t = i["title"].replace("|", "\\|")
             o.append(f"| {votes(i)} | [{ref(i)}]({i['html_url']}) | {t} | {labs} |")
     return "\n".join(o) + "\n"
 
 def page(groups, now):
     def card(i):
-        labs = "".join(f'<span class="lab">{html.escape(l["name"])}</span>' for l in i.get("labels", []) if not l["name"].startswith("build-"))
+        labs = "".join(f'<span class="lab">{html.escape(l["name"])}</span>' for l in i.get("labels", []) if not l["name"].startswith("build:"))
         ms = f'<span class="ms">{html.escape(i["milestone"]["title"])}</span>' if i.get("milestone") else ""
         return (f'<a class="card" href="{i["html_url"]}" target="_blank" data-q="{html.escape((i["title"] + " " + " ".join(l["name"] for l in i.get("labels", []))).lower())}">'
                 f'<div class="v"><b>{votes(i)}</b><small>👍</small></div><div class="b"><div class="t">{html.escape(ref(i))} · {html.escape(i["title"])}</div>'
@@ -118,8 +119,8 @@ def page(groups, now):
         if not g: continue
         tabs.append(f'<button data-t="{k}">{title} <i>{len(g)}</i></button>')
         bodies.append(f'<section id="{k}"><p class="d">{desc}</p>' + "".join(card(i) for i in g) + "</section>")
-    return f"""<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gothic 1 Crazy Trainer — mapa drogowa</title><style>
+    return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gothic 1 Crazy Trainer — roadmap</title><style>
 body{{margin:0;font:15px/1.45 system-ui,Segoe UI,sans-serif;background:#13111c;color:#e8e6f0}}
 header{{padding:28px 24px 8px;max-width:980px;margin:auto}}h1{{margin:0 0 6px;font-size:26px}}header p{{margin:4px 0;color:#a9a4bd}}
 a{{color:#f272d9}}nav{{max-width:980px;margin:12px auto;padding:0 24px;display:flex;flex-wrap:wrap;gap:8px}}
@@ -130,10 +131,10 @@ main{{max-width:980px;margin:auto;padding:0 24px 40px}}section{{display:none}}se
 .card{{display:flex;gap:14px;align-items:center;background:#1d1a2a;border:1px solid #2b263c;border-radius:12px;padding:12px 14px;margin:8px 0;text-decoration:none;color:inherit}}
 .card:hover{{border-color:#f272d9}}.v{{min-width:44px;text-align:center}}.v b{{display:block;font-size:20px}}.v small{{opacity:.7}}
 .t{{font-weight:600}}.l{{margin-top:4px}}.lab,.ms{{display:inline-block;font-size:12px;background:#2a2540;border-radius:6px;padding:1px 7px;margin:2px 4px 0 0;color:#c9c3dd}}.ms{{background:#3a2140;color:#f6b3ea}}
-</style></head><body><header><h1>Gothic 1 Crazy Trainer — mapa drogowa</h1>
-<p>Błędy, plany i pomysły prosto z <a href="https://github.com/{REPO}/issues">GitHub Issues</a>. Aktualizacja: {now} UTC.</p>
-<p><b>Jak głosować:</b> pomysły są w <a href="https://github.com/{REPO}/discussions/categories/ideas">Dyskusjach</a> - każdy pomysł to osobny wątek, głosuj strzałką w górę lub 👍. <a href="https://github.com/{REPO}/issues/new/choose">Zgłoś błąd lub pomysł</a> · <a href="https://github.com/{REPO}/releases">Pobierz trener</a></p></header>
-<nav>{"".join(tabs)}</nav><input id="q" placeholder="Szukaj (np. drużyna, ślizg, radar)..."><main>{"".join(bodies)}</main>
+</style></head><body><header><h1>Gothic 1 Crazy Trainer — roadmap</h1>
+<p>Bugs, plans and ideas straight from <a href="https://github.com/{REPO}/issues">GitHub Issues</a> and <a href="https://github.com/{REPO}/discussions">Discussions</a>. Updated: {now} UTC.</p>
+<p><b>How to vote:</b> every idea is its own thread in <a href="https://github.com/{REPO}/discussions/categories/ideas">Discussions</a> - vote with the up arrow or 👍. <a href="https://github.com/{REPO}/issues/new/choose">Report a bug</a> · <a href="https://github.com/{REPO}/discussions/new?category=ideas">Suggest an idea</a> · <a href="https://github.com/{REPO}/releases">Download the trainer</a></p></header>
+<nav>{"".join(tabs)}</nav><input id="q" placeholder="Search (e.g. party, glide, radar)..."><main>{"".join(bodies)}</main>
 <script>
 const bs=[...document.querySelectorAll('nav button')],ss=[...document.querySelectorAll('section')];
 function show(k){{bs.forEach(b=>b.classList.toggle('on',b.dataset.t==k));ss.forEach(s=>s.classList.toggle('on',s.id==k));location.hash=k}}

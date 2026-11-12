@@ -1,50 +1,65 @@
 {
+ "label": "category: On-screen info",
  "ideas": [
   {
    "key": "i78",
-   "title": "Liczby obrażeń nad głową i licznik DPS",
+   "title": "Floating damage numbers and DPS meter",
+   "desc": "Pop-up damage numbers, fight summary, DPS.",
    "order": 7,
-   "desc": "Wyskakujące liczby obrażeń, podsumowanie walki, DPS.",
    "issues": [
     78
    ],
-   "priority": "średni",
-   "status": "zatwierdzony"
+   "priority": "medium",
+   "status": "pending",
+   "pl": {
+    "title": "Liczby obrażeń nad głową i licznik DPS",
+    "desc": "Wyskakujące liczby obrażeń, podsumowanie walki, DPS."
+   }
   },
   {
    "key": "i83",
-   "title": "Rutyny NPC: gdzie postać będzie o danej godzinie",
+   "title": "NPC routines: where a character will be at a given hour",
+   "desc": "Preview a character's daily schedule on ESP / the map, with teleport to the spot.",
    "order": 8,
-   "desc": "Podgląd planu dnia postaci na ESP / mapie, z teleportem do miejsca.",
    "issues": [
     83
    ],
-   "priority": "średni",
-   "status": "zatwierdzony"
+   "priority": "medium",
+   "status": "pending",
+   "pl": {
+    "title": "Rutyny NPC: gdzie postać będzie o danej godzinie",
+    "desc": "Podgląd planu dnia postaci na ESP / mapie, z teleportem do miejsca."
+   }
   },
   {
    "key": "i84",
-   "title": "Podświetlanie postaci ważnych (questy, handlarze, nauczyciele)",
+   "title": "Highlight important characters (quests, traders, teachers)",
+   "desc": "ESP and radar markers for traders, teachers and quest characters.",
    "order": 9,
-   "desc": "Znaczniki na ESP i radarze dla handlarzy, nauczycieli i postaci z zadaniami.",
    "issues": [
     84
    ],
-   "priority": "średni",
-   "status": "zatwierdzony"
+   "priority": "medium",
+   "status": "pending",
+   "pl": {
+    "title": "Podświetlanie postaci ważnych (questy, handlarze, nauczyciele)",
+    "desc": "Znaczniki na ESP i radarze dla handlarzy, nauczycieli i postaci z zadaniami."
+   }
   },
   {
    "key": "i95",
-   "title": "Kompendium bestiariusza: statystyki wszystkich potworów i postaci",
+   "title": "Bestiary compendium: stats of all monsters and characters",
+   "desc": "HP, damage, protection, guild, where it appears - with portraits.",
    "order": 15,
-   "desc": "HP, obrażenia, ochrona, gildia, gdzie występuje - z portretami.",
    "issues": [
     95
    ],
-   "priority": "niski",
-   "status": "zatwierdzony"
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Kompendium bestiariusza: statystyki wszystkich potworów i postaci",
+    "desc": "HP, obrażenia, ochrona, gildia, gdzie występuje - z portretami."
+   }
   }
- ],
- "label": "kategoria: Informacje",
- "label_desc": "Liczby obrażeń, rutyny NPC, podświetlanie ważnych postaci, bestiariusz."
+ ]
 }

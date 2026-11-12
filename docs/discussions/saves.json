@@ -1,0 +1,51 @@
+{
+ "label": "category: Saves & story",
+ "ideas": [
+  {
+   "key": "i65",
+   "title": "Game saves: slot manager, backups, quick save from the trainer",
+   "desc": "Save list with date and location, backup before overwriting, load/save with one click.\n\nTechnical note: first we need a reliable save address (CGameManager::Write_Savegame) for 1.08k.",
+   "order": 1,
+   "issues": [
+    65,
+    51
+   ],
+   "priority": "high",
+   "status": "pending",
+   "pl": {
+    "title": "Zapisy gry: menedżer slotów, kopie zapasowe, szybki zapis z trenera",
+    "desc": "Lista zapisów z datą i miejscem, kopia zapasowa przed nadpisaniem, wczytanie/zapis jednym kliknięciem (#51).\n\nUwaga techniczna: najpierw potrzebny pewny adres zapisu gry (CGameManager::Write_Savegame) dla 1.08k."
+   }
+  },
+  {
+   "key": "i67",
+   "title": "Quest log: view and change quest status",
+   "desc": "List of quests from the log, set: running / success / failed, help when a quest gets stuck.",
+   "order": 9,
+   "issues": [
+    67
+   ],
+   "priority": "medium",
+   "status": "pending",
+   "pl": {
+    "title": "Dziennik zadań: podgląd i zmiana statusu questów",
+    "desc": "Lista zadań z dziennika, ustawianie: w toku / ukończone / nieudane, pomoc gdy quest się zablokował."
+   }
+  },
+  {
+   "key": "i68",
+   "title": "Story variables and chapters: view and edit",
+   "desc": "Browser for script variables (e.g. who already said something), change values, warnings about what may break the story.",
+   "order": 17,
+   "issues": [
+    68
+   ],
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Zmienne fabularne i rozdziały: podgląd i edycja",
+    "desc": "Przeglądarka zmiennych skryptów (np. kto już coś powiedział), zmiana wartości, ostrzeżenia co może zepsuć fabułę."
+   }
+  }
+ ]
+}

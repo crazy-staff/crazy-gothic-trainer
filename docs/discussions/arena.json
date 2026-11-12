@@ -1,50 +1,65 @@
 {
+ "label": "category: Arena",
  "ideas": [
   {
    "key": "i77",
-   "title": "Bossowie elitarni: losowy potwór z mnożnikami i nagrodą",
+   "title": "Elite bosses: random monster with multipliers and a reward",
+   "desc": "A buffed monster (HP, damage, size, aura) with a better reward.",
    "order": 6,
-   "desc": "Wzmocniony potwór (HP, obrażenia, rozmiar, aura) z lepszą nagrodą.",
    "issues": [
     77
    ],
-   "priority": "średni",
-   "status": "zatwierdzony"
+   "priority": "medium",
+   "status": "pending",
+   "pl": {
+    "title": "Bossowie elitarni: losowy potwór z mnożnikami i nagrodą",
+    "desc": "Wzmocniony potwór (HP, obrażenia, rozmiar, aura) z lepszą nagrodą."
+   }
   },
   {
    "key": "i76",
-   "title": "Tryb hordy: rozszerzona arena z rankingiem",
+   "title": "Horde mode: extended arena with a leaderboard",
+   "desc": "Custom enemy lists, wave modifiers, survival time, score table.",
    "order": 23,
-   "desc": "Własne listy przeciwników, modyfikatory fal, czas przetrwania, tabela wyników.",
    "issues": [
     76
    ],
-   "priority": "niski",
-   "status": "zatwierdzony"
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Tryb hordy: rozszerzona arena z rankingiem",
+    "desc": "Własne listy przeciwników, modyfikatory fal, czas przetrwania, tabela wyników."
+   }
   },
   {
    "key": "i80",
-   "title": "Manekin treningowy",
+   "title": "Training dummy",
+   "desc": "An NPC that does not attack and measures damage (for testing weapons and spells).",
    "order": 25,
-   "desc": "Postać, która nie atakuje i mierzy obrażenia (testy broni i czarów).",
    "issues": [
     80
    ],
-   "priority": "niski",
-   "status": "zatwierdzony"
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Manekin treningowy",
+    "desc": "Postać, która nie atakuje i mierzy obrażenia (testy broni i czarów)."
+   }
   },
   {
    "key": "i92",
-   "title": "Wyzwania i osiągnięcia trenera",
+   "title": "Trainer challenges and achievements",
+   "desc": "E.g. survive 10 waves, collect 500 items, beat a boss - with badges.",
    "order": 31,
-   "desc": "Np. przetrwaj 10 fal, zbierz 500 przedmiotów, pokonaj bossa - z odznakami.",
    "issues": [
     92
    ],
-   "priority": "niski",
-   "status": "zatwierdzony"
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Wyzwania i osiągnięcia trenera",
+    "desc": "Np. przetrwaj 10 fal, zbierz 500 przedmiotów, pokonaj bossa - z odznakami."
+   }
   }
- ],
- "label": "kategoria: Arena",
- "label_desc": "Tryby walki dla zabawy."
+ ]
 }

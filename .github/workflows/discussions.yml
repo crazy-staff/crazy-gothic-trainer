@@ -1,5 +1,5 @@
-# Pomysły w Dyskusjach: docs/discussions/*.json -> jedna dyskusja na temat, jeden komentarz na pomysł (👍 = głos)
-name: Pomysły w Dyskusjach
+# Ideas in Discussions: docs/discussions/*.json -> one discussion per idea, category = label (👍 / upvote = vote)
+name: Ideas in Discussions
 on:
   push:
     branches: [main]

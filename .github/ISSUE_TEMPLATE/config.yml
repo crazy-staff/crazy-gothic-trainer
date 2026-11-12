@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Jak testować i zgłaszać (instrukcja)
-    url: https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/TESTOWANIE.md
-    about: Krótko o Centrum testera w grze i o tym, co dołączać do zgłoszeń.
-  - name: Nowy pomysł na funkcję → Dyskusje (Pomysły)
+  - name: New feature idea → Discussions (Ideas)
     url: https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas
-    about: Każdy pomysł to osobny wątek w Dyskusjach. Sprawdź, czy podobny już jest (wtedy zagłosuj), a jak nie, załóż nowy wątek.
+    about: Every idea is its own thread. Check if a similar one exists (then vote), otherwise start a new thread. PL - pomysły zbieramy w Dyskusjach.
+  - name: How to test and report (guide)
+    url: https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/TESTING.md
+    about: The in-game Tester hub and what to attach to reports. PL - instrukcja w TESTOWANIE.md.

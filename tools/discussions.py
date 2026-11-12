@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Ideas live in GitHub Discussions (category "Ideas"): ONE discussion per idea, sorted by labels "kategoria: …".
-Vote = upvote / 👍 on the discussion. Source of truth: docs/discussions/<kategoria>.json:
-  {"label": "kategoria: Teleport", "label_desc": "...", "ideas": [{"key", "title", "desc", "order"?, "issues"?: [n], "discussion"?: n}]}
-- idea without "discussion": a discussion is created (hidden marker <!-- idea:KEY --> makes reruns safe)
-- idea with "discussion": n  -> someone's own thread, only labelled (nothing is moved or closed)
-- "issues": old issues are closed with a link. Old theme threads ("Pomysły: …") are closed with links to the new ones.
+"""Ideas live in GitHub Discussions (category "Ideas"): ONE discussion per idea, sorted by labels "category: ...".
+Vote = upvote / 👍 on the discussion. Source of truth: docs/discussions/<category>.json:
+  {"label": "category: Teleport", "ideas": [{"key", "title", "desc", "pl": {"title", "desc"}, "priority": "high|medium|low",
+    "status": "pending", "order"?, "note"?, "related"?: [..], "credit"?, "issues"?: [n], "discussion"?: n, "addenda"?: [{"key", "text", "pl"}]}]}
+- idea without "discussion": a discussion is created; the hidden marker <!-- idea:KEY --> makes reruns safe,
+  and title/body are updated when the JSON changes
+- idea with "discussion": n -> someone's own thread, only labelled (their text is never touched)
+- priority / status labels are set only when missing, so later changes made on GitHub win
+- "issues": old issues are closed with a link
+English first, Polish version in a collapsed <details> block.
 Run by .github/workflows/discussions.yml (GraphQL needs the Actions GITHUB_TOKEN)."""
-import json, os, glob, urllib.request, urllib.parse
+import json, os, glob, urllib.request, urllib.parse, urllib.error
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "dawidseipold/gothic1-crazy-trainer")
 OWNER, NAME = REPO.split("/")
@@ -25,97 +29,89 @@ def rest(method, path, body=None):
         if e.code == 404 and method == "GET": return None
         raise
 
+DISC = "id number title url body closed labels(first:20){nodes{name}} comments(first:100){nodes{id body}}"
+
 def all_discussions():
     out, cur = [], None
     while True:
         d = gql("""query($o:String!,$n:String!,$c:String){repository(owner:$o,name:$n){id
           discussionCategories(first:25){nodes{id name slug}}
-          discussions(first:100,after:$c){pageInfo{hasNextPage endCursor}nodes{id number title url body closed labels(first:20){nodes{name}}}}}}""",
-                o=OWNER, n=NAME, c=cur)["repository"]
+          discussions(first:50,after:$c){pageInfo{hasNextPage endCursor}nodes{""" + DISC + "}}}}", o=OWNER, n=NAME, c=cur)["repository"]
         out += d["discussions"]["nodes"]
         if not d["discussions"]["pageInfo"]["hasNextPage"]: return d, out
         cur = d["discussions"]["pageInfo"]["endCursor"]
 
-STATUS = {"nowy": ("ededed", "Pomysł czeka na przejrzenie"), "zatwierdzony": ("0e8a16", "Przyjęty - zrobimy"),
-          "w planie": ("1d76db", "Ma zgłoszenie i build, w którym wejdzie"), "w trakcie": ("fbca04", "Właśnie robione"),
-          "zrobione": ("5319e7", "Jest w trenerze"), "odrzucony": ("b60205", "Nie będzie robione")}
-
-def label_id(name, desc):
-    if name.startswith("status: "): desc = desc or STATUS.get(name[8:], ("", ""))[1]
-    l = rest("GET", "labels/" + urllib.parse.quote(name))
-    if not l:
-        col = STATUS.get(name[8:], ("8a63d2",))[0] if name.startswith("status: ") else "8a63d2"
-        l = rest("POST", "labels", {"name": name, "color": col, "description": desc[:100]})
-    return l["node_id"]
+_labels = {}
+def label_id(name):
+    if name not in _labels:
+        l = rest("GET", "labels/" + urllib.parse.quote(name))
+        if not l: l = rest("POST", "labels", {"name": name, "color": "8a63d2"})
+        _labels[name] = l["node_id"]
+    return _labels[name]
 
 def idea_body(i):
     o = f"<!-- idea:{i['key']} -->\n{i['desc']}\n"
-    if i.get("order"): o += f"\nKolejność: {i['order']} _(priorytet autora)_\n"
-    if i.get("related"): o += "\nPowiązane: " + ", ".join(i["related"]) + "\n"
-    if i.get("credit"): o += f"\n**Źródło / credit:** {i['credit']}\n"
-    if i.get("issues"): o += "\n_Wcześniej: " + ", ".join(f"#{n}" for n in i["issues"]) + "_\n"
-    return o + "\n**Głosuj:** strzałka w górę albo 👍 pod tym wątkiem. Uwagi i szczegóły piszcie w komentarzach."
+    if i.get("order"): o += f"\nOrder: {i['order']} _(author's priority)_\n"
+    if i.get("related"): o += "\nRelated: " + ", ".join(i["related"]) + "\n"
+    if i.get("credit"): o += f"\n**Source / credit:** {i['credit']}\n"
+    if i.get("issues"): o += "\n_Previously: " + ", ".join(f"#{n}" for n in i["issues"]) + "_\n"
+    if i.get("note"): o += f"\n_{i['note']}_\n"
+    o += "\n**Vote:** up arrow or 👍 on this thread. Details and feedback go in the comments.\n"
+    if i.get("pl"):
+        o += f"\n<details><summary>🇵🇱 Po polsku</summary>\n\n**{i['pl']['title']}**\n\n{i['pl']['desc']}\n\nGłosuj strzałką w górę albo 👍. Możesz komentować po polsku.\n</details>\n"
+    return o
 
-def comment(did, body):
-    gql("mutation($d:ID!,$b:String!){addDiscussionComment(input:{discussionId:$d,body:$b}){comment{id}}}", d=did, b=body)
+def addendum_body(a):
+    o = f"<!-- add:{a['key']} -->\n**Merged idea:** {a['text']}"
+    if a.get("pl"): o += f"\n\n<details><summary>🇵🇱 Po polsku</summary>\n\n{a['pl']}\n</details>"
+    return o
 
 def main():
     repo, discs = all_discussions()
     cats = {c["slug"]: c for c in repo["discussionCategories"]["nodes"]}
-    cat = cats.get("ideas") or next((c for c in cats.values() if c["name"].lower() in ("ideas", "pomysły", "pomysly")), None)
-    if not cat: raise SystemExit(f"Brak kategorii Ideas: {list(cats)}")
+    cat = cats.get("ideas")
+    if not cat: raise SystemExit(f"No Ideas category: {list(cats)}")
     by_mark = {d["body"].split("-->")[0] + "-->": d for d in discs if d["body"].startswith("<!-- idea:")}
     by_num = {d["number"]: d for d in discs}
-    links = {}   # key -> url, for closing old theme threads
     for f in sorted(glob.glob("docs/discussions/*.json")):
         t = json.load(open(f, encoding="utf-8"))
-        lid = label_id(t["label"], t.get("label_desc", ""))
         for i in t["ideas"]:
             if i.get("discussion"): d = by_num[i["discussion"]]
             else:
                 d = by_mark.get(f"<!-- idea:{i['key']} -->")
+                body = idea_body(i)
                 if not d:
                     d = gql("""mutation($r:ID!,$c:ID!,$t:String!,$b:String!){createDiscussion(input:{repositoryId:$r,categoryId:$c,title:$t,body:$b})
-                               {discussion{id number title url body closed labels(first:20){nodes{name}}}}}""",
-                            r=repo["id"], c=cat["id"], t=i["title"], b=idea_body(i))["createDiscussion"]["discussion"]
-                    print("utworzono", d["url"], i["title"])
-            links[i["title"]] = d["url"]
-            if i.get("addenda"):   # merged ideas -> one comment each (marker <!-- add:KEY -->)
-                have = gql("""query($o:String!,$n:String!,$x:Int!){repository(owner:$o,name:$n){discussion(number:$x){comments(first:100){nodes{body}}}}}""",
-                           o=OWNER, n=NAME, x=d["number"])["repository"]["discussion"]["comments"]["nodes"]
-                for a in i["addenda"]:
-                    m = f"<!-- add:{a['key']} -->"
-                    if not any(c["body"].startswith(m) for c in have):
-                        comment(d["id"], f"{m}\n**Dołączony pomysł:** {a['text']}")
-                        print("  dopisano", a["key"], "->", d["number"])
+                               {discussion{""" + DISC + "}}}", r=repo["id"], c=cat["id"], t=i["title"], b=body)["createDiscussion"]["discussion"]
+                    print("created", d["url"], i["title"])
+                elif d["title"] != i["title"] or d["body"].strip() != body.strip():
+                    gql("mutation($d:ID!,$t:String!,$b:String!){updateDiscussion(input:{discussionId:$d,title:$t,body:$b}){discussion{id}}}",
+                        d=d["id"], t=i["title"], b=body)
+                    print("updated", d["number"], i["title"])
+            for a in i.get("addenda", []):   # merged ideas -> one comment each (marker <!-- add:KEY -->)
+                m, body = f"<!-- add:{a['key']} -->", addendum_body(a)
+                c = next((c for c in d["comments"]["nodes"] if c["body"].startswith(m)), None)
+                if not c:
+                    gql("mutation($d:ID!,$b:String!){addDiscussionComment(input:{discussionId:$d,body:$b}){comment{id}}}", d=d["id"], b=body)
+                    print("  merged", a["key"], "->", d["number"])
+                elif c["body"].strip() != body.strip():
+                    gql("mutation($c:ID!,$b:String!){updateDiscussionComment(input:{commentId:$c,body:$b}){comment{id}}}", c=c["id"], b=body)
+                    print("  updated addendum", a["key"])
+            have = {l["name"] for l in d["labels"]["nodes"]}
             want = [t["label"]] + i.get("labels", [])
-            have_l = {l["name"] for l in d["labels"]["nodes"]}
-            # priority / status are set only when missing - later changes made on GitHub (UI) win
-            if i.get("priority") and not any(x.startswith("priorytet") for x in have_l): want.append("priorytet:" + i["priority"])
-            if i.get("status") and not any(x.startswith("status:") for x in have_l): want.append("status: " + i["status"])
-            miss = [x for x in want if x not in {l["name"] for l in d["labels"]["nodes"]}]
+            if i.get("priority") and not any(x.startswith("priority:") for x in have): want.append("priority: " + i["priority"])
+            if i.get("status") and not any(x.startswith("status:") for x in have): want.append("status: " + i["status"])
+            miss = [x for x in want if x not in have]
             if miss:
-                ids = [lid if x == t["label"] else label_id(x, "") for x in miss]
-                gql("mutation($i:ID!,$l:[ID!]!){addLabelsToLabelable(input:{labelableId:$i,labelIds:$l}){clientMutationId}}", i=d["id"], l=ids)
-                print("  etykiety", miss, "->", d["number"])
+                gql("mutation($i:ID!,$l:[ID!]!){addLabelsToLabelable(input:{labelableId:$i,labelIds:$l}){clientMutationId}}",
+                    i=d["id"], l=[label_id(x) for x in miss])
+                print("  labels", miss, "->", d["number"])
             for n in i.get("issues", []):
                 iss = rest("GET", f"issues/{n}")
                 if iss and iss["state"] == "open":
-                    rest("POST", f"issues/{n}/comments", {"body": f"Pomysł przeniesiony do Dyskusji, gdzie łatwiej głosować i rozmawiać: {d['url']}"})
+                    rest("POST", f"issues/{n}/comments", {"body": f"Moved to Discussions, where it is easier to vote and talk: {d['url']}"})
                     rest("PATCH", f"issues/{n}", {"state": "closed", "state_reason": "not_planned"})
-                    print("  zamknięto #", n)
-    for d in discs:   # old layout: one thread per theme
-        if d["title"].startswith("Pomysły:") and not d["closed"]:
-            old = theme_titles(d["number"])
-            comment(d["id"], "Każdy pomysł ma teraz własny wątek (kategorie = etykiety). Głosujcie tam:\n" +
-                    "\n".join(f"- [{t}]({u})" for t, u in links.items() if f"### {t}" in old))
-            gql("mutation($d:ID!){closeDiscussion(input:{discussionId:$d,reason:OUTDATED}){discussion{id}}}", d=d["id"])
-            print("zamknięto stary temat", d["number"])
-
-def theme_titles(num):
-    d = gql("""query($o:String!,$n:String!,$x:Int!){repository(owner:$o,name:$n){discussion(number:$x){comments(first:100){nodes{body}}}}}""",
-            o=OWNER, n=NAME, x=num)["repository"]["discussion"]
-    return "\n".join(c["body"] for c in d["comments"]["nodes"])
+                    print("  closed #", n)
 
 if __name__ == "__main__":
     main()

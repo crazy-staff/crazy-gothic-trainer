@@ -107,10 +107,10 @@ def main():
         for t in ts:
             if t.get("type") not in ("Błąd", "Crash", "Propozycja", "Częściowo") or t.get("uid") in known: continue
             if t.get("verdict") == "1" and not (t.get("actual") or t.get("steps") or t.get("notes")): continue
-            prefix = {"Crash": "[Crash] ", "Propozycja": "[Propozycja] "}.get(t["type"], "")
-            labels = {"Crash": ["crash"], "Propozycja": ["propozycja"]}.get(t["type"], ["błąd"]) + ["z-gry", "do-sprawdzenia"]
-            if t.get("target"): labels.append("opcja:" + t["target"])
-            if t.get("build"): labels.append("build-" + t["build"])
+            prefix = {"Crash": "[Crash] ", "Propozycja": "[Suggestion] "}.get(t["type"], "")
+            labels = {"Crash": ["type: crash"], "Propozycja": ["type: enhancement"]}.get(t["type"], ["type: bug"]) + ["source: in-game", "status: needs verification"]
+            if t.get("target"): labels.append("option: " + t["target"])
+            if t.get("build"): labels.append("build: " + t["build"])
             args = [f"repos/{REPO}/issues", "-f", f"title={prefix}{t.get('title') or t.get('targetName') or 'zgłoszenie'}", "-f", f"body={issue_body(t)}"]
             for l in labels: args += ["-f", f"labels[]={l}"]
             r = gh(*args)

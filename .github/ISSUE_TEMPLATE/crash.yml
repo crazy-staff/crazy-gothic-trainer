@@ -1,68 +1,70 @@
-name: Crash (gra się wyłączyła)
-description: Gra się zamknęła albo zawiesiła. Po crashu trainer sam przygotowuje szkic zgłoszenia w Centrum testera.
+# File name and field ids are used by the in-game tester hub (prefilled links) - do not rename them.
+name: Crash (the game closed)
+description: The game closed or froze. After a crash the trainer prepares a draft in the Tester hub. PL - gra się wyłączyła.
 title: "[Crash] "
-labels: ["crash", "do-sprawdzenia"]
+labels: ["type: crash", "status: needs verification"]
 body:
   - type: markdown
     attributes:
       value: |
-        **Najważniejsze przy crashu: plik raportu.** W grze: Centrum testera → Wyślij → *Eksportuj niewysłane*, potem przeciągnij plik z folderu `G1CrazyTrainer_raporty` do pola „Raport” niżej.
-        Bez gry: dołącz `G1CrazyTrainer.log` i `G1CrazyTrainer_crashes.txt` z folderu `Gothic\system\Autorun`.
+        **The report file matters most.** In the game: Tester hub → Send → *Export unsent*, then drag the file from the `G1CrazyTrainer_raporty` folder into the "Report" field below.
+        Without the game: attach `G1CrazyTrainer.log` and `G1CrazyTrainer_crashes.txt` from `Gothic\system\Autorun`.
+        _PL: Możesz pisać po polsku._
   - type: input
     id: opcja
     attributes:
-      label: Co było włączone / co robiłeś w chwili crasha
+      label: What was on / what were you doing when it crashed
     validations:
       required: true
   - type: textarea
     id: kroki
     attributes:
-      label: Kroki
+      label: Steps
       placeholder: |
         1. ...
         2. ...
   - type: textarea
     id: faktyczne
     attributes:
-      label: Co się stało
-      placeholder: gra zamknęła się bez komunikatu / zawiesiła / komunikat o błędzie ...
+      label: What happened
+      placeholder: closed without a message / froze / error message ...
   - type: input
     id: powtarzalnosc
     attributes:
-      label: Jak często
-      placeholder: zawsze / często / czasem / raz
+      label: How often
+      placeholder: always / often / sometimes / once
   - type: input
     id: build
     attributes:
-      label: Build trainera
+      label: Trainer build
     validations:
       required: true
   - type: input
     id: tester
     attributes:
-      label: Twój nick
+      label: Your nickname
   - type: textarea
     id: kontekst
     attributes:
-      label: Kontekst z gry (automatycznie)
+      label: Game context (automatic)
       render: text
   - type: textarea
     id: zalaczniki
     attributes:
-      label: Raport
-      description: Przeciągnij tutaj plik raportu (wymagany przy crashu).
+      label: Report
+      description: Drag the report file here (required for crashes).
     validations:
       required: true
   - type: input
     id: oczekiwane
     attributes:
-      label: (opcjonalnie) co powinno się stać
+      label: (optional) expected result
   - type: input
     id: waga
     attributes:
-      label: Waga
-      value: blokuje grę
+      label: Severity
+      value: blocks the game
   - type: input
     id: uid
     attributes:
-      label: ID zgłoszenia (z gry)
+      label: Ticket ID (from the game)

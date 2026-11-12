@@ -1,45 +1,57 @@
 {
+ "label": "category: Teleport",
  "ideas": [
   {
    "key": "i72",
-   "title": "Mapa świata w trenerze (klik = teleport)",
+   "title": "World map in the trainer (click = teleport)",
+   "desc": "Map with the hero, party, NPCs and items; clicking teleports.",
    "order": 3,
-   "desc": "Mapa z pozycją bohatera, drużyny, NPC i przedmiotów; kliknięcie teleportuje.",
    "issues": [
     72
    ],
    "addenda": [
     {
      "key": "itemmap",
-     "text": "mapa z przedmiotami na bazie [ItemMap](https://github.com/Sefaris/ItemMap) (Sefaris) — integracja ItemMapPlugin albo własna implementacja na bazie jego kodu, z creditem."
+     "text": "item map based on [ItemMap](https://github.com/Sefaris/ItemMap) (Sefaris) — integrate ItemMapPlugin or our own implementation based on its code, with credit.",
+     "pl": "mapa z przedmiotami na bazie [ItemMap](https://github.com/Sefaris/ItemMap) (Sefaris) — integracja ItemMapPlugin albo własna implementacja na bazie jego kodu, z creditem."
     }
    ],
-   "priority": "wysoki",
-   "status": "zatwierdzony"
+   "priority": "high",
+   "status": "pending",
+   "pl": {
+    "title": "Mapa świata w trenerze (klik = teleport)",
+    "desc": "Mapa z pozycją bohatera, drużyny, NPC i przedmiotów; kliknięcie teleportuje."
+   }
   },
   {
    "key": "i96",
-   "title": "Teleport do NPC po imieniu (nawet poza zasięgiem)",
+   "title": "Teleport to an NPC by name (even out of range)",
+   "desc": "Search for a character and teleport to them wherever they are in the world.",
    "order": 5,
-   "desc": "Wyszukaj postać i teleportuj się do niej, gdziekolwiek jest w świecie.",
    "issues": [
     96
    ],
-   "priority": "wysoki",
-   "status": "zatwierdzony"
+   "priority": "high",
+   "status": "pending",
+   "pl": {
+    "title": "Teleport do NPC po imieniu (nawet poza zasięgiem)",
+    "desc": "Wyszukaj postać i teleportuj się do niej, gdziekolwiek jest w świecie."
+   }
   },
   {
    "key": "i73",
-   "title": "Ścieżki teleportu: nagraj trasę i odtwórz",
+   "title": "Teleport paths: record a route and replay it",
+   "desc": "Save points as a route and replay it automatically (sightseeing, bot, recordings).",
    "order": 21,
-   "desc": "Zapisuj kolejne punkty jako trasę, odtwarzaj automatycznie (zwiedzanie, bot, nagrania).",
    "issues": [
     73
    ],
-   "priority": "niski",
-   "status": "zatwierdzony"
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Ścieżki teleportu: nagraj trasę i odtwórz",
+    "desc": "Zapisuj kolejne punkty jako trasę, odtwarzaj automatycznie (zwiedzanie, bot, nagrania)."
+   }
   }
- ],
- "label": "kategoria: Teleport",
- "label_desc": "Mapa świata, teleport do NPC, nagrywane trasy."
+ ]
 }

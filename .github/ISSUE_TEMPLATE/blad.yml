@@ -1,73 +1,75 @@
-name: Błąd
-description: Coś nie działa albo działa źle. Najwygodniej zgłaszać z gry (Centrum testera → flaga przy opcji).
+# File name and field ids are used by the in-game tester hub (prefilled links) - do not rename them.
+name: Bug report
+description: Something does not work or works wrong. Easiest from the game (Tester hub → flag next to an option). PL - błąd.
 title: ""
-labels: ["błąd", "do-sprawdzenia"]
+labels: ["type: bug", "status: needs verification"]
 body:
   - type: markdown
     attributes:
       value: |
-        Dzięki za zgłoszenie! Jeśli wysyłasz z gry, pola są już wypełnione — sprawdź je i kliknij **Submit new issue**.
-        Zanim napiszesz, rzuć okiem na [otwarte zgłoszenia](https://github.com/dawidseipold/gothic1-crazy-trainer/issues), może ktoś już to opisał (wtedy daj 👍 i dopisz komentarz).
+        Thanks for the report! When sent from the game, the fields are already filled in — check them and click **Submit new issue**.
+        Please look at the [open issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) first — if it is already there, add 👍 and a comment.
+        _PL: Możesz pisać po polsku — pola po angielsku, treść w dowolnym języku._
   - type: input
     id: opcja
     attributes:
-      label: Czego dotyczy
-      description: Nazwa opcji z menu (w nawiasie jej ID, np. `rain`) albo „ogólne”.
+      label: What is it about
+      description: Option name from the menu (its ID in brackets, e.g. `rain`) or "general". PL - czego dotyczy.
     validations:
       required: true
   - type: textarea
     id: kroki
     attributes:
-      label: Kroki — co robiłeś po kolei
+      label: Steps to reproduce
       placeholder: |
-        1. Wczytałem zapis w Starym Obozie
-        2. Włączyłem ...
+        1. Loaded a save in the Old Camp
+        2. Turned on ...
     validations:
       required: true
   - type: textarea
     id: oczekiwane
     attributes:
-      label: Co powinno się stać
+      label: Expected result
   - type: textarea
     id: faktyczne
     attributes:
-      label: Co się stało
+      label: Actual result
     validations:
       required: true
   - type: input
     id: waga
     attributes:
-      label: Waga
-      placeholder: drobne / przeszkadza / blokuje grę
+      label: Severity
+      placeholder: minor / annoying / blocks the game
   - type: input
     id: powtarzalnosc
     attributes:
-      label: Jak często
-      placeholder: zawsze / często / czasem / raz
+      label: How often
+      placeholder: always / often / sometimes / once
   - type: input
     id: build
     attributes:
-      label: Build trainera
-      description: Numer widoczny w menu (Konfiguracja) albo w nazwie pliku z wydania.
+      label: Trainer build
+      description: Number shown in the menu (Settings) or in the release file name.
     validations:
       required: true
   - type: input
     id: tester
     attributes:
-      label: Twój nick
+      label: Your nickname
   - type: textarea
     id: kontekst
     attributes:
-      label: Kontekst z gry (automatycznie)
-      description: Stan gry, włączone opcje i ostatnie zdarzenia — wypełnia się samo przy wysyłaniu z gry.
+      label: Game context (automatic)
+      description: Game state, enabled options and recent events — filled in automatically when sent from the game.
       render: text
   - type: textarea
     id: zalaczniki
     attributes:
-      label: Raport / zrzuty ekranu
-      description: Przeciągnij tutaj plik raportu z folderu `G1CrazyTrainer_raporty` (Centrum testera → Wyślij → Eksportuj) i ewentualne screeny.
+      label: Report / screenshots
+      description: Drag the report file from the `G1CrazyTrainer_raporty` folder here (Tester hub → Send → Export) and any screenshots.
   - type: input
     id: uid
     attributes:
-      label: ID zgłoszenia (z gry)
-      description: Nie zmieniaj — pozwala połączyć to zgłoszenie z raportem.
+      label: Ticket ID (from the game)
+      description: Do not change — links this issue with the report.

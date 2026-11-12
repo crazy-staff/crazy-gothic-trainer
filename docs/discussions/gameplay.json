@@ -1,0 +1,86 @@
+{
+ "label": "category: Gameplay",
+ "ideas": [
+  {
+   "key": "n-skipdlg",
+   "title": "Skip queued dialogue lines",
+   "desc": "One key skips all lines waiting in the conversation queue, not just the current one. Optional auto-advance.",
+   "note": "Suggested by the author (idea list, 2026-11-12).",
+   "related": [
+    "#127 (new dialogue UI)"
+   ],
+   "priority": "medium",
+   "status": "pending",
+   "pl": {
+    "title": "Pomijanie zakolejkowanych dialogów",
+    "desc": "Jeden klawisz pomija wszystkie kwestie czekające w kolejce rozmowy, a nie tylko bieżącą. Opcjonalnie automatyczne przewijanie."
+   }
+  },
+  {
+   "key": "n-nojump",
+   "title": "Fully disable jumping on the right mouse button",
+   "desc": "An option that completely removes the jump bound to the right mouse button (no accidental jumps while aiming or fighting).",
+   "note": "Suggested by the author (idea list, 2026-11-12).",
+   "related": [
+    "#119 (Alt = jump with aimbot)"
+   ],
+   "priority": "medium",
+   "status": "pending",
+   "pl": {
+    "title": "Całkowite wyłączenie skoku pod prawym przyciskiem myszy",
+    "desc": "Opcja, która całkiem usuwa skok przypisany do prawego przycisku myszy (żadnych przypadkowych skoków przy celowaniu i walce)."
+   }
+  },
+  {
+   "key": "n-regen",
+   "title": "Health and mana regeneration over time",
+   "desc": "Separate sliders: how many health and mana points regenerate per second, with an \"only out of combat\" option.",
+   "note": "Suggested by the author (idea list, 2026-11-12).",
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Regeneracja życia i many w czasie",
+    "desc": "Osobne suwaki: ile punktów życia i many odnawia się co sekundę, z opcją „tylko poza walką”."
+   }
+  },
+  {
+   "key": "n-acro",
+   "title": "Acrobatics toggle without unlearning",
+   "desc": "Turn the acrobatics animations on and off at any time without unlearning the skill - to choose which jump and fall animations you want.",
+   "note": "Suggested by the author (idea list, 2026-11-12).",
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Przełącznik akrobatyki bez oduczania",
+    "desc": "Włączanie i wyłączanie animacji akrobatyki w dowolnej chwili, bez oduczania umiejętności — żeby wybrać, które animacje skoku i upadku chcesz."
+   }
+  },
+  {
+   "key": "n-fightstyle",
+   "title": "Change combat style animations with a hotkey",
+   "desc": "Pick the combat animation set (e.g. one- and two-handed training level) independently of skills, switchable with a key.",
+   "note": "Suggested by the author (idea list, 2026-11-12).",
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Zmiana animacji stylu walki z bindem",
+    "desc": "Wybór zestawu animacji walki (np. poziom wyszkolenia jedno- i dwuręcznej) niezależnie od umiejętności, z przełączaniem pod klawisz."
+   }
+  },
+  {
+   "key": "n-hardcore",
+   "title": "Hardcore mode: death deletes the save, saving only on exit",
+   "desc": "After death the save is deleted. The game can only be saved when quitting.",
+   "note": "Suggested by the author (idea list, 2026-11-12).",
+   "related": [
+    "#167 (save manager)"
+   ],
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Tryb hardcore: śmierć usuwa zapis, zapis tylko przy wyjściu",
+    "desc": "Po śmierci zapis jest kasowany. Zapisać grę można tylko przy wychodzeniu z gry."
+   }
+  }
+ ]
+}

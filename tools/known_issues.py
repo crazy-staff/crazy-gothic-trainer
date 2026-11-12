@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write G1CrazyTrainer_znane.txt (shipped with each release) from GitHub issues labelled opcja:<id>.
+"""Write G1CrazyTrainer_znane.txt (shipped with each release) from GitHub issues labelled "option: <id>" (old: opcja:<id>).
 Format: target \t state \t number \t build \t title   (the trainer shows these next to each option)."""
 import json, subprocess, sys
 REPO = "dawidseipold/gothic1-crazy-trainer"
@@ -15,9 +15,9 @@ lines = ["# Znane problemy - generowane z GitHuba przy wydaniu (target, stan, nu
 for i in issues:
     if "pull_request" in i: continue
     labels = [l["name"] for l in i.get("labels", [])]
-    targets = [l[6:] for l in labels if l.startswith("opcja:")] or [""]
-    build = next((l[6:] for l in labels if l.startswith("build-")), "0")
-    if "propozycja" in labels: continue
+    targets = [l.split(":", 1)[1].strip() for l in labels if l.startswith(("option:", "opcja:"))] or [""]
+    build = next((l.split(":", 1)[1].strip() for l in labels if l.startswith("build:")), "0")
+    if labels and set(labels) & {"type: enhancement", "type: idea"}: continue
     for t in targets:
         lines.append("\t".join([t, i["state"], str(i["number"]), build, i["title"].replace("\t", " ")]))
 open(out, "w", encoding="utf-8").write("\n".join(lines) + "\n")

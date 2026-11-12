@@ -1,0 +1,50 @@
+{
+ "label": "category: Party",
+ "ideas": [
+  {
+   "key": "i81",
+   "title": "Party orders: formations, go where I aim, attack target",
+   "desc": "Quick hotkey orders: formation, attack target, hold position, spread out.",
+   "order": 26,
+   "issues": [
+    81
+   ],
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Rozkazy drużyny: formacje, idź tam gdzie celuję, atakuj cel",
+    "desc": "Szybkie rozkazy z klawiszy: formacja, atak na cel, trzymaj pozycję, rozproszenie."
+   }
+  },
+  {
+   "key": "i82",
+   "title": "Companion progression: party stats and equipment",
+   "desc": "Change companions' attributes/skills like the hero's.",
+   "order": 27,
+   "issues": [
+    82
+   ],
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Rozwój towarzyszy: statystyki i ekwipunek drużyny",
+    "desc": "Zmiana atrybutów/umiejętności towarzyszy jak u bohatera."
+   }
+  },
+  {
+   "key": "i79",
+   "title": "Camp wars: make two groups fight",
+   "desc": "Old Camp vs New Camp, orcs vs humans etc. - with radius and side selection.",
+   "order": 24,
+   "issues": [
+    79
+   ],
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Wojny obozów: każ dwóm grupom walczyć",
+    "desc": "Stary Obóz vs Nowy Obóz, orkowie vs ludzie itd. - z wyborem promienia i stron."
+   }
+  }
+ ]
+}

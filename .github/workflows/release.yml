@@ -26,7 +26,7 @@ jobs:
           N=$(grep -oP '#define TRAINER_BUILD \K[0-9]+' src/trainer.h)
           echo "TAG=b$N" >> $GITHUB_ENV
           if gh release view "b$N" >/dev/null 2>&1; then echo "skip=1" >> $GITHUB_OUTPUT; echo "release b$N already exists"; fi
-          [ -f docs/release/b$N.md ] || echo "uwaga: brak docs/release/b$N.md - użyję default.md"
+          [ -f docs/release/b$N.md ] || echo "note: no docs/release/b$N.md - using default.md"
       - name: MinGW
         if: steps.v.outputs.skip != '1'
         run: sudo apt-get update -q && sudo apt-get install -y -q g++-mingw-w64-i686-posix gcc-mingw-w64-i686-posix zip

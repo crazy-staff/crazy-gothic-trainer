@@ -1,0 +1,44 @@
+{
+ "label": "category: Union plugins",
+ "ideas": [
+  {
+   "key": "n-bugfix",
+   "title": "Engine bug fixes from Union plugins (zBugFixes, G1Fixes and others)",
+   "desc": "Built-in engine bug fixes, each as a separate option.",
+   "note": "Suggested by the author (idea list, 2026-11-12).",
+   "credit": "[zBugFixes](https://github.com/UnresolvedExternal/Plugins_2021/tree/main/src/zBugFixes/Workspace/Entry) (UnresolvedExternal), [G1Fixes](https://github.com/Sefaris/G1Fixes) (Sefaris)",
+   "priority": "high",
+   "status": "pending",
+   "pl": {
+    "title": "Poprawki błędów silnika z pluginów Uniona (zBugFixes, G1Fixes i inne)",
+    "desc": "Wbudowane poprawki błędów silnika, każda jako osobna opcja do włączenia."
+   }
+  },
+  {
+   "key": "n-console",
+   "title": "Extended console (like MarvinHelper, only better)",
+   "desc": "More console commands, suggestions, history and search - based on ideas from MarvinHelper.",
+   "note": "Suggested by the author (idea list, 2026-11-12).",
+   "credit": "[Union_MarvinHelper](https://github.com/UnresolvedExternal/Union_AlterDamage/tree/master/src/Union_MarvinHelper) (UnresolvedExternal)",
+   "priority": "medium",
+   "status": "pending",
+   "pl": {
+    "title": "Rozszerzona konsola (jak MarvinHelper, tylko lepsza)",
+    "desc": "Więcej komend konsoli, podpowiedzi, historia i wyszukiwanie — na bazie pomysłów z MarvinHelper."
+   }
+  },
+  {
+   "key": "n-unionports",
+   "title": "Port more Union plugins into the trainer",
+   "desc": "Umbrella thread: which plugins from the list are worth bringing into the trainer (with credit). Add suggestions in the comments - each bigger one gets its own thread.",
+   "note": "Suggested by the author (idea list, 2026-11-12).",
+   "credit": "[lista pluginów Uniona](https://sefaris.eu/union/plugins)",
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Port kolejnych pluginów Uniona do trenera",
+    "desc": "Zbiorczy wątek: które pluginy z listy warto przenieść do trenera (z creditem). Dopisujcie propozycje w komentarzach — każdy większy dostanie własny wątek."
+   }
+  }
+ ]
+}

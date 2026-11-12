@@ -1,41 +1,42 @@
-name: Propozycja
-description: Zmiana w istniejącej opcji. Zupełnie nowe funkcje → Dyskusje (Pomysły).
-title: "[Propozycja] "
-labels: ["propozycja"]
+# File name and field ids are used by the in-game tester hub (prefilled links) - do not rename them.
+name: Change to an existing option
+description: Change or extend something that already exists. Brand-new features → Discussions (Ideas). PL - zmiana istniejącej opcji.
+title: "[Suggestion] "
+labels: ["type: enhancement"]
 body:
   - type: markdown
     attributes:
-      value: "Ten formularz jest na zmiany w istniejących opcjach. Nowe funkcje zbieramy w [Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — tam zagłosuj na podobny pomysł albo załóż nowy wątek."
+      value: "This form is for changes to existing options. New features are collected in [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — vote for a similar idea there or start a new thread. _PL: Możesz pisać po polsku._"
   - type: input
     id: opcja
     attributes:
-      label: Czego dotyczy
-      description: Istniejąca opcja (z ID) albo „nowa funkcja”.
+      label: What is it about
+      description: Existing option (with ID) or "new feature".
   - type: textarea
     id: opis
     attributes:
-      label: Opis pomysłu
-      description: Co ma robić i jak ma wyglądać w menu.
+      label: Description
+      description: What it should do and how it should look in the menu.
     validations:
       required: true
   - type: textarea
     id: dlaczego
     attributes:
-      label: Po co / dla kogo
+      label: Why / who is it for
   - type: input
     id: build
     attributes:
-      label: Build trainera
+      label: Trainer build
   - type: input
     id: tester
     attributes:
-      label: Twój nick
+      label: Your nickname
   - type: textarea
     id: kontekst
     attributes:
-      label: Kontekst z gry (automatycznie)
+      label: Game context (automatic)
       render: text
   - type: input
     id: uid
     attributes:
-      label: ID zgłoszenia (z gry)
+      label: Ticket ID (from the game)

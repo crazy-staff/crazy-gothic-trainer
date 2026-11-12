@@ -1,0 +1,65 @@
+{
+ "label": "category: World",
+ "ideas": [
+  {
+   "key": "i75",
+   "title": "Chest editor: container contents",
+   "desc": "View and edit the contents of the chest you are looking at.",
+   "order": 4,
+   "issues": [
+    75
+   ],
+   "priority": "high",
+   "status": "pending",
+   "pl": {
+    "title": "Edytor skrzyń: zawartość pojemników",
+    "desc": "Podgląd i edycja zawartości skrzyni, na którą patrzysz."
+   }
+  },
+  {
+   "key": "i74",
+   "title": "Building: place objects (chests, campfires, barrels)",
+   "desc": "World object (vob) spawner with rotation, saved in the game.",
+   "order": 22,
+   "issues": [
+    74
+   ],
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Budowanie: stawianie obiektów (skrzynie, ogniska, beczki)",
+    "desc": "Spawner obiektów świata (vobów) z obracaniem i zapisem w grze."
+   }
+  },
+  {
+   "key": "i71",
+   "title": "Weather and sky: rain, fog, instant change",
+   "desc": "Control rain/fog/sky, stop the weather.",
+   "order": 20,
+   "issues": [
+    71
+   ],
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Pogoda i niebo: deszcz, mgła, natychmiastowa zmiana",
+    "desc": "Sterowanie deszczem/mgłą/niebem, zatrzymanie pogody."
+   }
+  },
+  {
+   "key": "i85",
+   "title": "Photo mode: free camera without HUD",
+   "desc": "Free camera, time freeze, high-resolution screenshot.",
+   "order": 28,
+   "issues": [
+    85
+   ],
+   "priority": "low",
+   "status": "pending",
+   "pl": {
+    "title": "Tryb zdjęć: wolna kamera bez HUD",
+    "desc": "Wolna kamera, zatrzymanie czasu, zrzut w wysokiej rozdzielczości."
+   }
+  }
+ ]
+}

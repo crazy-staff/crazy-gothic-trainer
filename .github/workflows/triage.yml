@@ -1,8 +1,9 @@
 # Labels new issues from the in-game / web forms and points at likely duplicates.
-#   "Czego dotyczy: Deszcz zaklęć (rain)"  -> label opcja:rain
-#   "Build trainera: 8"                    -> label build-8
-#   "ID zgłoszenia (z gry)" filled         -> label z-gry
-name: Triage zgłoszeń
+#   "What is it about: Rain of spells (rain)" -> label "option: rain"
+#   "Trainer build: 8"                         -> label "build: 8"
+#   "Ticket ID (from the game)" filled         -> label "source: in-game"
+# Old Polish headings are still accepted (issues prefilled by older trainer builds).
+name: Issue triage
 on:
   issues:
     types: [opened, edited]
@@ -17,27 +18,28 @@ jobs:
           script: |
             const issue = context.payload.issue;
             const body = issue.body || '';
-            const field = (name) => {
+            const field = (...names) => { for (const name of names) { const v = field1(name); if (v) return v; } return ''; };
+            const field1 = (name) => {
               const m = body.match(new RegExp('### ' + name + '\\s*\\n+([\\s\\S]*?)(?=\\n### |$)'));
               if (!m) return '';
               const v = m[1].trim();
               return v === '_No response_' ? '' : v;
             };
             const labels = [];
-            const target = field('Czego dotyczy') || field('Co było włączone / co robiłeś w chwili crasha');
+            const target = field('What is it about', 'What was on / what were you doing when it crashed', 'Czego dotyczy', 'Co było włączone / co robiłeś w chwili crasha');
             // last "(...)" = id from the game: option id, kat:/pod:/karta:/sekcja:/aspekt: targets
             const id = ((target.match(/\(([^()]+)\)\s*$/) || [])[1] || '').trim();
-            if (id) labels.push(('opcja:' + id).slice(0, 50));
-            const build = (field('Build trainera').match(/\d+/) || [])[0];
-            if (build) labels.push('build-' + build);
-            if (field('ID zgłoszenia \\(z gry\\)')) labels.push('z-gry');
+            if (id) labels.push(('option: ' + id).slice(0, 50));
+            const build = (field('Trainer build', 'Build trainera').match(/\d+/) || [])[0];
+            if (build) labels.push('build: ' + build);
+            if (field('Ticket ID \\(from the game\\)', 'ID zgłoszenia \\(z gry\\)')) labels.push('source: in-game');
             if (labels.length) await github.rest.issues.addLabels({ ...context.repo, issue_number: issue.number, labels });
             if (context.payload.action !== 'opened' || !id) return;
             // other open issues about the same option -> one comment so testers can join an existing thread
-            const others = await github.paginate(github.rest.issues.listForRepo, { ...context.repo, state: 'open', labels: 'opcja:' + id, per_page: 100 });
+            const others = await github.paginate(github.rest.issues.listForRepo, { ...context.repo, state: 'open', labels: 'option: ' + id, per_page: 100 });
             const dup = others.filter(o => o.number !== issue.number && !o.pull_request);
             if (dup.length) {
               await github.rest.issues.createComment({ ...context.repo, issue_number: issue.number,
-                body: 'Inne otwarte zgłoszenia o tej opcji (`' + id + '`) — sprawdź, czy to nie to samo:\n' +
+                body: 'Other open issues about this option (`' + id + '`) — please check whether it is the same problem:\n' +
                       dup.slice(0, 10).map(o => '- #' + o.number + ' ' + o.title).join('\n') });
             }
