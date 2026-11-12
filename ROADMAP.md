@@ -1,68 +1,98 @@
-# Gothic 1 Crazy Trainer — mapa drogowa
+# Gothic 1 Crazy Trainer — roadmap
 
-Lista generuje się automatycznie z [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) (ostatnio: 2026-11-12 09:07 UTC).  
-**Głosowanie:** pomysły są w [Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — każdy pomysł to osobny wątek, głosuj strzałką w górę lub 👍.  
-Błąd: [zgłoś tutaj](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose). Nowy pomysł: [załóż wątek w Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=ideas).
+Generated automatically from [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) and [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions) (last update: 2026-11-12 09:11 UTC).  
+**Voting:** every idea is its own thread in [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — vote with the up arrow or 👍.  
+Bug: [report it here](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose). New idea: [start a thread in Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=ideas).  
+_PL: Lista po angielsku; zgłoszenia i pomysły możesz pisać po polsku._
 
 
-## Nowe pomysły - głosuj (46)
+## Bugs (1)
 
-_Każdy pomysł to osobny wątek w Dyskusjach: zagłosuj strzałką w górę lub 👍 - najwyżej ocenione robimy najpierw._
+_Known problems that are not fixed yet._
 
-| 👍 | # | Zgłoszenie | Etykiety |
+| 👍 | # | Item | Labels |
 |---:|---:|---|---|
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/182) | Tryb hardcore: śmierć usuwa zapis, zapis tylko przy wyjściu | priority: low, category: Gameplay, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/181) | Zmiana animacji stylu walki z bindem | priority: low, category: Gameplay, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/180) | Przełącznik akrobatyki bez oduczania | priority: low, category: Gameplay, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/179) | Regeneracja życia i many w czasie | priority: low, category: Gameplay, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/178) | Całkowite wyłączenie skoku pod prawym przyciskiem myszy | priority: medium, category: Gameplay, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/177) | Pomijanie zakolejkowanych dialogów | priority: medium, category: Gameplay, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/176) | Port kolejnych pluginów Uniona do trenera | priority: low, category: Union plugins, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/175) | Rozszerzona konsola (jak MarvinHelper, tylko lepsza) | priority: medium, category: Union plugins, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/174) | Poprawki błędów silnika z pluginów Uniona (zBugFixes, G1Fixes i inne) | priority: high, category: Union plugins, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/173) | Własne motywy menu: lista stylów do edycji i wczytywania | priority: low, category: Menu & convenience, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/172) | Dyndająca broń przy pasie | priority: low, category: Graphics & camera, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/171) | Ukrywanie roślinności, która zasłania bohatera | priority: medium, category: Graphics & camera, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/170) | Wyłączenie efektu wizualnego pod wodą | priority: low, category: Graphics & camera, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/169) | Zmienne fabularne i rozdziały: podgląd i edycja | priority: low, category: Saves & story, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/168) | Dziennik zadań: podgląd i zmiana statusu questów | priority: medium, category: Saves & story, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/167) | Zapisy gry: menedżer slotów, kopie zapasowe, szybki zapis z trenera | priority: high, category: Saves & story, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/166) | Ścieżki teleportu: nagraj trasę i odtwórz | priority: low, category: Teleport, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/165) | Teleport do NPC po imieniu (nawet poza zasięgiem) | priority: high, category: Teleport, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/164) | Mapa świata w trenerze (klik = teleport) | priority: high, category: Teleport, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/163) | Tryb zdjęć: wolna kamera bez HUD | priority: low, category: World, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/162) | Pogoda i niebo: deszcz, mgła, natychmiastowa zmiana | priority: low, category: World, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/161) | Budowanie: stawianie obiektów (skrzynie, ogniska, beczki) | priority: low, category: World, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/160) | Edytor skrzyń: zawartość pojemników | priority: high, category: World, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/159) | Integracja z czatem Twitch (głosowanie na chaos) | priority: low, category: Stream & chaos, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/158) | Tryb streamera: losowe zdarzenia chaosu co X minut | priority: low, category: Stream & chaos, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/157) | Presety postaci: zapisz i wczytaj wygląd + statystyki | priority: low, category: Character, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/156) | Edytor ekwipunku bohatera i towarzyszy | priority: high, category: Character, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/155) | Testy automatyczne: symulacja w grze | priority: low, category: Menu & convenience, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/154) | Statystyki sesji: zabici, zebrane przedmioty, dystans, czas | priority: low, category: Menu & convenience, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/153) | Angielska wersja interfejsu | priority: low, category: Menu & convenience, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/152) | Sprawdzanie aktualizacji trenera w grze | priority: low, category: Menu & convenience, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/151) | Skróty klawiszowe do stron i makr | priority: low, category: Menu & convenience, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/150) | Ulubione opcje (pinezka) na pierwszej stronie | priority: low, category: Menu & convenience, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/149) | Profile ustawień (np. speedrun, chaos, testy) | priority: medium, category: Menu & convenience, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/148) | Makra: nagrywanie i odtwarzanie sekwencji akcji trenera | priority: medium, category: Menu & convenience, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/147) | Kompendium bestiariusza: statystyki wszystkich potworów i postaci | priority: low, category: On-screen info, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/146) | Podświetlanie postaci ważnych (questy, handlarze, nauczyciele) | priority: medium, category: On-screen info, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/145) | Rutyny NPC: gdzie postać będzie o danej godzinie | priority: medium, category: On-screen info, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/144) | Liczby obrażeń nad głową i licznik DPS | priority: medium, category: On-screen info, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/143) | Wojny obozów: każ dwóm grupom walczyć | priority: low, category: Party, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/142) | Rozwój towarzyszy: statystyki i ekwipunek drużyny | priority: low, category: Party, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/141) | Rozkazy drużyny: formacje, idź tam gdzie celuję, atakuj cel | priority: low, category: Party, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/140) | Wyzwania i osiągnięcia trenera | priority: low, category: Arena, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/139) | Manekin treningowy | priority: low, category: Arena, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/138) | Tryb hordy: rozszerzona arena z rankingiem | priority: low, category: Arena, status: pending |
-| 0 | [do przejrzenia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/137) | Bossowie elitarni: losowy potwór z mnożnikami i nagrodą | priority: medium, category: Arena, status: pending |
+| 0 | [#97](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/97) | Glide: object collision worked the other way round | type: bug, area: noclip, priority: high, priority: low, status: planned |
 
-## Zrobione (60)
+## To verify in game (14)
 
-_Ostatnio zamknięte._
+_Fixed in the latest build - waiting for testers to confirm._
 
-| 👍 | # | Zgłoszenie | Etykiety |
+| 👍 | # | Item | Labels |
+|---:|---:|---|---|
+| 0 | [#126](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/126) | Tester hub: collapsible history, mouse-wheel scrolling in the form | type: bug, area: tester, priority: medium, status: needs verification |
+| 0 | [#125](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/125) | Party: monster stays locked on target after attacking is turned off; better test scene | type: bug, area: party, priority: high, status: needs verification |
+| 0 | [#124](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/124) | Screenshots: include the menu, frozen image while selecting | type: bug, area: tester, priority: medium, status: needs verification |
+| 0 | [#123](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/123) | ESP: checkboxes, edge markers tied to the box, hide weapons in hands and projectiles | type: enhancement, area: esp, priority: medium, status: needs verification |
+| 0 | [#122](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/122) | Graphics: GD3D11 settings (draw distances) and presets | type: enhancement, area: esp, priority: medium, status: needs verification |
+| 0 | [#121](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/121) | Widgets: separate radar/compass categories, proportional preview, target bar, ammo, XP, more info | type: enhancement, area: esp, priority: medium, status: needs verification |
+| 0 | [#120](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/120) | Crosshair: separate settings per shape, dot, colour in presets | type: enhancement, area: esp, priority: medium, status: needs verification |
+| 0 | [#119](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/119) | Aimbot: crash, does not work, Alt = jump | type: bug, area: character, priority: high, status: needs verification |
+| 0 | [#118](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/118) | Free aim: vertical aiming (bow, crossbow, spells) | type: bug, area: character, priority: high, status: needs verification |
+| 0 | [#49](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/49) | Party: talking to a party member — nothing can be clicked | type: bug, area: party, priority: high, status: needs verification |
+| 0 | [#37](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/37) | Party: after the first conversation the companion returns to its routine | type: bug, area: party, priority: high, status: needs verification |
+| 0 | [#24](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/24) | Crash: exceptions in render (GothicMod+0x1d31b / 0x82f18 / 0x81629) | type: crash, area: stability, priority: high, status: needs verification |
+| 0 | [#22](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/22) | Possessed body: returning to the Nameless Hero when he is gone (too far away) | type: bug, area: character, priority: high, status: needs verification |
+| 0 | [#16](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/16) | Party: "Wait" — the companion must stand exactly where told | type: bug, area: party, priority: high, status: needs verification |
+
+## Ideas - vote (46)
+
+_Every idea is its own thread in Discussions: vote with the up arrow or 👍 - the most voted get reviewed first._
+
+| 👍 | # | Item | Labels |
+|---:|---:|---|---|
+| 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/182) | Tryb hardcore: śmierć usuwa zapis, zapis tylko przy wyjściu | priority: low, status: pending |
+| 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/181) | Zmiana animacji stylu walki z bindem | priority: low, status: pending |
+| 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/180) | Przełącznik akrobatyki bez oduczania | priority: low, status: pending |
+| 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/179) | Regeneracja życia i many w czasie | priority: low, status: pending |
+| 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/178) | Całkowite wyłączenie skoku pod prawym przyciskiem myszy | priority: medium, status: pending |
+| 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/177) | Pomijanie zakolejkowanych dialogów | priority: medium, status: pending |
+| 0 | [Union plugins](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/176) | Port kolejnych pluginów Uniona do trenera | priority: low, status: pending |
+| 0 | [Union plugins](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/175) | Rozszerzona konsola (jak MarvinHelper, tylko lepsza) | priority: medium, status: pending |
+| 0 | [Union plugins](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/174) | Poprawki błędów silnika z pluginów Uniona (zBugFixes, G1Fixes i inne) | priority: high, status: pending |
+| 0 | [Menu & convenience](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/173) | Własne motywy menu: lista stylów do edycji i wczytywania | priority: low, status: pending |
+| 0 | [Graphics & camera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/172) | Dyndająca broń przy pasie | priority: low, status: pending |
+| 0 | [Graphics & camera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/171) | Ukrywanie roślinności, która zasłania bohatera | priority: medium, status: pending |
+| 0 | [Graphics & camera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/170) | Wyłączenie efektu wizualnego pod wodą | priority: low, status: pending |
+| 0 | [Saves & story](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/169) | Zmienne fabularne i rozdziały: podgląd i edycja | priority: low, status: pending |
+| 0 | [Saves & story](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/168) | Dziennik zadań: podgląd i zmiana statusu questów | priority: medium, status: pending |
+| 0 | [Saves & story](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/167) | Zapisy gry: menedżer slotów, kopie zapasowe, szybki zapis z trenera | priority: high, status: pending |
+| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/166) | Ścieżki teleportu: nagraj trasę i odtwórz | priority: low, status: pending |
+| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/165) | Teleport do NPC po imieniu (nawet poza zasięgiem) | priority: high, status: pending |
+| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/164) | Mapa świata w trenerze (klik = teleport) | priority: high, status: pending |
+| 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/163) | Tryb zdjęć: wolna kamera bez HUD | priority: low, status: pending |
+| 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/162) | Pogoda i niebo: deszcz, mgła, natychmiastowa zmiana | priority: low, status: pending |
+| 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/161) | Budowanie: stawianie obiektów (skrzynie, ogniska, beczki) | priority: low, status: pending |
+| 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/160) | Edytor skrzyń: zawartość pojemników | priority: high, status: pending |
+| 0 | [Stream & chaos](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/159) | Integracja z czatem Twitch (głosowanie na chaos) | priority: low, status: pending |
+| 0 | [Stream & chaos](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/158) | Tryb streamera: losowe zdarzenia chaosu co X minut | priority: low, status: pending |
+| 0 | [Character](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/157) | Presety postaci: zapisz i wczytaj wygląd + statystyki | priority: low, status: pending |
+| 0 | [Character](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/156) | Edytor ekwipunku bohatera i towarzyszy | priority: high, status: pending |
+| 0 | [Menu & convenience](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/155) | Testy automatyczne: symulacja w grze | priority: low, status: pending |
+| 0 | [Menu & convenience](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/154) | Statystyki sesji: zabici, zebrane przedmioty, dystans, czas | priority: low, status: pending |
+| 0 | [Menu & convenience](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/153) | Angielska wersja interfejsu | priority: low, status: pending |
+| 0 | [Menu & convenience](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/152) | Sprawdzanie aktualizacji trenera w grze | priority: low, status: pending |
+| 0 | [Menu & convenience](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/151) | Skróty klawiszowe do stron i makr | priority: low, status: pending |
+| 0 | [Menu & convenience](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/150) | Ulubione opcje (pinezka) na pierwszej stronie | priority: low, status: pending |
+| 0 | [Menu & convenience](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/149) | Profile ustawień (np. speedrun, chaos, testy) | priority: medium, status: pending |
+| 0 | [Menu & convenience](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/148) | Makra: nagrywanie i odtwarzanie sekwencji akcji trenera | priority: medium, status: pending |
+| 0 | [On-screen info](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/147) | Kompendium bestiariusza: statystyki wszystkich potworów i postaci | priority: low, status: pending |
+| 0 | [On-screen info](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/146) | Podświetlanie postaci ważnych (questy, handlarze, nauczyciele) | priority: medium, status: pending |
+| 0 | [On-screen info](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/145) | Rutyny NPC: gdzie postać będzie o danej godzinie | priority: medium, status: pending |
+| 0 | [On-screen info](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/144) | Liczby obrażeń nad głową i licznik DPS | priority: medium, status: pending |
+| 0 | [Party](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/143) | Wojny obozów: każ dwóm grupom walczyć | priority: low, status: pending |
+| 0 | [Party](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/142) | Rozwój towarzyszy: statystyki i ekwipunek drużyny | priority: low, status: pending |
+| 0 | [Party](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/141) | Rozkazy drużyny: formacje, idź tam gdzie celuję, atakuj cel | priority: low, status: pending |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/140) | Wyzwania i osiągnięcia trenera | priority: low, status: pending |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/139) | Manekin treningowy | priority: low, status: pending |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/138) | Tryb hordy: rozszerzona arena z rankingiem | priority: low, status: pending |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/137) | Bossowie elitarni: losowy potwór z mnożnikami i nagrodą | priority: medium, status: pending |
+
+## Done (60)
+
+_Recently closed._
+
+| 👍 | # | Item | Labels |
 |---:|---:|---|---|
 | 0 | [#100](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/100) | Drużyna: opcje walk (między sobą, potwory/ludzie vs neutralni, neutralni vs potwór) | type: enhancement, area: party, priority: medium, status: needs verification |
 | 0 | [#39](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/39) | Zmiana godziny zabiera drużynę i zrespione postacie do rutyny | type: bug, area: party, area: spawner, priority: medium, status: needs verification |
@@ -124,26 +154,3 @@ _Ostatnio zamknięte._
 | 0 | [#43](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/43) | Postać: Informacje (statystyki + umiejętności), wygląd w jednej karcie | type: enhancement, area: ui, area: character, priority: medium, status: needs verification |
 | 0 | [#42](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/42) | No-clip: ślizg — upadek z obrażeniami, postać sama biega | type: bug, area: noclip, priority: high, status: needs verification |
 | 0 | [#41](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/41) | Tempo świata: drużyna w normalnym tempie | type: enhancement, area: ui, priority: low, status: needs verification |
-
-## Inne (18)
-
-| 👍 | # | Zgłoszenie | Etykiety |
-|---:|---:|---|---|
-| 0 | [#127](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/127) | [Epik] Nowe UI w grze: dialogi, paski życia przeciwników, pasek szybkiego dostępu, ekwipunek | area: ui, priority: high, type: epic, status: planned |
-| 0 | [#126](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/126) | Centrum testera: zwijana historia, przewijanie kółkiem w formularzu | type: bug, area: tester, priority: medium, status: needs verification |
-| 0 | [#125](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/125) | Drużyna: potwór blokuje się na celu po wyłączeniu atakowania; lepsza scena testowa | type: bug, area: party, priority: high, status: needs verification |
-| 0 | [#124](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/124) | Zrzuty ekranu: z menu, zamrożony obraz przy zaznaczaniu | type: bug, area: tester, priority: medium, status: needs verification |
-| 0 | [#123](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/123) | ESP: ptaszki, znaczniki krawędzi powiązane z ramką, ukrywanie broni w rękach i pocisków | type: enhancement, area: esp, priority: medium, status: needs verification |
-| 0 | [#122](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/122) | Grafika: ustawienia GD3D11 (zasięgi rysowania) i presety | type: enhancement, area: esp, priority: medium, status: needs verification |
-| 0 | [#121](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/121) | Widżety: osobne kategorie radar/kompas, podgląd w proporcjach, pasek celu, amunicja, XP, więcej informacji | type: enhancement, area: esp, priority: medium, status: needs verification |
-| 0 | [#120](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/120) | Celownik: osobne ustawienia dla każdego kształtu, kropka, kolor w presetach | type: enhancement, area: esp, priority: medium, status: needs verification |
-| 0 | [#119](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/119) | Aimbot: crash, nie działa, Alt = skok | type: bug, area: character, priority: high, status: needs verification |
-| 0 | [#118](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/118) | Swobodne celowanie: celowanie w pionie (łuk, kusza, czary) | type: bug, area: character, priority: high, status: needs verification |
-| 0 | [#97](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/97) | Ślizg: kolizja z obiektami działała odwrotnie | type: bug, area: noclip, priority: high, priority: low, status: planned |
-| 0 | [#49](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/49) | Drużyna: rozmowa z członkiem drużyny — nic nie da się kliknąć | type: bug, area: party, priority: high, status: needs verification |
-| 0 | [#37](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/37) | Drużyna: po pierwszej rozmowie towarzysz wraca do rutyny | type: bug, area: party, priority: high, status: needs verification |
-| 0 | [#24](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/24) | Crash: wyjątki w renderze (GothicMod+0x1d31b / 0x82f18 / 0x81629) | type: crash, area: stability, priority: high, status: needs verification |
-| 0 | [#22](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/22) | Przejęte ciało: powrót do Bezimiennego, gdy ten zniknął (za daleko) | type: bug, area: character, priority: high, status: needs verification |
-| 0 | [#16](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/16) | Drużyna: „Czekaj” — postać ma stać dokładnie tam, gdzie kazano | type: bug, area: party, priority: high, status: needs verification |
-| 0 | [#2](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/2) | [Epik] No-clip — ruch, kamera, lądowanie | area: noclip, type: epic |
-| 0 | [#1](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/1) | [Epik] Portrety postaci i ikony przedmiotów | area: portraits, type: epic |
