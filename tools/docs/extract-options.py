@@ -8,7 +8,7 @@ ROOT = os.path.join(os.path.dirname(__file__), "..", "..", "src")
 OUTDIR = os.path.join(os.path.dirname(__file__), "..", "..", "docs")
 STR = r'"((?:[^"\\]|\\.)*)"'
 S_ = r'"(?:[^"\\]|\\.)*"'
-MK = re.compile(r'MkRow\(\s*(?P<id>' + S_ + r'|[A-Za-z_][\w\[\]]*)\s*,\s*"(?P<name>(?:[^"\\]|\\.)*)"\s*,\s*"(?P<note>(?:[^"\\]|\\.)*)"\s*,\s*(?P<c>\w+)\s*,\s*(?P<w>\w+)\s*,\s*(?P<kind>K_\w+)(?P<rest>.*)')
+MK = re.compile(r'MkRow\(\s*(?P<id>' + S_ + r'|[A-Za-z_][\w\[\]]*)\s*,\s*"(?P<name>(?:[^"\\]|\\.)*)"\s*,\s*"(?P<note>(?:[^"\\]|\\.)*)"\s*,\s*(?P<c>\w+|"[^"]*")\s*,\s*(?P<w>\w+|"[^"]*")\s*,\s*(?P<kind>K_\w+)(?P<rest>.*)')
 CW = re.compile(r'const char\*\s*(\w+)\s*=\s*' + STR)
 ASSIGN = re.compile(r'\b(\w+)\s*=\s*' + STR + r'\s*;')
 GROUP = re.compile(r'Group\(\s*' + STR)
@@ -32,8 +32,8 @@ for f in sorted(glob.glob(os.path.join(ROOT, "*.cpp")) + glob.glob(os.path.join(
         if not re.match(r'^[\w.-]+$', rid): continue   # ids built in loops - skip
         rest = m.group("rest")
         if "Hidden()" in rest: continue
-        row = {"id": rid, "name": m.group("name"), "note": m.group("note"), "cat": vars_.get(m.group("c"), m.group("c")),
-               "sub": vars_.get(m.group("w"), m.group("w")), "group": group, "kind": m.group("kind")[2:].lower(), "file": os.path.relpath(f, ROOT), "line": ln}
+        row = {"id": rid, "name": m.group("name"), "note": m.group("note"), "cat": vars_.get(m.group("c"), m.group("c").strip('"')),
+               "sub": vars_.get(m.group("w"), m.group("w").strip('"')), "group": group, "kind": m.group("kind")[2:].lower(), "file": os.path.relpath(f, ROOT), "line": ln}
         n = NUMS.match(rest)
         if n and row["kind"] in ("slider", "value"):
             row["def"], row["min"], row["max"] = (float(x) for x in n.groups())

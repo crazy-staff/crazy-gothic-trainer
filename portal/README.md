@@ -1,17 +1,22 @@
 # Portal (Quackback + docs)
 
 Our public site is [Quackback](https://github.com/QuackbackIO/quackback) (feedback, roadmap, changelog,
-support, status) with one addition: a **Docs** section rendered inside the portal layout, so the header,
-session, notifications and theme are the real ones.
+support, status) with its **help center turned into the trainer docs**.
 
 - `QUACKBACK_VERSION` — the upstream release we build on.
-- `patch/` — files copied over the upstream checkout. **New files only** (`routes/_portal/docs*`,
-  `src/gothic-docs/*`), nothing upstream is edited, so updating Quackback is just bumping the version.
-- `build-manifest.mjs` — bundles `docs/pages/**.md` + `sections.json` into the image.
-- `.github/workflows/portal.yml` builds `ghcr.io/dawidseipold/gothic1-portal` on every change.
+- `transform.py` — run on an upstream checkout: copies `patch/` (new files) and applies exact edits.
+  Every edit must match exactly once; if Quackback changed, the build stops with a clear message.
+  - help center → **Docs** (module, nav tab, admin, settings), docs frame with a left sidebar,
+    article components (callouts, cards, media placeholders, trainer menu replicas);
+  - API additions: article `position`, changelog `categoryNames` (e.g. `["Docs"]`).
+- `.github/workflows/portal.yml` builds `ghcr.io/dawidseipold/gothic1-portal` on every change here.
 
-The "Docs" tab is a custom link in Admin → Settings → Portal → Navigation (`https://<domain>/docs`).
-The admin UI saves links as "open in new tab"; run `docs-link.sql` once to make it open in the same tab.
+## Docs content
 
-Docs pages: `docs/pages` (markdown). Feature pages are generated from the trainer source:
-`python3 tools/docs/extract-options.py && python3 tools/docs/gen-features.py` (English names in `docs/options.en.json`).
+Pages are markdown in `docs/pages/<category>/*.md` (categories in `docs/pages/categories.json`).
+Front matter: `title`, `description`, `order`, `menu` (the in-game menu path).
+Extra blocks: `> **Note:** / **Tip:** / **Warning:**` callouts, fenced ` ```trainer ` (menu card replica, JSON),
+` ```media ` (`screenshot: …` / `video: …` placeholder), ` ```cards ` (JSON link cards). Link pages with `doc:<slug>`.
+
+Sync to a portal: `QB_URL=https://… QB_KEY=qb_… node tools/docs/sync.mjs` — creates/updates categories and
+pages, publishes them and adds a changelog entry in the **Docs** category for new or changed pages.

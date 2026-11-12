@@ -1,0 +1,11 @@
+[
+  { "dir": "getting-started", "name": "Getting started", "description": "Install the trainer, learn the menu and the keys.", "icon": "RocketLaunchIcon" },
+  { "dir": "character", "name": "Character", "description": "The hero: stats, look, cheats, movement and combat.", "icon": "UserIcon" },
+  { "dir": "inventory", "name": "Inventory", "description": "Spawn items, ready-made kits and automatic pickup.", "icon": "ShoppingBagIcon" },
+  { "dir": "characters", "name": "Characters", "description": "Other NPCs: target actions, your party, everyone around, NPC spawner.", "icon": "UsersIcon" },
+  { "dir": "fun", "name": "Fun", "description": "Arena, zombie apocalypse, polymorph, meteors and other chaos.", "icon": "FireIcon" },
+  { "dir": "world", "name": "World", "description": "Time, chapters, world speed and teleports.", "icon": "MapIcon" },
+  { "dir": "visuals", "name": "Visuals", "description": "ESP, radar, compass, widgets, crosshair and graphics.", "icon": "EyeIcon" },
+  { "dir": "tools", "name": "Tools", "description": "Console, compendium and diagnostics.", "icon": "WrenchScrewdriverIcon" },
+  { "dir": "testing", "name": "Testing & feedback", "description": "Help test new builds and report problems.", "icon": "BeakerIcon" }
+]

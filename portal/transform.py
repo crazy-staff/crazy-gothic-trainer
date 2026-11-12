@@ -42,6 +42,22 @@ EDITS = {
         ("                  <RichTextContent content={article.contentJson as JSONContent} />",
          "                  <GothicDocsContent content={article.contentJson as JSONContent} />"),
     ],
+    # API: article order (position) for the docs sidebar
+    "routes/api/v1/help-center/articles/index.ts": [
+        ("  description: z.string().max(300).optional(),\n  authorId: z.string().optional(),\n})",
+         "  description: z.string().max(300).optional(),\n  authorId: z.string().optional(),\n  position: z.number().int().min(0).nullable().optional(),\n})"),
+    ],
+    "routes/api/v1/help-center/articles/$articleId.ts": [
+        ("  publishedAt: z.string().datetime().nullable().optional(),\n  authorId: z.string().optional(),\n})",
+         "  publishedAt: z.string().datetime().nullable().optional(),\n  authorId: z.string().optional(),\n  position: z.number().int().min(0).nullable().optional(),\n})"),
+    ],
+    # API: changelog categories by name ("Docs", "Trainer")
+    "routes/api/v1/changelog/index.ts": [
+        ("  linkedPostIds: z.array(z.string()).optional(),\n})",
+         "  linkedPostIds: z.array(z.string()).optional(),\n  categoryNames: z.array(z.string().min(1).max(50)).max(10).optional(),\n})"),
+        ("              linkedPostIds: parseTypeIdArray<PostId>(\n                parsed.data.linkedPostIds,\n                'post',\n                'linked post IDs'\n              ),\n            },",
+         "              linkedPostIds: parseTypeIdArray<PostId>(\n                parsed.data.linkedPostIds,\n                'post',\n                'linked post IDs'\n              ),\n              categoryIds: await (await import('@/gothic-docs/changelog-categories')).changelogCategoryIdsByName(parsed.data.categoryNames),\n            },"),
+    ],
     # names: Help Center -> Docs
     "lib/server/domains/settings/settings.types.ts": [
         ("    label: 'Help Center',\n    description: 'Publish searchable help articles so customers can find answers themselves.',",

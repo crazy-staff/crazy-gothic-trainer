@@ -1,9 +1,0 @@
-[
- {
-  "title": "Features: Character",
-  "pages": [
-   "features/character/combat",
-   "features/character/movement"
-  ]
- }
-]
