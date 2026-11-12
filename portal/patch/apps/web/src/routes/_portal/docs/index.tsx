@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { getGothicDocsPageFn } from '@/gothic-docs/docs.server'
+import { getGothicDocsPageFn } from '@/gothic-docs/docs-fns'
 import { GothicDocsPage } from '@/gothic-docs/docs-page'
 
 export const Route = createFileRoute('/_portal/docs/')({
