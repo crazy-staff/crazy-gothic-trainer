@@ -1,0 +1,33 @@
+{
+ "title": "Pomysły: Drużyna i bitwy",
+ "intro": "Rozkazy, rozwój towarzyszy, walki obozów.",
+ "ideas": [
+  {
+   "key": "i81",
+   "title": "Rozkazy drużyny: formacje, idź tam gdzie celuję, atakuj cel",
+   "order": 26,
+   "desc": "Szybkie rozkazy z klawiszy: formacja, atak na cel, trzymaj pozycję, rozproszenie.",
+   "issues": [
+    81
+   ]
+  },
+  {
+   "key": "i82",
+   "title": "Rozwój towarzyszy: statystyki i ekwipunek drużyny",
+   "order": 27,
+   "desc": "Zmiana atrybutów/umiejętności towarzyszy jak u bohatera.",
+   "issues": [
+    82
+   ]
+  },
+  {
+   "key": "i79",
+   "title": "Wojny obozów: każ dwóm grupom walczyć",
+   "order": 24,
+   "desc": "Stary Obóz vs Nowy Obóz, orkowie vs ludzie itd. - z wyborem promienia i stron.",
+   "issues": [
+    79
+   ]
+  }
+ ]
+}

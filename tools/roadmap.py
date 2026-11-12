@@ -16,7 +16,35 @@ def fetch():
         out += batch; page += 1
     return out
 
+def fetch_ideas():
+    """Ideas = comments in the Discussions "Ideas" category (tools/discussions.py). Vote = 👍 on the comment."""
+    tok = os.environ.get("GITHUB_TOKEN", "")
+    if not tok: return []
+    o, n = REPO.split("/")
+    q = """query($o:String!,$n:String!){repository(owner:$o,name:$n){discussions(first:100){nodes{title url closed category{slug name}
+      comments(first:100){nodes{body url isMinimized reactionGroups{content reactors{totalCount}}}}}}}}"""
+    req = urllib.request.Request("https://api.github.com/graphql", json.dumps({"query": q, "variables": {"o": o, "n": n}}).encode(),
+                                 {"Authorization": f"Bearer {tok}"})
+    try: d = json.load(urllib.request.urlopen(req))["data"]["repository"]["discussions"]["nodes"]
+    except Exception as e: print("dyskusje niedostępne:", e); return []
+    out = []
+    for t in d:
+        if t["closed"] or t["category"]["slug"] != "ideas": continue
+        theme = t["title"].split(":", 1)[-1].strip()
+        for c in t["comments"]["nodes"]:
+            if c["isMinimized"]: continue
+            body = c["body"]
+            lines = [l.strip("# ").strip() for l in re.sub(r"<!--.*?-->", "", body, flags=re.S).strip().splitlines() if l.strip()]
+            if not lines: continue
+            up = sum(g["reactors"]["totalCount"] for g in c["reactionGroups"] if g["content"] == "THUMBS_UP")
+            out.append({"idea": True, "ref": theme, "number": 0, "title": lines[0][:120], "html_url": c["url"], "body": body,
+                        "state": "open", "labels": [{"name": "pomysł"}], "reactions": {"+1": up}})
+    return out
+
+def ref(i): return i.get("ref") or f"#{i['number']}"
+
 def section(i):
+    if i.get("idea"): return "plans" if order(i) < 9999 else "ideas"
     labels = {l["name"] for l in i.get("labels", [])}
     if i["state"] == "closed":
         return "done" if i.get("state_reason") != "not_planned" else None
@@ -33,7 +61,7 @@ SECTIONS = [
     ("doing", "W trakcie", "Nad tym właśnie pracujemy."),
     ("verify", "Do sprawdzenia w grze", "Poprawione w ostatnim buildzie - czeka na potwierdzenie testerów."),
     ("plans", "Plany", "Zaplanowane na kolejne buildy - w kolejności priorytetu (od góry)."),
-    ("ideas", "Pomysły - głosuj", "Daj 👍 pod zgłoszeniem na GitHubie - najwyżej ocenione robimy najpierw."),
+    ("ideas", "Pomysły - głosuj", "Pomysły są w Dyskusjach: daj 👍 pod komentarzem z pomysłem - najwyżej ocenione robimy najpierw."),
     ("done", "Zrobione", "Ostatnio zamknięte."),
     ("other", "Inne", ""),
 ]
@@ -58,8 +86,8 @@ def build(issues):
 def md(groups, now):
     o = [f"# Gothic 1 Crazy Trainer — mapa drogowa\n",
          f"Lista generuje się automatycznie z [GitHub Issues](https://github.com/{REPO}/issues) (ostatnio: {now} UTC).  ",
-         "**Głosowanie:** otwórz zgłoszenie i daj 👍 — kolejność w sekcjach to liczba głosów.  ",
-         f"Nowy pomysł albo błąd: [zgłoś tutaj](https://github.com/{REPO}/issues/new/choose).\n"]
+         f"**Głosowanie:** pomysły są w [Dyskusjach](https://github.com/{REPO}/discussions/categories/ideas) — daj 👍 pod komentarzem z pomysłem.  ",
+         f"Błąd: [zgłoś tutaj](https://github.com/{REPO}/issues/new/choose). Nowy pomysł: napisz komentarz w pasującym temacie w Dyskusjach.\n"]
     for k, title, desc in SECTIONS:
         g = groups[k]
         if not g: continue
@@ -69,7 +97,7 @@ def md(groups, now):
         for i in g:
             labs = ", ".join(l["name"] for l in i.get("labels", []) if not l["name"].startswith("build-"))
             t = i["title"].replace("|", "\\|")
-            o.append(f"| {votes(i)} | [#{i['number']}]({i['html_url']}) | {t} | {labs} |")
+            o.append(f"| {votes(i)} | [{ref(i)}]({i['html_url']}) | {t} | {labs} |")
     return "\n".join(o) + "\n"
 
 def page(groups, now):
@@ -77,7 +105,7 @@ def page(groups, now):
         labs = "".join(f'<span class="lab">{html.escape(l["name"])}</span>' for l in i.get("labels", []) if not l["name"].startswith("build-"))
         ms = f'<span class="ms">{html.escape(i["milestone"]["title"])}</span>' if i.get("milestone") else ""
         return (f'<a class="card" href="{i["html_url"]}" target="_blank" data-q="{html.escape((i["title"] + " " + " ".join(l["name"] for l in i.get("labels", []))).lower())}">'
-                f'<div class="v"><b>{votes(i)}</b><small>👍</small></div><div class="b"><div class="t">#{i["number"]} {html.escape(i["title"])}</div>'
+                f'<div class="v"><b>{votes(i)}</b><small>👍</small></div><div class="b"><div class="t">{html.escape(ref(i))} · {html.escape(i["title"])}</div>'
                 f'<div class="l">{ms}{labs}</div></div></a>')
     tabs, bodies = [], []
     for n, (k, title, desc) in enumerate(SECTIONS):
@@ -99,7 +127,7 @@ main{{max-width:980px;margin:auto;padding:0 24px 40px}}section{{display:none}}se
 .t{{font-weight:600}}.l{{margin-top:4px}}.lab,.ms{{display:inline-block;font-size:12px;background:#2a2540;border-radius:6px;padding:1px 7px;margin:2px 4px 0 0;color:#c9c3dd}}.ms{{background:#3a2140;color:#f6b3ea}}
 </style></head><body><header><h1>Gothic 1 Crazy Trainer — mapa drogowa</h1>
 <p>Błędy, plany i pomysły prosto z <a href="https://github.com/{REPO}/issues">GitHub Issues</a>. Aktualizacja: {now} UTC.</p>
-<p><b>Jak głosować:</b> kliknij zgłoszenie i daj 👍 na GitHubie. <a href="https://github.com/{REPO}/issues/new/choose">Zgłoś błąd lub pomysł</a> · <a href="https://github.com/{REPO}/releases">Pobierz trener</a></p></header>
+<p><b>Jak głosować:</b> pomysły są w <a href="https://github.com/{REPO}/discussions/categories/ideas">Dyskusjach</a> - daj 👍 pod komentarzem z pomysłem. <a href="https://github.com/{REPO}/issues/new/choose">Zgłoś błąd lub pomysł</a> · <a href="https://github.com/{REPO}/releases">Pobierz trener</a></p></header>
 <nav>{"".join(tabs)}</nav><input id="q" placeholder="Szukaj (np. drużyna, ślizg, radar)..."><main>{"".join(bodies)}</main>
 <script>
 const bs=[...document.querySelectorAll('nav button')],ss=[...document.querySelectorAll('section')];
@@ -111,7 +139,7 @@ if(q)ss.forEach(s=>s.classList.add('on'));else show((location.hash||'').slice(1)
 
 if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[1] == "--from": issues = json.load(open(sys.argv[2], encoding="utf-8"))
-    else: issues = fetch()
+    else: issues = fetch() + fetch_ideas()
     g = build(issues)
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M")
     open("ROADMAP.md", "w", encoding="utf-8").write(md(g, now))

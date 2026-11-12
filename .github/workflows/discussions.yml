@@ -1,0 +1,22 @@
+# Pomysły w Dyskusjach: docs/discussions/*.json -> jedna dyskusja na temat, jeden komentarz na pomysł (👍 = głos)
+name: Pomysły w Dyskusjach
+on:
+  push:
+    branches: [main]
+    paths: ["docs/discussions/**", "tools/discussions.py"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  discussions: write
+  issues: write
+concurrency:
+  group: discussions
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/discussions.py

@@ -3,12 +3,17 @@ name: Mapa drogowa
 on:
   issues:
     types: [opened, edited, closed, reopened, labeled, unlabeled, milestoned, demilestoned]
+  discussion:
+    types: [created, edited, closed, reopened, deleted]
+  discussion_comment:
+    types: [created, edited, deleted]
   schedule:
     - cron: "17 */3 * * *"   # reactions do not trigger events - refresh vote counts every 3 h
   workflow_dispatch:
 permissions:
   contents: write
   issues: read
+  discussions: read
   pages: write
   id-token: write
 concurrency:

@@ -1,0 +1,24 @@
+{
+ "title": "Pomysły: Stream i chaos",
+ "intro": "Losowe zdarzenia i integracja z czatem.",
+ "ideas": [
+  {
+   "key": "i88",
+   "title": "Tryb streamera: losowe zdarzenia chaosu co X minut",
+   "order": 29,
+   "desc": "Automatyczne zdarzenia (deszcz meteorów, polimorf, zombie...) z odliczaniem na ekranie.",
+   "issues": [
+    88
+   ]
+  },
+  {
+   "key": "i89",
+   "title": "Integracja z czatem Twitch (głosowanie na chaos)",
+   "order": 30,
+   "desc": "Widzowie głosują na zdarzenia, które trener uruchamia.",
+   "issues": [
+    89
+   ]
+  }
+ ]
+}

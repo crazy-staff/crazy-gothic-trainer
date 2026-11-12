@@ -1,0 +1,34 @@
+{
+ "title": "Pomysły: Zapisy, zadania i fabuła",
+ "intro": "Zarządzanie zapisami gry, dziennik zadań, zmienne fabularne.",
+ "ideas": [
+  {
+   "key": "i65",
+   "title": "Zapisy gry: menedżer slotów, kopie zapasowe, szybki zapis z trenera",
+   "order": 1,
+   "desc": "Lista zapisów z datą i miejscem, kopia zapasowa przed nadpisaniem, wczytanie/zapis jednym kliknięciem (#51).\n\nUwaga techniczna: najpierw potrzebny pewny adres zapisu gry (CGameManager::Write_Savegame) dla 1.08k.",
+   "issues": [
+    65,
+    51
+   ]
+  },
+  {
+   "key": "i67",
+   "title": "Dziennik zadań: podgląd i zmiana statusu questów",
+   "order": 9,
+   "desc": "Lista zadań z dziennika, ustawianie: w toku / ukończone / nieudane, pomoc gdy quest się zablokował.",
+   "issues": [
+    67
+   ]
+  },
+  {
+   "key": "i68",
+   "title": "Zmienne fabularne i rozdziały: podgląd i edycja",
+   "order": 17,
+   "desc": "Przeglądarka zmiennych skryptów (np. kto już coś powiedział), zmiana wartości, ostrzeżenia co może zepsuć fabułę.",
+   "issues": [
+    68
+   ]
+  }
+ ]
+}

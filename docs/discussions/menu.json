@@ -1,0 +1,78 @@
+{
+ "title": "Pomysły: Menu i wygoda",
+ "intro": "Makra, profile, ulubione, skróty, aktualizacje, język, statystyki, testy.",
+ "ideas": [
+  {
+   "key": "i86",
+   "title": "Makra: nagrywanie i odtwarzanie sekwencji akcji trenera",
+   "order": 10,
+   "desc": "Nagraj kliknięcia/akcje trenera i odtwarzaj (z powtórzeniami i opóźnieniami).",
+   "issues": [
+    86
+   ]
+  },
+  {
+   "key": "i87",
+   "title": "Profile ustawień (np. speedrun, chaos, testy)",
+   "order": 11,
+   "desc": "Zapis i wczytanie całych zestawów włączonych opcji.",
+   "issues": [
+    87
+   ]
+  },
+  {
+   "key": "i93",
+   "title": "Ulubione opcje (pinezka) na pierwszej stronie",
+   "order": 14,
+   "desc": "Przypinanie najczęściej używanych opcji do własnej zakładki.",
+   "issues": [
+    93
+   ]
+  },
+  {
+   "key": "i94",
+   "title": "Skróty klawiszowe do stron i makr",
+   "order": 32,
+   "desc": "Własne skróty otwierające konkretne zakładki lub uruchamiające makra.",
+   "issues": [
+    94
+   ]
+  },
+  {
+   "key": "i90",
+   "title": "Sprawdzanie aktualizacji trenera w grze",
+   "order": 12,
+   "desc": "Informacja o nowym buildzie z linkiem do pobrania (bez automatycznego podmieniania plików).",
+   "issues": [
+    90
+   ]
+  },
+  {
+   "key": "i91",
+   "title": "Angielska wersja interfejsu",
+   "order": 13,
+   "desc": "Przełącznik języka PL/EN.",
+   "issues": [
+    91
+   ]
+  },
+  {
+   "key": "i70",
+   "title": "Statystyki sesji: zabici, zebrane przedmioty, dystans, czas",
+   "order": 19,
+   "desc": "Okno ze statystykami gry na żywo i za całą sesję.",
+   "issues": [
+    70
+   ]
+  },
+  {
+   "key": "i25",
+   "title": "Testy automatyczne: symulacja w grze",
+   "order": null,
+   "desc": "Na później: automatyczne testy, które same symulują rzeczy w Gothicu (włączanie opcji, sprawdzanie efektu) i raportują wynik.",
+   "issues": [
+    25
+   ]
+  }
+ ]
+}

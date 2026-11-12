@@ -1,0 +1,42 @@
+{
+ "title": "Pomysły: Świat: skrzynie, obiekty, pogoda, zdjęcia",
+ "intro": "Wszystko, co zmienia świat wokół bohatera.",
+ "ideas": [
+  {
+   "key": "i75",
+   "title": "Edytor skrzyń: zawartość pojemników",
+   "order": 4,
+   "desc": "Podgląd i edycja zawartości skrzyni, na którą patrzysz.",
+   "issues": [
+    75
+   ]
+  },
+  {
+   "key": "i74",
+   "title": "Budowanie: stawianie obiektów (skrzynie, ogniska, beczki)",
+   "order": 22,
+   "desc": "Spawner obiektów świata (vobów) z obracaniem i zapisem w grze.",
+   "issues": [
+    74
+   ]
+  },
+  {
+   "key": "i71",
+   "title": "Pogoda i niebo: deszcz, mgła, natychmiastowa zmiana",
+   "order": 20,
+   "desc": "Sterowanie deszczem/mgłą/niebem, zatrzymanie pogody.",
+   "issues": [
+    71
+   ]
+  },
+  {
+   "key": "i85",
+   "title": "Tryb zdjęć: wolna kamera bez HUD",
+   "order": 28,
+   "desc": "Wolna kamera, zatrzymanie czasu, zrzut w wysokiej rozdzielczości.",
+   "issues": [
+    85
+   ]
+  }
+ ]
+}

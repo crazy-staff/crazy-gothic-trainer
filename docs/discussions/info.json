@@ -1,0 +1,42 @@
+{
+ "title": "Pomysły: Informacje na ekranie",
+ "intro": "Liczby obrażeń, rutyny NPC, podświetlanie ważnych postaci, bestiariusz.",
+ "ideas": [
+  {
+   "key": "i78",
+   "title": "Liczby obrażeń nad głową i licznik DPS",
+   "order": 7,
+   "desc": "Wyskakujące liczby obrażeń, podsumowanie walki, DPS.",
+   "issues": [
+    78
+   ]
+  },
+  {
+   "key": "i83",
+   "title": "Rutyny NPC: gdzie postać będzie o danej godzinie",
+   "order": 8,
+   "desc": "Podgląd planu dnia postaci na ESP / mapie, z teleportem do miejsca.",
+   "issues": [
+    83
+   ]
+  },
+  {
+   "key": "i84",
+   "title": "Podświetlanie postaci ważnych (questy, handlarze, nauczyciele)",
+   "order": 9,
+   "desc": "Znaczniki na ESP i radarze dla handlarzy, nauczycieli i postaci z zadaniami.",
+   "issues": [
+    84
+   ]
+  },
+  {
+   "key": "i95",
+   "title": "Kompendium bestiariusza: statystyki wszystkich potworów i postaci",
+   "order": 15,
+   "desc": "HP, obrażenia, ochrona, gildia, gdzie występuje - z portretami.",
+   "issues": [
+    95
+   ]
+  }
+ ]
+}

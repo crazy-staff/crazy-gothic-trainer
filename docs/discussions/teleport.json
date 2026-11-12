@@ -1,0 +1,33 @@
+{
+ "title": "Pomysły: Teleport i mapa",
+ "intro": "Mapa świata, teleport do NPC, nagrywane trasy.",
+ "ideas": [
+  {
+   "key": "i72",
+   "title": "Mapa świata w trenerze (klik = teleport)",
+   "order": 3,
+   "desc": "Mapa z pozycją bohatera, drużyny, NPC i przedmiotów; kliknięcie teleportuje.",
+   "issues": [
+    72
+   ]
+  },
+  {
+   "key": "i96",
+   "title": "Teleport do NPC po imieniu (nawet poza zasięgiem)",
+   "order": 5,
+   "desc": "Wyszukaj postać i teleportuj się do niej, gdziekolwiek jest w świecie.",
+   "issues": [
+    96
+   ]
+  },
+  {
+   "key": "i73",
+   "title": "Ścieżki teleportu: nagraj trasę i odtwórz",
+   "order": 21,
+   "desc": "Zapisuj kolejne punkty jako trasę, odtwarzaj automatycznie (zwiedzanie, bot, nagrania).",
+   "issues": [
+    73
+   ]
+  }
+ ]
+}

@@ -1,0 +1,24 @@
+{
+ "title": "Pomysły: Postać i ekwipunek",
+ "intro": "Edytory bohatera: ekwipunek, presety postaci.",
+ "ideas": [
+  {
+   "key": "i66",
+   "title": "Edytor ekwipunku bohatera i towarzyszy",
+   "order": 2,
+   "desc": "Lista posiadanych przedmiotów: zmiana ilości, usuwanie, zakładanie, przekazanie towarzyszowi.",
+   "issues": [
+    66
+   ]
+  },
+  {
+   "key": "i69",
+   "title": "Presety postaci: zapisz i wczytaj wygląd + statystyki",
+   "order": 18,
+   "desc": "Zapisz „buildy” postaci (atrybuty, umiejętności, wygląd, gildia) i wczytuj jednym kliknięciem.",
+   "issues": [
+    69
+   ]
+  }
+ ]
+}
