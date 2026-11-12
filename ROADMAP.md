@@ -1,9 +1,8 @@
 # Gothic 1 Crazy Trainer — roadmap
 
-Generated automatically from [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) and [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions) (last update: 2026-11-12 09:17 UTC).  
+Generated automatically from [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) and [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions) (last update: 2026-11-12 09:25 UTC).  
 **Voting:** every idea is its own thread in [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — vote with the up arrow or 👍.  
-Bug: [report it here](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose). New idea: [start a thread in Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=ideas).  
-_PL: Lista po angielsku; zgłoszenia i pomysły możesz pisać po polsku._
+Bug: [report it here](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose). New idea: [start a thread in Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=ideas).
 
 
 ## Bugs (1)
@@ -41,6 +40,7 @@ _Every idea is its own thread in Discussions: vote with the up arrow or 👍 - t
 
 | 👍 | # | Item | Labels |
 |---:|---:|---|---|
+| 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/229) | Hardcore mode: death deletes the save, saving only on exit | priority: low, status: pending |
 | 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/228) | Photo mode: free camera without HUD | priority: low, status: pending |
 | 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/227) | Weather and sky: rain, fog, instant change | priority: low, status: pending |
 | 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/226) | Building: place objects (chests, campfires, barrels) | priority: low, status: pending |
@@ -75,7 +75,6 @@ _Every idea is its own thread in Discussions: vote with the up arrow or 👍 - t
 | 0 | [Graphics & camera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/197) | Dangling weapons on the belt | priority: low, status: pending |
 | 0 | [Graphics & camera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/196) | Hide vegetation that blocks the view of the hero | priority: medium, status: pending |
 | 0 | [Graphics & camera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/195) | Disable the underwater visual effect | priority: low, status: pending |
-| 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/194) | Hardcore mode: death deletes the save, saving only on exit | priority: low, status: pending |
 | 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/193) | Change combat style animations with a hotkey | priority: low, status: pending |
 | 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/192) | Acrobatics toggle without unlearning | priority: low, status: pending |
 | 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/191) | Health and mana regeneration over time | priority: low, status: pending |
