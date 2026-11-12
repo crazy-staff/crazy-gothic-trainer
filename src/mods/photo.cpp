@@ -25,6 +25,7 @@ int g_settle = 0, g_wait = 0, g_done = 0, g_total = 0; bool g_batch = false;
 // build 9: every job gets its own spot (previous clone may still be in the world for a frame or two),
 // a short pause between jobs, and 2 frames after each change before the shot (renderer can lag a frame)
 int g_slot = 0, g_cool = 0, g_delay = 0;
+void* g_gone = nullptr; int g_goneWait = 0;   // last clone: the next job starts only after it has left the world
 zVEC3 g_studio;
 std::set<void*> g_customLook;
 
@@ -75,7 +76,8 @@ bool Frame() {
 void Hold() {   // keep the subject floating at the studio spot
     if (!g_spawned || !g_subj) return;
     fld<uint32_t>(g_subj, VOB_FLAGS) &= ~VOBF_PHYSICS;
-    if (Dist(Pos(g_subj), g_studio) > 1.f) SafeSetPos(g_subj, g_studio);
+    if (!VobInWorld(g_subj)) EnsureNpcAt(g_subj, g_studio);
+    else if (Dist(Pos(g_subj), g_studio) > 1.f) SafeSetPos(g_subj, g_studio);
 }
 void Turn(void* v) {   // 180 degrees around the vertical axis (right and at axes flip)
     float* t = &fld<float>(v, VOB_TRAFO);
@@ -91,18 +93,22 @@ void Show(bool on) {
 void Finish(void* cam) {
     if (g_hidden && g_subj) Show(true);
     if (g_turned && g_subj && !g_spawned) Turn(g_subj);
-    if (g_spawned && g_subj) RemoveVob(g_subj);
+    if (g_spawned && g_subj) { RemoveVob(g_subj); g_gone = g_subj; }
+    JobEnd();
     if (g_override) WriteCam(cam, g_camSave);
     g_hidden = false; g_turned = false; g_override = false; g_subj = nullptr; g_spawned = false; g_active = false; g_photoStage = 0;
-    g_done++; g_cool = 3;
+    g_done++; g_cool = 6;
     if (g_jobs.empty()) { g_batch = false; g_done = g_total = 0; }
 }
 // spawn without stealing the script instance (scripts that reference e.g. DIEGO keep the real one)
 void* SpawnQuiet(int kind, int sym, const zVEC3& p) {
     Sym* s = SymAt(sym);
     int saved = s ? s->offset : 0;
-    void* v = kind == 2 ? SpawnItem(sym, p) : SpawnNpc(sym, p);
+    // build 10: clones never get a daily routine - with one the game beamed them to their routine spot and,
+    // far from the player, took them out of the world (no body in the shot: empty / broken portraits)
+    void* v = kind == 2 ? SpawnItem(sym, p) : SpawnNpc(sym, p, true);
     if (s) s->offset = saved;
+    if (v && kind != 2 && (Dist(Pos(v), p) > 50.f || !VobInWorld(v))) EnsureNpcAt(v, p);
     return v;
 }
 }
@@ -209,28 +215,34 @@ void Photo_Hooks() {
     MH_CreateHook(vt[4], (LPVOID)&hkDoAI, (LPVOID*)&oDoAI);
 }
 void Photo_World() {
+    g_gone = nullptr; g_goneWait = 0;
     g_jobs.clear(); g_override = false; g_hidden = false; g_subj = nullptr; g_spawned = false; g_active = false; g_photoStage = 0;
     g_customLook.clear(); g_batch = false; g_done = g_total = 0;
     if (On("photoauto")) Schedule(3.0, [] { Act_PhotoBatch(0); });
 }
 void Photo_Tick(TickCtx& c) {
     void* cam = fld<void*>(c.game, OG_CAMVOB);
-    if (!g_active && g_cool > 0) { g_cool--; }
+    if (!g_active && g_gone) {   // strictly one character at a time: wait until the previous clone is really gone
+        RefreshNpcSet();
+        if (!NpcExists(g_gone) || ++g_goneWait > 120) { g_gone = nullptr; g_goneWait = 0; }
+    }
+    else if (!g_active && g_cool > 0) { g_cool--; }
     else if (!g_active) {
         while (!g_jobs.empty() && !g_active) {
             Job j = g_jobs.front(); g_jobs.pop_front();
             if (!j.force && PortraitHas(j.key)) { g_done++; continue; }
             if (T.Crashed("photo:" + j.key)) { g_done++; continue; }   // this one crashed the game before
             zVEC3 hp = Pos(c.hero);
-            g_slot = (g_slot + 1) % 8;
-            g_studio = { hp.x + (g_slot % 4) * 900.f - 1350.f, hp.y + 2600.f + (g_slot / 4) * 700.f, hp.z + 4000.f };
+            g_slot = (g_slot + 1) % 4;
+            g_studio = { hp.x, hp.y + 3500.f + g_slot * 500.f, hp.z };   // straight up: sky behind the subject
             g_cur = j; g_spawned = false; g_subj = nullptr;
-            if (j.kind == 0) { if (!NpcExists(j.npc) || !NpcReady(j.npc)) { g_done++; continue; } g_subj = j.npc; g_settle = 0; }
+            JobBegin("photo:" + j.key);
+            if (j.kind == 0) { if (!NpcExists(j.npc) || !NpcReady(j.npc)) { g_done++; JobEnd(); continue; } g_subj = j.npc; g_settle = 0; }
             else {
-                void* v = nullptr;
-                Guard("photo:" + j.key, [&] { v = SpawnQuiet(j.kind, j.sym, g_studio); });
-                if (!v) { g_done++; continue; }
-                g_subj = v; g_spawned = true; g_settle = j.kind == 1 ? 8 : 3;
+                void* v = SpawnQuiet(j.kind, j.sym, g_studio);
+                RefreshNpcSet();
+                if (!v) { g_done++; JobEnd(); continue; }
+                g_subj = v; g_spawned = true; g_settle = j.kind == 1 ? 14 : 4;
                 if (j.kind == 1) fld<int>(v, NPC_FLAGS) |= 2;   // the clone cannot be hurt
                 if (j.look[0] >= 0) {
                     static const char* heads[] = { "HUM_HEAD_FIGHTER", "HUM_HEAD_BALD", "HUM_HEAD_THIEF", "HUM_HEAD_PONY", "HUM_HEAD_PSIONIC", "HUM_HEAD_FATBALD" };
@@ -248,14 +260,15 @@ void Photo_Tick(TickCtx& c) {
         at<float>(ZTIMER) = 1.f;   // let the clone's idle animation run even when the menu pauses the game
         Hold();
         if (g_settle > 0) {
-            if (g_cur.kind == 1 && g_settle == 8 && NpcReady(g_subj)) {
+            if (g_cur.kind == 1 && g_settle == 14 && NpcReady(g_subj)) {
                 CallExt("Npc_ClearAIQueue", { Arg::Npc(g_subj) });
                 CallExt("AI_StandupQuick", { Arg::Npc(g_subj) });
                 SetSleeping(g_subj, false);
             }
             g_settle--;
             if (g_settle == 0) {
-                if (!Frame()) { Finish(cam); }
+                if (g_cur.kind != 2 && (!NpcReady(g_subj) || !VobInWorld(g_subj))) { Log("portret %s: brak modelu, pomijam", g_cur.key.c_str()); Finish(cam); }
+                else if (!Frame()) { Finish(cam); }
                 else { g_override = true; WriteCam(cam, g_m); g_delay = 2; g_photoStage = 0; }
             }
         } else if (g_delay > 0) {                                // let the renderer catch up before a shot

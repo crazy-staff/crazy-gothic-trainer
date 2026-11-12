@@ -46,7 +46,12 @@ void Marvin_Tick(TickCtx& c) {
     const char* ids[3] = { "marvin", "waynet", "frameinfo" };
     const int offs[3] = { OG_TESTMODE, OG_SHOWWAYNET, OG_FRAMEINFO };
     for (int i = 0; i < 3; i++) {
+        int game = fld<int>(c.game, offs[i]) ? 1 : 0;
         int on = On(ids[i]) ? 1 : 0;
+        if (last[i] != -1 && game != last[i]) {   // build 10: switched in the game itself (MARVIN in the status screen) -> show it
+            if (Row* r = T.Get(ids[i])) r->on = game != 0;
+            last[i] = game; continue;
+        }
         if (on != last[i]) { if (last[i] != -1 || on) fld<int>(c.game, offs[i]) = on; last[i] = on; }
     }
 }

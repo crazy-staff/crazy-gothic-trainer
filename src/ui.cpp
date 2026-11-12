@@ -813,7 +813,7 @@ void ItemSpawner(float w) {
         for (auto& p : g_istat[i]) if (std::find(stats.begin(), stats.end(), p.first) == stats.end()) stats.push_back(p.first);
     }
     BeginPanel("##ispf", nullptr, w);
-    float fbw = 2 * 34 * S + 8 * S, catW = 210 * S, amtW = 90 * S;
+    float fbw = 2 * (ImGui::GetFontSize() + 14 * S) + 8 * S, catW = 210 * S, amtW = 90 * S;
     InputBox("##isearch", search, sizeof search, "Szukaj: nazwa albo ID (np. miecz, ITMW_)...", w - 36 * S - catW - amtW - fbw - TextW("Ilość", fReg) - 5 * ImGui::GetStyle().ItemSpacing.x);
     ImGui::SameLine();
     {   // category dropdown with icons
@@ -840,7 +840,7 @@ void ItemSpawner(float w) {
     // build 7: sort and filters are icon-only buttons (tooltip says what they do)
     ImVec2 fp = ImGui::GetCursorScreenPos();
     int nf = (int)g_ifilters.size() + (itemSub.empty() ? 0 : 1);
-    float ib = 34 * S, iy = fp.y + (BtnH() - ib) * 0.5f;
+    float ib = ImGui::GetFontSize() + 14 * S, iy = fp.y;   // same height as the search box
     bool sorted = g_isort != "Nazwa" || g_isortDesc;
     if (IconButton("##isortb", ICN_SORT, ("Sortowanie: " + g_isort + (g_isortDesc ? " (malejąco)" : " (rosnąco)")).c_str(), ImVec2(fp.x, iy), ib, C_TEXT, sorted))
         ImGui::OpenPopup("##isortp");
@@ -907,7 +907,7 @@ void ItemSpawner(float w) {
         if (f.mx <= 0) snprintf(b, sizeof b, "%s ≥ %d  ×##f%d", f.stat.c_str(), f.mn, i);
         if (Chip(b, true)) { g_ifilters.erase(g_ifilters.begin() + i); break; }
     }
-    if (!g_ifilters.empty()) EndPanel();
+    EndPanel();
     std::vector<int> v;
     for (size_t i = 0; i < g_cat.items.size(); i++) {
         const ItemEntry& e = g_cat.items[i];
@@ -1456,17 +1456,17 @@ void TeleportPage(const Snapshot& s, float w) {
     static std::string wpRegion; static std::set<std::string> wpTags;
     BeginPanel("##wpf", nullptr, w);
     // build 9 (#10): search | region | icon button with place types; chosen types as removable chips below
-    float rw = 220 * S, ib = 34 * S;
+    float rw = 220 * S, ib = ImGui::GetFontSize() + 14 * S;   // same height as the input and the select (build 10)
     InputBox("##wsearch", search, sizeof search, "Szukaj: opis albo nazwa waypointu (OCR_, PSI_...)", w - 36 * S - rw - ib - spx * 2);
     ImGui::SameLine();
     std::string cr = wpRegion.empty() ? "Wszystkie regiony" : wpRegion;
     if (StrCombo("##wreg", regions, cr, rw)) wpRegion = cr == "Wszystkie regiony" ? "" : cr;
     ImGui::SameLine();
     ImVec2 tp = ImGui::GetCursorScreenPos();
-    float iy = tp.y + (ImGui::GetFrameHeight() - ib) * 0.5f;
+    float iy = tp.y;
     char tt[64]; snprintf(tt, sizeof tt, wpTags.empty() ? "Rodzaj miejsca" : "Rodzaj miejsca (wybrane: %d)", (int)wpTags.size());
     if (IconButton("##wtags", ICN_FILTER, tt, ImVec2(tp.x, iy), ib, C_TEXT, !wpTags.empty())) ImGui::OpenPopup("##wtagpop");
-    ImGui::SetCursorScreenPos(ImVec2(tp.x, tp.y + ImGui::GetFrameHeight()));
+    ImGui::SetCursorScreenPos(ImVec2(tp.x, tp.y + ib));
     PopupStyle();
     ImGui::SetNextWindowSize(ImVec2(560 * S, 0));
     if (ImGui::BeginPopup("##wtagpop")) {
@@ -1653,12 +1653,11 @@ void CompendiumPage(float w) {
 }
 
 // ---- Narzędzia / Konsola
+bool MultiBox(const char* id, char* buf, size_t n, const char* hint, float w, float h0);
 void ConsolePanel(const Snapshot& s, float w) {
     BeginPanel("##con", "Konsola i makra", w);
     PF(fSmall); ImGui::TextColored(C_DIM, "Jedna komenda w linii, np.: insert ITMW_2H_SWORD_HEAVY_04 / goto waypoint OCC_BARONS_GREATHALL_CENTER / cheat full"); ImGui::PopFont();
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2); ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, R_ITEM());
-    ImGui::InputTextMultiline("##conin", consoleBuf, sizeof consoleBuf, ImVec2(w - 36 * S, 100 * S));
-    ImGui::PopStyleVar(); ImGui::PopStyleColor();
+    MultiBox("##conin", consoleBuf, sizeof consoleBuf, "komendy, jedna w linii...", w - 36 * S, 100 * S);
     ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Powtórz x"); ImGui::SameLine(); NumField("##rep", &macroRepeat, 1, 500, 70 * S); ImGui::SameLine();
     ImVec2 bp = ImGui::GetCursorScreenPos();
     if (Button("##run", "Wykonaj", bp) && consoleBuf[0]) Act_RunMacro({ "", consoleBuf, macroRepeat });
@@ -1823,7 +1822,15 @@ struct Draft {
     char title[160] = "", steps[2000] = "", expected[600] = "", actual[1500] = "", notes[1500] = "";
     bool withContext = true;
     std::vector<std::string> files;
+    std::string editUid;   // build 10: editing an existing ticket of mine from this build
 } g_draft;
+void EditTicket(const tst::Ticket& t) {
+    Draft d; d.editUid = t.uid; d.type = t.type; d.severity = t.severity; d.repro = t.repro; d.target = t.target; d.targetName = t.targetName;
+    snprintf(d.title, sizeof d.title, "%s", t.title.c_str()); snprintf(d.steps, sizeof d.steps, "%s", t.steps.c_str());
+    snprintf(d.expected, sizeof d.expected, "%s", t.expected.c_str()); snprintf(d.actual, sizeof d.actual, "%s", t.actual.c_str());
+    snprintf(d.notes, sizeof d.notes, "%s", t.notes.c_str()); d.files = t.files; d.withContext = !t.context.empty();
+    g_draft = d; g_tTab = 2;
+}
 char g_nickBuf[32] = ""; bool g_nickInit = false;
 char g_targetFilter[64] = "";
 std::string g_lastExport;
@@ -1845,21 +1852,42 @@ void OpenTicketFor(const std::string& id, int type) {
 const ImVec4& TypeCol(int t) {
     switch (t) { case tst::TT_OK: return C_ST_OK; case tst::TT_PARTIAL: return C_ST_BUG; case tst::TT_BUG: case tst::TT_CRASH: return C_ST_CRASH; default: return C_ACC; }
 }
-bool MultiBox(const char* id, char* buf, size_t n, const char* hint, float w, float h) {
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, C_CARD2);
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10 * S, 7 * S));
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, R_BTN());
+// multi-line text box (build 10): wraps to the box width, the clear "x" has its own column on the right,
+// and the bottom edge can be dragged to change the height (remembered per box)
+bool MultiBox(const char* id, char* buf, size_t n, const char* hint, float w, float h0) {
+    static std::unordered_map<ImGuiID, float> heights;
+    ImGuiID key = ImGui::GetID(id);
+    auto it = heights.find(key);
+    float h = it == heights.end() ? h0 : it->second;
     ImVec2 p = ImGui::GetCursorScreenPos();
-    bool ch = ImGui::InputTextMultiline(id, buf, n, ImVec2(w, h));
-    if (!buf[0] && !ImGui::IsItemActive()) DL()->AddText(ImVec2(p.x + 10 * S, p.y + 7 * S), U32(C_FAINT), hint);
-    ImGui::PopStyleVar(2); ImGui::PopStyleColor();
-    if (buf[0]) {   // clear "x" in the top-right corner
-        float r = 9 * S; ImVec2 c(p.x + w - r - 6 * S, p.y + r + 6 * S);
+    float gutter = 30 * S;
+    DL()->AddRectFilled(p, ImVec2(p.x + w, p.y + h), U32(C_CARD2), R_BTN());
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10 * S, 7 * S));
+    bool ch = ImGui::InputTextMultiline(id, buf, n, ImVec2(w - gutter, h), ImGuiInputTextFlags_WordWrap);
+    bool active = ImGui::IsItemActive();
+    ImGui::PopStyleVar(); ImGui::PopStyleColor();
+    if (active) DL()->AddRect(p, ImVec2(p.x + w, p.y + h), U32(C_ACC, 0.45f), R_BTN(), 1.f * S);
+    if (!buf[0] && !active) DL()->AddText(ImVec2(p.x + 10 * S, p.y + 7 * S), U32(C_FAINT), hint);
+    if (buf[0]) {   // clear "x" in the right column (text never runs under it)
+        float r = 9 * S; ImVec2 c(p.x + w - gutter * 0.5f, p.y + r + 7 * S);
         bool hov = ImGui::IsMouseHoveringRect(ImVec2(c.x - r, c.y - r), ImVec2(c.x + r, c.y + r));
         DL()->AddCircleFilled(c, r, U32(hov ? C_ACC : C_CARD), 16);
         IconAt(DL(), c, ICN_TIMES, U32(hov ? ImVec4(1, 1, 1, 1) : C_DIM), 10 * S);
         if (hov && ImGui::IsMouseClicked(0)) { buf[0] = 0; ImGui::ClearActiveID(); ch = true; }
     }
+    // resize handle on the bottom edge
+    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h - 5 * S));
+    ImGui::PushID(id);
+    ImGui::InvisibleButton("##rsz", ImVec2(w, 10 * S));
+    bool gh = ImGui::IsItemHovered() || ImGui::IsItemActive();
+    if (ImGui::IsItemActive()) heights[key] = h = std::max(36 * S, std::min(900 * S, h + ImGui::GetIO().MouseDelta.y));
+    ImGui::PopID();
+    float cx = p.x + w * 0.5f, cy = p.y + h - 3 * S;
+    DL()->AddLine(ImVec2(cx - 14 * S, cy), ImVec2(cx + 14 * S, cy), U32(gh ? C_ACC : C_FAINT), 2.f * S);
+    if (gh) Tip("Przeciągnij, żeby zmienić wysokość");
+    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + ImGui::GetStyle().ItemSpacing.y));
+    ImGui::Dummy(ImVec2(0, 0));
     return ch;
 }
 void FieldLabel(const char* t) { PF(fSmall); ImGui::TextColored(C_DIM, "%s", t); ImGui::PopFont(); }
@@ -1994,7 +2022,7 @@ void TicketCard(const tst::Ticket& t, float w, int idx, std::string& del) {
     DL()->AddRectFilled(p, ImVec2(p.x + w, p.y + h), U32(idx & 1 ? C_CARD : C_CARD2), R_ITEM());
     float pw; Pill(ImVec2(p.x + 12 * S, p.y + 8 * S), tst::kTypeNames[t.type], TypeCol(t.type), &pw);
     float bx = p.x + w - 12 * S;
-    bx -= 30 * S; if (!t.sent && IconButton("##del", ICN_TRASH, "Usuń (tylko niewysłane)", ImVec2(bx, p.y + 11 * S), 30 * S, C_DIM)) del = t.uid;
+    bx -= 30 * S; if ((!t.sent || tst::Editable(t)) && IconButton("##del", ICN_TRASH, "Usuń", ImVec2(bx, p.y + 11 * S), 30 * S, C_DIM)) del = t.uid;
     bx -= 6 * S + 30 * S; if (IconButton("##cp", ICN_FILE, "Kopiuj tekst (np. na Discorda)", ImVec2(bx, p.y + 11 * S), 30 * S, C_TEXT)) { tst::CopyToClipboard(tst::ShortText(t)); T.Toast("Skopiowano do schowka"); }
     if (t.type != tst::TT_OK) { bx -= 6 * S + 30 * S; if (IconButton("##gh", ICN_SIGNIN, "Otwórz gotowe zgłoszenie na GitHubie (w przeglądarce)", ImVec2(bx, p.y + 11 * S), 30 * S, C_TEXT)) tst::OpenUrl(tst::GithubUrl(t)); }
     std::string title = t.title.empty() ? (t.targetName.empty() ? "(bez tytułu)" : t.targetName) : t.title;
@@ -2051,6 +2079,7 @@ void TabTickets(float w) {
 void TabNew(float w) {
     Draft& d = g_draft;
     BeginPanel("##tn", nullptr, w);
+    if (!d.editUid.empty()) { PF(fBold); ImGui::TextColored(C_ACC, "Edytujesz zgłoszenie %s", d.editUid.c_str()); ImGui::PopFont(); }
     FieldLabel("Rodzaj");
     const int types[] = { tst::TT_BUG, tst::TT_CRASH, tst::TT_PARTIAL, tst::TT_IDEA, tst::TT_QUESTION };
     for (int t : types) if (Chip(tst::kTypeNames[t], d.type == t)) d.type = t;
@@ -2151,14 +2180,21 @@ void TabNew(float w) {
         return tst::Add(t);
     };
     ImVec2 bp = ImGui::GetCursorScreenPos();
-    float b1 = ButtonW("Zapisz zgłoszenie"), b2 = ButtonW("Zapisz i otwórz na GitHubie");
-    if (Button("##tsave", "Zapisz zgłoszenie", bp, ok) && ok) { make(); d = Draft{}; g_tTab = 1; T.Toast("Zapisano - wyślesz je w zakładce Wyślij"); }
-    if (Button("##tgh", "Zapisz i otwórz na GitHubie", ImVec2(bp.x + b1 + 8 * S, bp.y), false) && ok) {
-        tst::Ticket& t = make(); t.sent = true; tst::Save(); tst::OpenUrl(tst::GithubUrl(t));
-        if (!t.files.empty()) { tst::OpenFolder(tst::AttachDir() + "\\" + t.files[0]); T.Toast("Przeciągnij załączniki z otwartego folderu do zgłoszenia na GitHubie"); }
+    const char* saveLbl = d.editUid.empty() ? "Zapisz zgłoszenie" : "Zapisz zmiany";
+    float b1 = ButtonW(saveLbl);
+    if (Button("##tsave", saveLbl, bp, ok) && ok) {
+        if (!d.editUid.empty()) {   // edit in place: same id, back to "not sent" so the change goes out with the next report
+            if (tst::Ticket* t = tst::Find(d.editUid)) {
+                t->type = d.type; t->severity = d.severity; t->repro = d.repro; t->target = d.target; t->targetName = d.targetName;
+                t->title = d.title; t->steps = d.steps; t->expected = d.expected; t->actual = d.actual; t->notes = d.notes; t->files = d.files;
+                if (d.withContext && t->context.empty()) t->context = tst::BuildContext(d.target);
+                t->sent = false; tst::Save();
+            }
+            T.Toast("Zapisano zmiany w zgłoszeniu");
+        } else { make(); T.Toast("Zapisano - wyślesz je w zakładce Wyślij"); }
         d = Draft{}; g_tTab = 1;
     }
-    if (Button("##tclr", "Wyczyść", ImVec2(bp.x + b1 + b2 + 16 * S, bp.y), false)) d = Draft{};
+    if (Button("##tclr", d.editUid.empty() ? "Wyczyść" : "Anuluj edycję", ImVec2(bp.x + b1 + 8 * S, bp.y), false)) d = Draft{};
     ImGui::SetCursorScreenPos(ImVec2(bp.x, bp.y + BtnH() + 4 * S));
     if (!ok) { PF(fSmall); ImGui::TextColored(C_FAINT, "Wpisz przynajmniej tytuł albo opis."); ImGui::PopFont(); }
     EndPanel();
@@ -2170,7 +2206,7 @@ void TabSend(float w) {
     BeginPanel("##sd", "Paczka dla autora", w);
     PF(fSmall); ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + w - 40 * S);
     ImGui::TextColored(C_DIM, "Jeden plik ze wszystkim: twoje niewysłane zgłoszenia, oceny, dziennik zdarzeń, błędy z logu i informacje o komputerze. "
-                              "Wyślij go autorowi (Discord / mail) albo dołącz do zgłoszenia na GitHubie. Po eksporcie zgłoszenia oznaczają się jako wysłane.");
+                              "Wyślij go autorowi (Discord / mail) - z raportów powstają zgłoszenia na GitHubie. Po eksporcie zgłoszenia oznaczają się jako wysłane.");
     ImGui::PopTextWrapPos(); ImGui::PopFont();
     ImGui::TextColored(C_TEXT, "Niewysłane: %d  ·  wszystkie: %d", unsent, total);
     ImVec2 bp = ImGui::GetCursorScreenPos();
@@ -2182,29 +2218,15 @@ void TabSend(float w) {
     ImGui::SetCursorScreenPos(ImVec2(bp.x, bp.y + BtnH() + 6 * S));
     if (!g_lastExport.empty()) { PF(fSmall); ImGui::TextColored(C_ST_OK, "Zapisano: %s", g_lastExport.c_str()); ImGui::PopFont(); }
     EndPanel();
-    BeginPanel("##sd2", "Szybko: GitHub albo Discord", w);
-    PF(fSmall); ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + w - 40 * S);
-    ImGui::TextColored(C_DIM, "GitHub: każde zgłoszenie otwiera się w przeglądarce jako gotowy formularz - wystarczy kliknąć \"Submit\" (potrzebne darmowe konto). "
-                              "Discord: kopiuje krótki tekst niewysłanych zgłoszeń.");
-    ImGui::PopTextWrapPos(); ImGui::PopFont();
+    BeginPanel("##sd2", "Szybko: tekst na Discorda", w);
+    PF(fSmall); ImGui::TextColored(C_DIM, "Kopiuje krótki tekst niewysłanych zgłoszeń. Plik raportu jest lepszy - ma dziennik, logi i załączniki."); ImGui::PopFont();
     bp = ImGui::GetCursorScreenPos();
-    float g1 = ButtonW("Otwórz niewysłane na GitHubie (max 5)");
-    if (Button("##gha", "Otwórz niewysłane na GitHubie (max 5)", bp, false)) {
-        int n = 0; bool ch = false;
-        for (auto& t : const_cast<std::vector<tst::Ticket>&>(tst::Tickets())) {
-            if (t.sent || t.type == tst::TT_OK || n >= 5) continue;
-            tst::OpenUrl(tst::GithubUrl(t)); t.sent = true; ch = true; n++;
-        }
-        if (ch) tst::Save();
-        T.Toast(n ? "Otwarto " + std::to_string(n) + " zgłoszeń w przeglądarce" : "Brak niewysłanych zgłoszeń");
-    }
-    if (Button("##dc", "Kopiuj na Discorda", ImVec2(bp.x + g1 + 8 * S, bp.y), false)) {
+    if (Button("##dc", "Kopiuj na Discorda", bp, false)) {
         std::string o = "**Raport testera " + tst::Nick() + " - build " + std::to_string(TRAINER_BUILD) + "**\n";
         int n = 0; for (auto& t : tst::Tickets()) if (!t.sent && t.type != tst::TT_OK) { o += "\n" + tst::ShortText(t); n++; }
         if (n) { tst::CopyToClipboard(o); T.Toast("Skopiowano " + std::to_string(n) + " zgłoszeń"); } else T.Toast("Brak niewysłanych zgłoszeń");
     }
-    ImGui::SetCursorScreenPos(ImVec2(bp.x, bp.y + BtnH() + 6 * S));
-    if (Button("##ghl", "Lista zgłoszeń na GitHubie", ImGui::GetCursorScreenPos(), false)) tst::OpenUrl("https://github.com/dawidseipold/gothic1-crazy-trainer/issues");
+    ImGui::SetCursorScreenPos(ImVec2(bp.x, bp.y + BtnH()));
     EndPanel();
 }
 
@@ -2340,8 +2362,7 @@ void StatusWindow(bool menuOpen, float dispW) {
     for (auto& r : T.rows) {
         if (!r.on || r.cat == "Konfiguracja" || r.id == "nccam" || r.id == "allynotalk" || r.id == "allykeep" || r.id == "qsallies") continue;
         if (r.kind != K_TOGGLE && r.kind != K_SLIDER && r.kind != K_SET) continue;
-        if (r.cat == "Wizualia" && r.id != "espnpc" && r.id != "espitems" && r.id != "espchest") continue;
-        if (r.cat == "Wizualia" && !gx::On("esp")) continue;
+        if (r.cat == "Wizualia" && r.id != "espnpc" && r.id != "espitm") continue;
         std::vector<Row*> set;
         for (auto& o : T.rows) if (&o != &r && o.kind == K_VALUE && !o.hidden && o.cat == r.cat && o.sub == r.sub && o.group == r.group) set.push_back(&o);
         act.push_back({ &r, set });
@@ -2649,7 +2670,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
                 if (lookSig == 0) lookSig = sig;
                 if (sig != lookSig) { lookSig = sig; lookAt = NowSec() + 0.6; lookDirty = true; }
                 if (lookAt > 0 && NowSec() > lookAt && !ImGui::IsMouseDown(0)) { lookAt = 0; Act_LookPreview(); }
-                CardSpec pv{ "Podgląd", {}, nullptr, 262 * S, false };
+                CardSpec pv{ "Podgląd", {}, nullptr, 286 * S, false };
                 std::string key = lookDirty ? std::string("LOOKPREVIEW") : s.subjectInst; uintptr_t sp = s.subjectPtr;
                 pv.custom = [key, sp](float x, float y, float cw2) -> float {
                     float sz = 190 * S;
@@ -2663,10 +2684,11 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
                         if (Button("##lookok", "Zastosuj wygląd", ImVec2(bx, by), true)) { Act_ApplyLook(); lookDirty = false; }
                         if (Button("##lookno", "Cofnij", ImVec2(bx + b1 + 8 * S, by), false)) { lookDirty = false; lookAt = 0; lookSig = 0; }
                     } else {
+                        TextClip(ImVec2(x + 18 * S, by + BtnH() + 6 * S), fSmall, C_FAINT, "Suwaki zmieniają tylko podgląd (sobowtór). Postać zmienia się po \"Zastosuj wygląd\".", x + cw2 - 12 * S);
                         float bw = ButtonW("Odśwież portret");
                         if (Button("##photo", "Odśwież portret", ImVec2(x + (cw2 - bw) * 0.5f, by), false)) Act_Photo(0, true);
                     }
-                    return 262 * S;
+                    return 286 * S;
                 };
                 CardSpec nm{ "Imię", {}, nullptr, 0, false };
                 nm.customH = 60 * S;
@@ -2707,8 +2729,6 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
                 CardSpec col{ "Kolory", {}, nullptr, EspColors(0, 0, 0, false), false };
                 col.custom = [](float x, float y, float cw2) { return EspColors(x, y, cw2, true); };
                 cards.push_back(col);
-            } else if (sub == "ESP przedmiotów") {   // master switch on both ESP pages
-                if (Row* m = T.Get("esp")) cards.insert(cards.begin(), CardSpec{ "Główny wyłącznik", { m }, nullptr, 0, false });
             }
             Masonry(cards, w);
         }

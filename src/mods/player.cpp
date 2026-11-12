@@ -1,5 +1,6 @@
 // Player module: survival, combat, stats, talents, movement (noclip/glide), hero speed.
 #include "mods.h"
+#include "../tester.h"
 #include "MinHook.h"
 #include <algorithm>
 #include <cmath>
@@ -47,7 +48,6 @@ void NoclipRestore() {
     g_ncNpc = nullptr; g_ncMode = -1;
     g_stealMouse = false; g_mouseDx = g_mouseDy = 0;
     if (!NpcExists(n)) return;
-    if (mode == 2) { uint32_t& f = fld<uint32_t>(n, VOB_FLAGS); f = (f & ~NC_MASK) | (g_ncSaved & NC_MASK); return; }
     if (mode == 0) {
         SetSleeping(n, false);
         zVEC3 p = Pos(n);
@@ -78,11 +78,6 @@ void NoclipFrame(float dt) {
     if (mode == 0) {       // fly: no physics, no collision, AI asleep so it cannot snap us to the floor
         fld<uint32_t>(h, VOB_FLAGS) &= ~NC_MASK;
         if ((fld<uint8_t>(h, VOB_SLEEPMODE) & 3) != 0) SetSleeping(h, true);
-    }
-    if (mode == 2) {       // run (build 9): the game moves and animates the hero itself; only walls are switched off
-        fld<uint32_t>(h, VOB_FLAGS) &= ~(VOBF_COLLSTAT | VOBF_COLLDYN);
-        g_stealMouse = false;
-        return;
     }
     g_stealMouse = On("ncmouse") && !T.menuOpen && GameFocused();
     if (T.menuOpen || !GameFocused()) { g_mouseDx = g_mouseDy = 0; return; }
@@ -132,7 +127,8 @@ void NoclipFrame(float dt) {
 bool g_camRel = false; float g_cDist = 330, g_cPitch = -0.28f, g_cUp = 120;
 void NoclipCamera(void* h) {
     void* cv = fld<void*>(Game(), OG_CAMVOB);
-    if (!cv || !On("nccam") || (int)Val("ncmode") == 2) { g_camRel = false; return; }
+    // build 10: when the mouse turns the hero the game camera no longer turns -> our camera must follow (#20)
+    if (!cv || !(On("nccam") || On("ncmouse"))) { g_camRel = false; return; }
     zVEC3 H = Pos(h);
     if (!g_camRel) { g_cPitchMouse = -0.28f; g_camRel = true; }
     g_cPitch = g_cPitchMouse;
@@ -301,6 +297,7 @@ void Act_SetName(const std::string& utf8) {
 }
 const char* kHeads[] = { "HUM_HEAD_FIGHTER", "HUM_HEAD_BALD", "HUM_HEAD_THIEF", "HUM_HEAD_PONY", "HUM_HEAD_PSIONIC", "HUM_HEAD_FATBALD" };
 void Act_ApplyLook() {
+    tst::Event("vhead", "Zastosuj wygląd (przycisk)");
     T.Queue("row:look", [] {
         void* sb = Subject();
         if (!sb || IsMonster(sb)) { T.Toast("Wygląd da się zmienić tylko ludziom"); return; }
@@ -423,13 +420,12 @@ void Player_Register() {
     CardTitle("No-clip");
     T.Add(MkRow("noclip", "No-clip", "WASD, mysz obraca, Spacja/Ctrl góra/dół, Shift x4; Esc wyłącza (wtedy menu gry i zapis są bezpieczne)", C, SR, K_TOGGLE));
     St(ST_BUG, "build 8: ruch i kamera gorsze niż w build 3; build 9: mysz obraca postać, kamera stale za plecami, lądowanie na kratach, nowy tryb Bieg (#20, #21)"); Icon(ICN_ROCKET);
-    T.Add(MkRow("ncmode", "Tryb", "", C, SR, K_VALUE, 0, 0, 2));
-    Opts({ { 0, "Latanie (przez ściany)" }, { 1, "Ślizg (po ziemi)" }, { 2, "Bieg jak w grze, szybszy (eksperymentalny)" } });
-    St(ST_NEW, "build 9: nowy tryb Bieg - gra sama animuje bieg, wyłączone są tylko ściany");
+    T.Add(MkRow("ncmode", "Tryb", "", C, SR, K_VALUE, 0, 0, 1));
+    Opts({ { 0, "Latanie (przez ściany)" }, { 1, "Ślizg (po ziemi)" } }); St(ST_OK, "build 3: działa; build 10: usunięty tryb Bieg z build 9");
     T.Add(MkRow("ncmouse", "Mysz obraca postać", "w trybie Latanie / Ślizg: ruch myszą w bok obraca postać, w górę/dół pochyla kamerę", C, SR, K_TOGGLE));
-    T.rows.back().on = true; St(ST_NEW, "nowe w build 9 (#20)");
+    T.rows.back().on = true; St(ST_BUG, "build 9: kamera stała w miejscu przy obrocie; build 10: kamera zawsze idzie za postacią, gdy mysz ją obraca (#20)");
     T.Add(MkRow("ncmsens", "Czułość myszy", "", C, SR, K_VALUE, 1.0f, 0.2f, 4.f, nullptr, true)); St(ST_NEW, "nowe w build 9");
-    T.Add(MkRow("ncspeed", "Prędkość", "m/s (Shift x4); w trybie Bieg: 9 = 2,5x szybciej niż zwykły bieg", C, SR, K_VALUE, 9, 1, 100)); St(ST_OK, "build 3: działa");
+    T.Add(MkRow("ncspeed", "Prędkość", "m/s (Shift x4)", C, SR, K_VALUE, 9, 1, 100)); St(ST_OK, "build 3: działa");
     T.Add(MkRow("ncturn", "Obrót Q/E", "stopnie na sekundę", C, SR, K_VALUE, 130, 20, 720)); St(ST_OK, "build 3: działa");
     T.Add(MkRow("nccam", "Kamera za plecami", "jak przy bieganiu: stała odległość za postacią, obraca się razem z nią", C, SR, K_TOGGLE));
     T.rows.back().on = true; St(ST_NEW, "build 8: kamera latała na boki; build 9: stałe ustawienie jak w grze, bez kopiowania kamery gry (#20)");

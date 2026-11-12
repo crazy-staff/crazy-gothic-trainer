@@ -72,6 +72,9 @@ static void Pending(const std::string& key) {
     g_crumbDyn = key;
 }
 static void PendingDone() { DeleteFileA(DataPath("G1CrazyTrainer_pending.txt").c_str()); g_crumbDyn.clear(); }
+// long multi-frame jobs (portrait of one character): a crash anywhere inside is pinned to this key -> skipped next time
+void gx::JobBegin(const std::string& key) { Pending(key); Log("> %s", key.c_str()); }
+void gx::JobEnd() { PendingDone(); }
 void gx::Guard(const std::string& key, const std::function<void()>& f) {
     // periodic actions (rain, party watch, photos...) only keep the name in memory: writing the pending
     // file + a log line every few hundred ms caused disk stalls (lag spikes)
@@ -144,6 +147,8 @@ static void SelfTest(Snapshot& s) {
     d.push_back({ "Raytrace (podłoże pod bohaterem)", ground && std::fabs(g.y - Pos(h).y) < 1000.f });
     d.push_back({ "Model bohatera (zCModel)", VobModel(h) != nullptr });
     d.push_back({ "Katalog: przedmioty/NPC", g_cat.items.size() > 50 && g_cat.npcs.size() > 50 });
+    g_homeWorldOk = fld<void*>(h, 0xB8) == GameWorld();
+    d.push_back({ "Obecność postaci w świecie (zCVob::homeWorld)", g_homeWorldOk });
     for (auto& x : d) Log("AUTOTEST %s: %s", x.ok ? "OK " : "BLAD", x.text.c_str());
     s.diag = d;
 }

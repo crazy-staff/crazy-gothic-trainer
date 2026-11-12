@@ -218,6 +218,8 @@ void Remove(const std::string& uid) {
     g_t.erase(std::remove_if(g_t.begin(), g_t.end(), [&](const Ticket& t) { return t.uid == uid; }), g_t.end());
     Save();
 }
+bool Editable(const Ticket& t) { return t.build == TRAINER_BUILD && t.nick == (g_nick.empty() ? std::string("anon") : g_nick); }
+Ticket* Find(const std::string& uid) { for (auto& t : g_t) if (t.uid == uid) return &t; return nullptr; }
 int LastVerdict(const std::string& target) {
     int best = -1, bestBuild = -1;
     for (auto& t : g_t) if (t.target == target && (t.type <= TT_BUG || t.type == TT_CRASH) && t.build >= bestBuild) {

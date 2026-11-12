@@ -51,7 +51,7 @@ Usuń z `system\Autorun` plik `G1CrazyTrainer.dll` oraz wszystkie pliki i folder
 
 ## Problemy i pomysły
 
-Chcesz pomóc w testach? Przeczytaj **[TESTOWANIE.md](TESTOWANIE.md)** — w grze jest Centrum testera, które samo zbiera wszystko, czego potrzeba (zgłoszenia, dziennik, błędy), i otwiera gotowe zgłoszenia na GitHubie.
+Chcesz pomóc w testach? Przeczytaj **[TESTOWANIE.md](TESTOWANIE.md)** — w grze jest Centrum testera, które samo zbiera wszystko, czego potrzeba (zgłoszenia, dziennik, błędy, zrzuty), i pakuje to w jeden plik raportu do wysłania autorowi.
 
 [Zgłoś błąd](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=blad.yml) ·
 [Zgłoś crash](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=crash.yml) ·
@@ -86,4 +86,4 @@ Struktura:
 - `tools/reports.py` – łączy raporty testerów w jedno podsumowanie i zakłada z nich issues (`--github`)
 - `tools/known_issues.py` – generuje `G1CrazyTrainer_znane.txt` (znane problemy pokazywane w grze) z issues na GitHubie
 - `.github/workflows/release.yml` – dodanie `docs/release/bN.md` na main buduje DLL i publikuje release `bN`
-- `.github/ISSUE_TEMPLATE` – formularze zgłoszeń (gra wypełnia je przez URL), `.github/workflows/triage.yml` – automatyczne etykiety `opcja:<id>`, `build-N` i wskazywanie duplikatów
+- `.github/ISSUE_TEMPLATE` – formularze zgłoszeń przez stronę, `.github/workflows/triage.yml` – automatyczne etykiety `opcja:<id>`, `build-N` i wskazywanie duplikatów

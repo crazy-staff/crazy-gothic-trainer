@@ -33,22 +33,18 @@ Zakładka **Dziennik** pokazuje, co trainer zanotował w tej sesji (włączenia 
 
 ## 3. Wyślij
 
-Zakładka **Wyślij** — wybierz jeden sposób:
+Zakładka **Wyślij** → **Eksportuj niewysłane**. Powstaje jeden plik w `Gothic\system\Autorun\G1CrazyTrainer_raporty\` (.txt, a z załącznikami .zip) ze wszystkim: zgłoszenia, oceny, dziennik, błędy z logu, dane o komputerze. **Wyślij ten plik autorowi** (Discord / mail) — z raportów powstają zgłoszenia na GitHubie.
 
-| Sposób | Jak |
-|---|---|
-| **GitHub** (najlepiej) | „Otwórz niewysłane na GitHubie” — każde zgłoszenie otwiera się w przeglądarce jako wypełniony formularz, klikasz **Submit new issue**. Potrzebne darmowe konto GitHub. Przy crashu dołącz plik raportu (niżej). |
-| **Plik raportu** | „Eksportuj niewysłane” — powstaje jeden plik (.txt, a z załącznikami .zip) w `Gothic\system\Autorun\G1CrazyTrainer_raporty\` ze wszystkim: zgłoszenia, oceny, dziennik, błędy z logu, dane o komputerze. Wyślij go autorowi (Discord / mail). |
-| **Discord** | „Kopiuj na Discorda” — krótki tekst niewysłanych zgłoszeń do wklejenia na kanał. |
+Na szybko jest też „Kopiuj na Discorda” (krótki tekst), ale plik raportu jest dużo lepszy.
 
-Wysłane zgłoszenia są oznaczane i nie wysyłają się drugi raz.
+Wysłane zgłoszenia są oznaczane i nie wysyłają się drugi raz. **Swoje zgłoszenia z bieżącego buildu możesz edytować** (ołówek w zakładce Zgłoszenia) — np. gdy gra padła w trakcie pisania. Po edycji zgłoszenie wraca do niewysłanych.
 
 ## Dobre zgłoszenie
 
 - Jedno zgłoszenie = jeden problem.
 - Tytuł mówi, co się dzieje: „Deszcz zaklęć wyłącza grę przy 10 celach”, a nie „nie działa”.
 - Kroki krok po kroku, od wczytania gry.
-- Jeśli problem już jest na GitHubie — daj 👍 i dopisz komentarz zamiast nowego zgłoszenia. Propozycje z największą liczbą 👍 robię najpierw.
+- Pola tekstowe można powiększać — przeciągnij dolną krawędź.
 
 ## Prywatność
 

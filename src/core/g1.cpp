@@ -249,11 +249,26 @@ void* SpawnNpc(int inst, const zVEC3& pos, bool noRoutine) {
     Release(npc);  // world holds its own reference
     return npc;
 }
+// zCVob::homeWorld - set while the vob is inserted. The spawn manager takes NPCs far from the player out of the
+// world (they keep their model and stay in the npc list -> ESP showed "skeletons" without a body).
+constexpr uintptr_t VOB_HOMEWORLD = 0xB8;
+bool g_homeWorldOk = false;   // offset verified on the hero by the self test
+bool VobInWorld(void* v) {
+    if (!v) return false;
+    if (!g_homeWorldOk) return true;   // unverified layout: assume inserted (never double-insert)
+    return fld<void*>(v, VOB_HOMEWORLD) == GameWorld();
+}
 // put an existing (despawned) npc object back into the world
 void RespawnNpc(void* npc, const zVEC3& pos) {
     void* g = Game(); if (!g || !npc) return;
     void* sm = fld<void*>(g, OG_SPAWNMAN);
     reinterpret_cast<fn_spawn>(F_SPAWN_NPC_POS)(sm, npc, &pos, 0.f);
+}
+// teleport an npc; if the game has taken it out of the world, insert it again right there (model, AI, rendering)
+void EnsureNpcAt(void* npc, const zVEC3& pos) {
+    if (!npc) return;
+    if (VobInWorld(npc)) { SafeSetPos(npc, pos); return; }
+    RespawnNpc(npc, pos);
 }
 void* SpawnItem(int inst, const zVEC3& pos) {
     void* w = GameWorld();

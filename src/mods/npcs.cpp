@@ -49,10 +49,13 @@ void ArenaFrame() {
     if (pool.empty()) for (auto& e : g_cat.npcs) if (e.monster && e.level > 0 && !T.Crashed("npc:" + e.id)) pool.push_back(&e);
     if (pool.empty()) return;
     for (int i = 0; i < cnt; i++) {
-        const NpcEntry* e = pool[rng() % pool.size()];
         zVEC3 p = SpawnPointNear(600.f, 1000.f, (float)i / cnt * 6.2831f);
         void* n = nullptr;
-        Guard("npc:" + e->id, [&] { n = SpawnNpc(e->sym, p); });
+        for (int tries = 0; tries < 4 && !n; tries++) {   // build 10: a failed spawn takes another monster (waves came 1-2 short)
+            const NpcEntry* e = pool[rng() % pool.size()];
+            Guard("npc:" + e->id, [&] { n = SpawnNpc(e->sym, p, true); });
+            if (n && (Dist(Pos(n), p) > 400.f || !VobInWorld(n))) EnsureNpcAt(n, p);
+        }
         if (n) { MakeMortal(n); Guard("row:arena:aggro", [&] { Aggro(n, Player()); }); g_arena.push_back(n); }
     }
     g_next = now + 4; g_rewarded = false;
@@ -91,8 +94,11 @@ void Act_SpawnNpc(int sym, int count, int mode) {
             });
             MakeMortal(npc);   // script immortality / immune protections (some monsters) - spawned ones can die
             // named npcs get beamed to their daily-routine waypoint on insertion: bring them back
+            // build 10: put it back in the same frame (before the spawn manager takes a far NPC out of the world),
+            // and re-insert it if the game did that anyway
+            if (Dist(Pos(npc), p) > 400.f || !VobInWorld(npc)) EnsureNpcAt(npc, p);
             for (double t : { 0.15, 0.6, 1.5 })
-                Schedule(t, [npc, p] { if (NpcExists(npc) && Dist(Pos(npc), p) > 400.f) SafeSetPos(npc, p); });
+                Schedule(t, [npc, p] { if (NpcExists(npc) && (Dist(Pos(npc), p) > 400.f || !VobInWorld(npc))) EnsureNpcAt(npc, p); });
             if (mode == 0) Guard("spawnmode:wrogi", [&] { Aggro(npc, h); });
             else if (mode == 1) Guard("spawnmode:sojusznik", [&] { MakeAlly(npc); });
             else if (mode == 2) { if (NpcReady(npc)) CallExt("Npc_ClearAIQueue", { Arg::Npc(npc) }); SetSleeping(npc, true); g_frozenSpawn.insert(npc); }
@@ -202,16 +208,16 @@ void KeepParty() {
     g_allies.erase(std::remove_if(g_allies.begin(), g_allies.end(), [](void* n) { return !NpcAlive(n); }), g_allies.end());
     for (void* n : g_allies) {
         if (g_pstate.count(n) && g_pstate[n] != 0) continue;   // waiting / at post on purpose
-        if (!NpcReady(n)) continue;
         if (void* h = Player()) {   // left far behind (ladder, teleport, routine) -> put it right behind you
             zVEC3 hp = Pos(h);
-            if (Dist(Pos(n), hp) > Val("allykeepdist") * 100.f) {
+            if (Dist(Pos(n), hp) > Val("allykeepdist") * 100.f || !VobInWorld(n)) {
                 const float* t = &fld<float>(h, VOB_TRAFO);
                 zVEC3 b = hp; b.x -= t[2] * 250.f; b.z -= t[10] * 250.f;
-                CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
-                SetPos(n, b);
+                if (NpcReady(n) && VobInWorld(n)) CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
+                EnsureNpcAt(n, b);   // build 10: far allies are taken out of the world by the game - bring the real one back
             }
         }
+        if (!NpcReady(n) || !VobInWorld(n)) continue;
         if (IsMonster(n)) {   // summoned-like monsters keep forgetting they are friends
             CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
             continue;
@@ -256,7 +262,7 @@ void Act_PartyCmd(uintptr_t p, int cmd) {
         }
         case 2: g_pstate[n] = 2; SetNpcAivar(n, K.aivParty, 0); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
                 ToRoutine(n); g_allies.push_back(n); T.Toast(U(NpcName(n)) + " wraca do swojej rutyny"); break;
-        case 3: SafeSetPos(n, Grounded(InFront(180.f))); g_pstate[n] = 0; MakeAlly(n); T.Toast("Przywołano: " + U(NpcName(n))); break;
+        case 3: EnsureNpcAt(n, Grounded(InFront(180.f))); g_pstate[n] = 0; MakeAlly(n); T.Toast("Przywołano: " + U(NpcName(n))); break;
         case 4: { zVEC3 q = Pos(n); SafeSetPos(h, { q.x, q.y + 60, q.z }); } break;
         case 5: g_pstate.erase(n); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
                 SetNpcAivar(n, K.aivParty, 0); ToRoutine(n); T.Toast(U(NpcName(n)) + " opuszcza drużynę"); break;
@@ -295,7 +301,7 @@ void Npcs_Tick(TickCtx& c) {
             if (!NpcAlive(n) || !g_pstate.count(n) || g_pstate[n] != 1) { it = g_waitAt.erase(it); continue; }
             if (NpcReady(n) && Dist(Pos(n), it->second.pos) > 250.f) {
                 CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
-                SafeSetPos(n, it->second.pos);
+                EnsureNpcAt(n, it->second.pos);
                 float* t = &fld<float>(n, VOB_TRAFO);
                 for (int i = 0; i < 12; i++) if (i != 3 && i != 7 && i != 11) t[i] = it->second.trafo[i];
                 Wait(n);
@@ -325,9 +331,9 @@ void Npcs_Tick(TickCtx& c) {
 void Npcs_Register() {
     const char* C = "Postacie";
     CardTitle("Arena");
-    T.Add(MkRow("arena", "Tryb Areny", "fale wrogów 6-10 m od ciebie; wróg cię tylko powala - powalenie = przegrana", C, "Spawner", K_SLIDER, 1, 1, 20));
+    T.Add(MkRow("arena", "Tryb Areny", "fale wrogów 6-10 m od ciebie; wróg cię tylko powala - powalenie = przegrana", "Fun", "Walka", K_SLIDER, 1, 1, 20));
     St(ST_NEW, "build 7: powalenie zamiast śmierci, przegrana usuwa wrogów"); Icon(ICN_CROSSHAIR);
-    T.Add(MkRow("arenareward", "Nagrody po fali", "ruda + 1-2 losowe przedmioty", C, "Spawner", K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 7");
+    T.Add(MkRow("arenareward", "Nagrody po fali", "ruda + 1-2 losowe przedmioty", "Fun", "Walka", K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 7");
     const char* D = "Drużyna";
     CardTitle("Drużyna");
     T.Add(MkRow("allyall", "Wszyscy w promieniu do drużyny", "metry, idą za tobą", C, D, K_ACTION, 10, 1, 100, [](Row& r) {

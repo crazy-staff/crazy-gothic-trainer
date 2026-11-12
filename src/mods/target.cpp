@@ -191,7 +191,7 @@ void Target_Register() {
             T.Toast("Jesteś teraz: " + U(NpcName(t)));
         }))); NoVal(); Icon(ICN_EXCHANGE); Hidden(); St(ST_OK, "działa (też powrót)");
     T.Add(MkRow("tpull", "Przyciągnij do siebie", "", C, S, K_ACTION, 0, 0, 0,
-        NeedT([](void* t) { SafeSetPos(t, Grounded(InFront(200.f))); T.Toast("Przyciągnięto"); }))); NoVal(); Icon(ICN_MAGNET); Hidden(); St(ST_OK, "działa");
+        NeedT([](void* t) { EnsureNpcAt(t, Grounded(InFront(200.f))); T.Toast("Przyciągnięto"); }))); NoVal(); Icon(ICN_MAGNET); Hidden(); St(ST_OK, "działa");
     T.Add(MkRow("tpto", "Teleport do celu", "", C, S, K_ACTION, 0, 0, 0,
         NeedT([](void* t) { zVEC3 p = Pos(t); SafeSetPos(Player(), { p.x, p.y + 60, p.z }); }))); NoVal(); Icon(ICN_SIGNIN); Hidden(); St(ST_OK, "działa");
     T.Add(MkRow("yeet", "Wystrzel w powietrze", "wysokość z ustawień akcji", C, S, K_ACTION, 0, 0, 0,

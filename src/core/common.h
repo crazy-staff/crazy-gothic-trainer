@@ -80,4 +80,6 @@ bool GameFocused();
 bool On(const char* id);
 float Val(const char* id);
 void Guard(const std::string& key, const std::function<void()>& f);
+void JobBegin(const std::string& key);   // crash during a multi-frame job is attributed to key
+void JobEnd();
 }

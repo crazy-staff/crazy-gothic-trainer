@@ -139,9 +139,9 @@ void Esp_World() { g_npc.clear(); g_chests.clear(); g_chestInv.clear(); g_lastNp
 void Esp_Tick(TickCtx& c) {
     Snapshot& s = c.s;
     s.espLines = On("espline");
-    bool master = On("esp");
-    bool npcOn = master && On("espnpc"), itemOn = master && On("espitems"), chestOn = master && On("espchest");
-    if (!master) s.espLines = false;
+    bool itm = On("espitm");
+    bool npcOn = On("espnpc"), itemOn = itm && On("espitems"), chestOn = itm && On("espchest");
+    if (!npcOn) s.espLines = false;
     if (!npcOn && !itemOn && !chestOn) return;
     void* h = c.hero; zVEC3 hp = Pos(h);
     float range = Val("esprange") * 100.f, irange = Val("espitemrange") * 100.f;
@@ -309,9 +309,8 @@ void Esp_Register() {
         T.Add(MkRow(id, name, "", C, sub, K_TOGGLE)); T.rows.back().on = def; St(st, h);
     };
     CardTitle("Główny wyłącznik");
-    tog("esp", "ESP włączone", P, true, ST_NEW, "nowe w build 9: wyłącza całe ESP bez odznaczania opcji (#15)"); Icon(ICN_EYE);
+    tog("espnpc", "ESP postaci", P, false, ST_NEW, "build 9: jeden wyłącznik dla wszystkiego; build 10: osobne wyłączniki postaci i przedmiotów (#15)"); Icon(ICN_USERS);
     CardTitle("Postacie");
-    tog("espnpc", "Pokaż postacie", P, false, ST_OK, "działa"); Icon(ICN_USERS);
     T.Add(MkRow("esprange", "Maksymalny zasięg", "m", C, P, K_VALUE, 50, 5, 300)); St(ST_OK, "działa");
     T.Add(MkRow("espmaxnpc", "Maks. postaci naraz", "najbliższe; mniej = lżej dla słabszych komputerów", C, P, K_VALUE, 40, 1, 200)); St(ST_NEW, "nowe w build 6");
     T.Add(MkRow("espfilter", "Pokazuj", "", C, P, K_VALUE, 0, 0, 4));
@@ -333,6 +332,8 @@ void Esp_Register() {
     tog("espline", "Linie od dołu ekranu", P, false, ST_OK, "działa");
 
     const char* I = "ESP przedmiotów";
+    CardTitle("Główny wyłącznik");
+    tog("espitm", "ESP przedmiotów i skrzyń", I, true, ST_NEW, "nowe w build 10: wyłącza przedmioty i skrzynie bez odznaczania opcji (#15)"); Icon(ICN_BAG);
     CardTitle("Przedmioty na ziemi");
     tog("espitems", "Pokaż przedmioty", I, false, ST_OK, "działa"); Icon(ICN_BAG);
     T.Add(MkRow("espitemrange", "Maksymalny zasięg", "m (też skrzynie)", C, I, K_VALUE, 50, 5, 300)); St(ST_NEW, "nowe w build 9 - osobny zasięg dla przedmiotów");

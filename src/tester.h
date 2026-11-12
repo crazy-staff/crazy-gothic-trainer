@@ -44,6 +44,8 @@ const std::vector<Ticket>& Tickets();
 Ticket& Add(Ticket t);                           // fills uid/time/build/nick, appends to the file
 void Save();                                     // rewrite (after editing/sent flags)
 void Remove(const std::string& uid);
+bool Editable(const Ticket& t);                 // own ticket from this build (e.g. game crashed while writing)
+Ticket* Find(const std::string& uid);
 int LastVerdict(const std::string& target);      // -1 none, else TT_OK/TT_PARTIAL/TT_BUG (this build first)
 int CountFor(const std::string& target, bool openOnly);
 std::vector<const Ticket*> For(const std::string& target);
