@@ -45,13 +45,13 @@ const float PAD = 6;   // inner padding of a card (rows are inset by this on eve
 
 struct Sec { const char* name; const char* icon; std::vector<const char*> subs; };
 const std::vector<Sec> kSecs = {
-    { "Postać", ICN_USER, { "Statystyki", "Umiejętności", "Wygląd", "Cheaty", "Ruch" } },
+    { "Postać", ICN_USER, { "Informacje", "Wygląd", "Cheaty", "Ruch" } },
     { "Ekwipunek", ICN_BAG, { "Spawner", "Zestawy" } },
     { "Postacie", ICN_USERS, { "Cel", "Drużyna", "Spawner" } },
     { "Fun", ICN_FIRE, { "Walka", "Magia", "Chaos" } },
     { "Świat", ICN_MAP, { "Czas i fabuła", "Teleport" } },
     { "Wizualia", ICN_EYE, { "ESP postaci", "ESP przedmiotów", "Kolory" } },
-    { "Narzędzia", ICN_TERMINAL, { "Konsola", "Kompendium", "Diagnostyka" } },
+    { "Narzędzia", ICN_TERMINAL, { "Konsola", "Nakładka", "Kompendium", "Diagnostyka" } },
 };
 int curSec = 0, curSub = 0; bool cfgPage = false;
 Row* editRow = nullptr; char editBuf[32]; bool editFirst = false;
@@ -1086,6 +1086,10 @@ void NpcSpawner(const Snapshot& snap, float w) {
     const char* modes[] = { "Wrogi (od razu atakuje)", "Sojusznik", "Zamrożony", "Neutralny" };
     for (int m = 0; m < 4; m++) if (Chip(modes[m], T.spawnMode == m)) T.spawnMode = m;
     ImGui::NewLine();
+    ImGui::AlignTextToFramePadding(); ImGui::TextColored(C_DIM, "Gdy postać już jest w grze:"); ImGui::SameLine();
+    if (Chip("Przenieś oryginał##sc0", T.spawnClone == 0)) T.spawnClone = 0;
+    if (Chip("Utwórz kopię##sc1", T.spawnClone == 1)) T.spawnClone = 1;
+    ImGui::NewLine();
     if (Chip("Wszyscy##g", npcGroup < 0)) npcGroup = -1;
     for (int g = 0; g < NG_COUNT; g++) if (Chip(kNpcGroupNames[g], npcGroup == g, GroupIcon(g))) npcGroup = g;
     EndPanel();
@@ -1805,7 +1809,7 @@ const KnownIssue kIssues[] = {
     { "UI-04", "ESP i napisy chowają się w menu pauzy gry (Esc)", ST_OK },
     { "UI-05", "Suwaki: wartość nad suwakiem, równe wyrównanie", ST_OK },
     { "UI-06", "Przełącznik Obecna postać / Bezimienny / Cel", ST_OK },
-    { "UI-07", "Portrety postaci (na bieżąco) i ikony przedmiotów", ST_BUG },
+    { "UI-07", "Portrety postaci (na bieżąco) i ikony przedmiotów", ST_OK },
     { "UI-08", "Spawner przedmiotów: wyszukiwanie, sortowanie, filtry", ST_OK },
     { "UI-09", "Okno aktywnych modów: wyłączone / tylko w menu / w grze", ST_OK },
     { "UI-10", "Lista skrótów klawiszowych", ST_OK },
@@ -2359,6 +2363,39 @@ void DrawEsp(const Snapshot& s, float W, float H) {
     }
     ImGui::PopFont();
 }
+// build 12: on-screen info window - coordinates, FPS, speed... each line switchable in Narzędzia › Nakładka
+void HudWindow(const Snapshot& s, bool menuOpen, float dispW) {
+    static double lastT = 0; static float lastX = 0, lastZ = 0, lastY = 0, spd = 0;
+    double now = NowSec();
+    if (lastT > 0 && now - lastT > 0.05) {   // horizontal speed, smoothed
+        float dx = s.px - lastX, dz = s.pz - lastZ;
+        float v = std::sqrt(dx * dx + dz * dz) / 100.f / (float)(now - lastT);
+        if (v < 200.f) spd += (v - spd) * 0.35f;
+        lastT = now; lastX = s.px; lastZ = s.pz; lastY = s.py;
+    } else if (lastT == 0) { lastT = now; lastX = s.px; lastZ = s.pz; }
+    ImGui::SetNextWindowPos(ImVec2(dispW - 300 * S, 120 * S), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowBgAlpha(std::max(0.f, std::min(1.f, gx::Val("hudalpha") / 100.f)));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12 * S, 10 * S));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, R_CARD());
+    ImGuiWindowFlags fl = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoFocusOnAppearing |
+                          ImGuiWindowFlags_NoSavedSettings | (menuOpen ? 0 : ImGuiWindowFlags_NoInputs);
+    ImGui::Begin("##hud", nullptr, fl);
+    float hs = std::max(0.7f, std::min(2.f, gx::Val("hudsize") / 100.f));
+    ImGui::PushFont(fSmall, fSmall->LegacySize * hs);
+    auto kv = [hs](const char* k, const char* v, const ImVec4& c) { ImGui::TextColored(C_DIM, "%s", k); ImGui::SameLine(84 * S * hs); ImGui::TextColored(c, "%s", v); };
+    char b[160];
+    if (gx::On("hudfps")) { float f = ImGui::GetIO().Framerate; snprintf(b, sizeof b, "%.0f  (%.1f ms)", f, f > 0 ? 1000.f / f : 0.f); kv("FPS", b, f >= 50 ? C_ST_OK : f >= 30 ? C_ST_BUG : C_ST_CRASH); }
+    if (gx::On("hudpos")) { snprintf(b, sizeof b, "%.0f  %.0f  %.0f", s.px, s.py, s.pz); kv("Pozycja", b, C_TEXT); }
+    if (gx::On("hudspeed")) { snprintf(b, sizeof b, "%.1f m/s", spd); kv("Prędkość", b, C_TEXT); }
+    if (gx::On("hudtime")) { snprintf(b, sizeof b, "dzień %d, %02d:%02d", s.day, s.hour, s.minute); kv("Czas", b, C_TEXT); }
+    if (gx::On("hudworld")) { kv("Świat", s.world.empty() ? "-" : s.world.c_str(), C_TEXT); }
+    if (gx::On("hudstats")) { snprintf(b, sizeof b, "%d / %d", s.hp, s.hpmax); kv("HP", b, C_HP); snprintf(b, sizeof b, "%d / %d", s.mana, s.manamax); kv("Mana", b, C_MANA); }
+    if (gx::On("hudtarget")) { if (s.tValid) { snprintf(b, sizeof b, "%s  %d/%d", s.tName.c_str(), s.tHp, s.tHpMax); kv("Cel", b, C_ACC); } else kv("Cel", "-", C_DIM); }
+    if (gx::On("hudmods")) { int n = 0; for (auto& r : T.rows) if (r.on && (r.kind == K_TOGGLE || r.kind == K_SLIDER) && r.cat != "Konfiguracja") n++; snprintf(b, sizeof b, "%d", n); kv("Włączone", b, C_TEXT); }
+    ImGui::PopFont();
+    ImGui::End();
+    ImGui::PopStyleVar(2);
+}
 // window with everything that is switched on (and its settings)
 void StatusWindow(bool menuOpen, float dispW) {
     std::vector<std::pair<Row*, std::vector<Row*>>> act;
@@ -2570,6 +2607,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
     }
     int swm = (int)gx::Val("statuswin");
     if (s.inGame && ((swm == 2 && (live || menuOpen)) || (swm == 1 && menuOpen))) StatusWindow(menuOpen, dispW);
+    if (s.inGame && gx::On("hud") && (live || menuOpen)) HudWindow(s, menuOpen, dispW);
     // photo studio running: cover the screen so the parked camera is never seen
     if (s.photoBusy) {
         bool full = !menuOpen || s.photoBatch;
@@ -2665,11 +2703,14 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
     } else {
         std::string cat = sec.name, sub = sec.subs[curSub];
         auto cards = CardsFor(cat, sub);
-        if (cat == "Postać" && (sub == "Statystyki" || sub == "Umiejętności" || sub == "Wygląd")) {
+        if (cat == "Postać" && (sub == "Informacje" || sub == "Wygląd")) {
             SubjectBar(s, w);
             if (sub == "Wygląd") {
                 // build 11: no stand-in clone - the card shows the character's portrait and an always visible apply button
-                CardSpec pv{ "Wygląd postaci", {}, nullptr, 270 * S, false };
+                // build 12: one card - look sliders + portrait + apply
+                CardSpec pv{ "Wygląd", {}, nullptr, 270 * S, false };
+                for (const char* id : { "vhead", "vface", "vbody", "vskin" }) if (Row* r = T.Get(id)) pv.rows.push_back(r);
+                cards.erase(std::remove_if(cards.begin(), cards.end(), [](const CardSpec& c) { return c.title == "Twarz i ciało"; }), cards.end());
                 std::string key = s.subjectInst; uintptr_t sp = s.subjectPtr;
                 pv.custom = [key, sp](float x, float y, float cw2) -> float {
                     float sz = 170 * S;
@@ -2681,7 +2722,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
                     float bx = x + (cw2 - b1 - b2 - 8 * S) * 0.5f;
                     if (Button("##lookok", "Zastosuj wygląd", ImVec2(bx, by), true)) Act_ApplyLook();
                     if (Button("##photo", "Odśwież portret", ImVec2(bx + b1 + 8 * S, by), false)) Act_Photo(0, true);
-                    TextClip(ImVec2(x + 18 * S, by + BtnH() + 8 * S), fSmall, C_FAINT, "Ustaw głowę, twarz, ciało i skórę niżej, potem kliknij \"Zastosuj wygląd\".", x + cw2 - 12 * S);
+                    TextClip(ImVec2(x + 18 * S, by + BtnH() + 8 * S), fSmall, C_FAINT, "Ustaw głowę, twarz, ciało i skórę wyżej, potem kliknij \"Zastosuj wygląd\".", x + cw2 - 12 * S);
                     return 270 * S;
                 };
                 CardSpec nm{ "Imię", {}, nullptr, 0, false };

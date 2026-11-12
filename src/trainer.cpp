@@ -286,13 +286,12 @@ void Trainer::Init() {
     // statuses confirmed by the tester's reports (build 9 + 10) - overrides what the modules registered
     static const char* okIds[] = { "hclock", "hcpocket", "hcsneak", "nohit", "noweapon", "mana", "ncignore", "kitwar", "kitarcher", "kitmage",
         "kitthief", "trevive", "trob", "tremove", "tcast", "tfreeze", "tspellimm", "killallimm", "allvsme", "thanos", "thanosimm", "meteor",
-        "meteorimm", "rain", "rainimm", "qsallies", "espskel", "sprint", "espbox", "espchestinv", "arena", "marvin", "espitm", "espnpc" };
-    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9/10)"; }
+        "meteorimm", "rain", "rainimm", "qsallies", "espskel", "sprint", "espbox", "espchestinv", "arena", "marvin", "espitm", "espnpc",
+        "ncmouse", "allykeep", "peace", "killall", "tpto", "tpull" };
+    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9-11)"; }
     struct Bad { const char* id; const char* why; };
-    static const Bad bad[] = { { "noclip", "build 10: kamera nie obracała się; build 11: kamera pisana co klatkę, mysz ze stanu gry" },
-        { "ncmouse", "build 10: mysz nic nie robiła; build 11: odczyt myszy ze stanu gry (działa z ZMouseFix)" },
-        { "allykeep", "build 10: towarzysze znikali; build 11: gra nie usuwa drużyny ze świata, powrót przez oCNpc::Enable" },
-        { "allynotalk", "build 10: teleport drużyny nie działał - patrz Pilnuj drużyny" } };
+    static const Bad bad[] = { { "noclip", "build 11: działa, ale na ślizgu postać spadała i dostawała obrażenia, sama zaczynała biec; build 12: nieśmiertelność w no-clipie, ślizg bez fizyki i bez animacji" },
+        { "allynotalk", "build 11: po pierwszej rozmowie towarzysz wracał do rutyny; build 12: flaga drużyny przywracana co sekundę" } };
     for (auto& b : bad) if (Row* r = Get(b.id)) { r->status = ST_BUG; r->hist = b.why; }
     tst::Load();   // tester history (also turns a crash from the previous session into a draft report)
 }

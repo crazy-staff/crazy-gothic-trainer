@@ -80,6 +80,21 @@ void Act_SpawnNpc(int sym, int count, int mode) {
         void* h = Player(); zVEC3 a = AtVec(h);
         float base = std::atan2(a.z, a.x);
         int ok = 0;
+        // build 12: the script instance symbol points at the existing character - with "teleport original"
+        // a story NPC (Aidan, Diego...) is brought here instead of creating a second one
+        if (!T.spawnClone) {
+            Sym* is = SymAt(sym);
+            void* orig = is ? (void*)(uintptr_t)is->offset : nullptr;
+            if (IsNpc(orig) && !NpcDead(orig) && orig != Player() && orig != MainHero() && NpcInstance(orig) == sym) {
+                zVEC3 p = SpawnPointNear(350.f, 450.f, base);
+                CallExt("Npc_ClearAIQueue", { Arg::Npc(orig) });
+                EnsureNpcAt(orig, p);
+                if (mode == 0) Guard("spawnmode:wrogi", [&] { Aggro(orig, h); });
+                else if (mode == 1) Guard("spawnmode:sojusznik", [&] { MakeAlly(orig); });
+                T.Toast("Przeniesiono oryginał: " + U(NpcName(orig)));
+                return;
+            }
+        }
         for (int i = 0; i < n; i++) {
             float ang = base + (n > 1 ? ((float)i - (n - 1) / 2.f) * 0.3f : 0.f);
             zVEC3 p = SpawnPointNear(350.f + (i / 8) * 150.f, 450.f + (i / 8) * 150.f, ang);
@@ -155,6 +170,12 @@ std::unordered_map<void*, int> g_pstate;   // 0 follows, 1 waits, 2 back at post
 // walks the NPC back to its post, so the spot is remembered and enforced every second.
 struct WaitSpot { zVEC3 pos; float trafo[12]; };
 std::unordered_map<void*, WaitSpot> g_waitAt;
+// build 12: while waiting the daily routine is switched off (that is what walked them away), and restored on
+// "back to post" / "leave party" - no more teleporting every second
+std::unordered_map<void*, int> g_savedRtn;
+int RtnOff() { static int o = FieldOff("C_NPC.DAILY_ROUTINE", -1); return o; }
+void RoutineOff(void* n) { int o = RtnOff(); if (o < 0 || g_savedRtn.count(n)) return; g_savedRtn[n] = fld<int>(n, o); fld<int>(n, o) = 0; }
+void RoutineOn(void* n) { int o = RtnOff(); auto it = g_savedRtn.find(n); if (o < 0 || it == g_savedRtn.end()) return; if (NpcExists(n)) fld<int>(n, o) = it->second; g_savedRtn.erase(it); }
 int StateSym(std::initializer_list<const char*> names) { for (auto n : names) { int i = SymIndex(n); if (i >= 0) return i; } return -1; }
 void Wait(void* n) {
     if (!NpcReady(n)) return;
@@ -204,7 +225,7 @@ void RefreshNearby(void* h) {
 }
 // allies that wandered off into their routine/dialog get put back into follow mode
 void KeepParty() {
-    if (T.gameClock - g_keepAt < 3.0) return;
+    if (T.gameClock - g_keepAt < 1.0) return;   // build 12: 1 s - after a dialogue they walked back to their routine
     g_keepAt = T.gameClock;
     g_allies.erase(std::remove_if(g_allies.begin(), g_allies.end(), [](void* n) { return !NpcAlive(n); }), g_allies.end());
     for (void* n : g_allies) {
@@ -224,6 +245,7 @@ void KeepParty() {
             continue;
         }
         if (K.stFollow < 0) continue;
+        SetNpcAivar(n, K.aivParty, 1);   // dialogues reset it - re-assert every check
         if (CallExt("Npc_IsInState", { Arg::Npc(n), Arg::Int(K.stFollow) })) continue;
         if (K.stAttack >= 0 && CallExt("Npc_IsInState", { Arg::Npc(n), Arg::Int(K.stAttack) })) continue;
         SetNpcAivar(n, K.aivParty, 1);
@@ -256,16 +278,16 @@ void Act_PartyCmd(uintptr_t p, int cmd) {
             if (NpcReady(n)) { CallExt("Npc_ClearAIQueue", { Arg::Npc(n) }); CallExt("AI_StandupQuick", { Arg::Npc(n) }); }
             MakeAlly(n); T.Toast(U(NpcName(n)) + " idzie za tobą"); break;
         case 1: {
-            g_pstate[n] = 1; Wait(n);
+            g_pstate[n] = 1; RoutineOff(n); Wait(n);
             WaitSpot w; w.pos = Pos(n); const float* t = &fld<float>(n, VOB_TRAFO); std::copy(t, t + 12, w.trafo);
             g_waitAt[n] = w;
             T.Toast(U(NpcName(n)) + " czeka tutaj"); break;
         }
-        case 2: g_pstate[n] = 2; SetNpcAivar(n, K.aivParty, 0); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
+        case 2: g_pstate[n] = 2; RoutineOn(n); SetNpcAivar(n, K.aivParty, 0); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
                 ToRoutine(n); g_allies.push_back(n); T.Toast(U(NpcName(n)) + " wraca do swojej rutyny"); break;
         case 3: EnsureNpcAt(n, Grounded(InFront(180.f))); g_pstate[n] = 0; MakeAlly(n); T.Toast("Przywołano: " + U(NpcName(n))); break;
         case 4: { zVEC3 q = Pos(n); SafeSetPos(h, { q.x, q.y + 60, q.z }); } break;
-        case 5: g_pstate.erase(n); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
+        case 5: RoutineOn(n); g_pstate.erase(n); g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
                 SetNpcAivar(n, K.aivParty, 0); ToRoutine(n); T.Toast(U(NpcName(n)) + " opuszcza drużynę"); break;
         }
     });
@@ -284,7 +306,44 @@ int __fastcall hkCheckRemove(void* self, void* edx, void* npc) {
     }
     return oCheckRemove(self, edx, npc);
 }
-void Npcs_Hooks() { MH_CreateHook((LPVOID)0x6D0A80, (LPVOID)&hkCheckRemove, (LPVOID*)&oCheckRemove); }
+// build 12: "insert <npc>" typed in the game's console (or run from our console) lands in the spawned list
+using fnConsole = int(__cdecl*)(const zSTRING*, zSTRING*);
+fnConsole oConsole = nullptr;
+int __cdecl hkConsole(const zSTRING* in, zSTRING* out) {
+    std::string cmd = in && in->ptr ? std::string(in->ptr, in->len) : std::string();
+    for (auto& c : cmd) c = (char)tolower((unsigned char)c);
+    if (cmd.rfind("insert", 0) != 0) return oConsole(in, out);
+    std::set<void*> before; ForEachNpc([&](void* n) { before.insert(n); });
+    int r = oConsole(in, out);
+    ForEachNpc([&](void* n) { if (!before.count(n) && n != Player()) g_spawnedNpcs.push_back({ n, T.gameClock }); });
+    RefreshNpcSet();
+    return r;
+}
+void Npcs_Hooks() {
+    MH_CreateHook((LPVOID)0x6D0A80, (LPVOID)&hkCheckRemove, (LPVOID*)&oCheckRemove);
+    MH_CreateHook((LPVOID)F_CONSOLE_EVAL, (LPVOID)&hkConsole, (LPVOID*)&oConsole);
+}
+// build 12: changing the hour re-applies daily routines (party members and spawned NPCs walked off).
+// Called around Wld_SetTime: remember where they stand, put them back right after.
+std::vector<std::pair<void*, zVEC3>> g_timeKeep;
+void Npcs_BeforeTimeJump() {
+    g_timeKeep.clear();
+    for (void* n : g_allies) if (NpcExists(n)) g_timeKeep.push_back({ n, Pos(n) });
+    for (auto& e : g_spawnedNpcs) if (NpcExists(e.first)) g_timeKeep.push_back({ e.first, Pos(e.first) });
+}
+void Npcs_AfterTimeJump() {
+    for (double t : { 0.05, 0.5, 1.5 })
+        Schedule(t, [] {
+            for (auto& k : g_timeKeep) {
+                void* n = k.first;
+                if (!NpcAlive(n)) continue;
+                if (Dist(Pos(n), k.second) > 300.f || !VobInWorld(n)) { if (NpcReady(n)) CallExt("Npc_ClearAIQueue", { Arg::Npc(n) }); EnsureNpcAt(n, k.second); }
+                auto ps = g_pstate.find(n);
+                bool ally = std::find(g_allies.begin(), g_allies.end(), n) != g_allies.end();
+                if (ally && (ps == g_pstate.end() || ps->second == 0)) MakeAlly(n);
+            }
+        });
+}
 // an arena enemy brought you to 0 HP (the hit was clamped to 1 HP) or you died during the arena
 void Arena_PlayerDown() {
     if (g_lost || !On("arena")) return;
@@ -299,7 +358,7 @@ void Arena_PlayerDown() {
 }
 bool Arena_IsEnemy(void* n) { return n && std::find(g_arena.begin(), g_arena.end(), n) != g_arena.end(); }
 
-void Npcs_World() { g_spawnedNpcs.clear(); g_waitAt.clear(); g_lost = false; g_rewarded = true; g_arena.clear(); g_frozenSpawn.clear(); g_wave = 0; g_next = 0; g_near.clear(); g_nearAt = -10; g_pstate.clear(); }
+void Npcs_World() { g_savedRtn.clear(); g_spawnedNpcs.clear(); g_waitAt.clear(); g_lost = false; g_rewarded = true; g_arena.clear(); g_frozenSpawn.clear(); g_wave = 0; g_next = 0; g_near.clear(); g_nearAt = -10; g_pstate.clear(); }
 void Npcs_Tick(TickCtx& c) {
     if (T.menuOpen) RefreshNearby(c.hero);
     c.s.nearby = g_near;
@@ -313,7 +372,7 @@ void Npcs_Tick(TickCtx& c) {
         for (auto it = g_waitAt.begin(); it != g_waitAt.end();) {
             void* n = it->first;
             if (!NpcAlive(n) || !g_pstate.count(n) || g_pstate[n] != 1) { it = g_waitAt.erase(it); continue; }
-            if (NpcReady(n) && Dist(Pos(n), it->second.pos) > 250.f) {
+            if (NpcReady(n) && Dist(Pos(n), it->second.pos) > 1500.f) {   // only if something carried it far away
                 CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
                 EnsureNpcAt(n, it->second.pos);
                 float* t = &fld<float>(n, VOB_TRAFO);

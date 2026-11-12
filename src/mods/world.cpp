@@ -8,6 +8,7 @@
 using namespace g1;
 using namespace gx;
 
+void Npcs_BeforeTimeJump(); void Npcs_AfterTimeJump();
 namespace {
 bool g_timerTouched = false; float g_frozenTime = -1;
 std::set<void*> g_scaled;
@@ -15,15 +16,15 @@ std::set<void*> g_scaled;
 std::unordered_map<void*, float> g_yaw;   // last yaw of slowed npcs (turning is not animation-driven)
 void TimeScales(void* hero, bool paused) {
     bool spd = On("speed"); int mode = (int)Val("speedmode");
-    float npcScale = 1.f;
-    if (spd && mode == 0) npcScale *= std::max(0.05f, Val("speed"));
-    if (On("quicksilver")) npcScale *= std::max(0.02f, Val("qsfactor"));
+    float npcScale = 1.f, allyScale = 1.f;   // build 12: party members can be left at normal speed
+    if (spd && mode == 0) { npcScale *= std::max(0.05f, Val("speed")); if (!On("speedallies")) allyScale *= std::max(0.05f, Val("speed")); }
+    if (On("quicksilver")) { npcScale *= std::max(0.02f, Val("qsfactor")); if (!On("qsallies")) allyScale *= std::max(0.02f, Val("qsfactor")); }
     float heroScale = On("pspeed") ? Val("pspeed") : 1.f;
     if (On("quicksilver")) heroScale *= std::max(1.f, Val("qshero"));
     if (paused) return;
     void* main = MainHero();
     ForEachNpc([&](void* n) {
-        float want = (n == hero || n == main) ? (n == hero ? heroScale : 1.f) : (IsAlly(n) && On("qsallies") ? 1.f : npcScale);
+        float want = (n == hero || n == main) ? (n == hero ? heroScale : 1.f) : (IsAlly(n) ? allyScale : npcScale);
         bool touched = g_scaled.count(n) != 0;
         if (want == 1.f && !touched) return;
         void* m = VobModel(n);
@@ -84,9 +85,12 @@ void World_Register() {
     T.Add(MkRow("speedmode", "Co zwalnia", "", C, S, K_VALUE, 0, 0, 1));
     Opts({ { 0, "Postacie wokół (ty i kamera normalnie)" }, { 1, "Całą grę (też ciebie i obrót kamery)" } });
     St(ST_NEW, "build 6: 'bohater normalnie' w trybie zegara usunięte - silnik zwalnia też obrót kamery, nie da się tego obejść");
+    T.Add(MkRow("speedallies", "Drużyna w normalnym tempie", "tylko tryb 'postacie wokół'", C, S, K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 12");
     CardTitle("Pora dnia");
     T.Add(MkRow("hour", "Ustaw godzinę", "0-23", C, S, K_ACTION, 12, 0, 23, [](Row& r) {
+        Npcs_BeforeTimeJump();
         CallExt("Wld_SetTime", { Arg::Int((int)r.val), Arg::Int(0) }); g_frozenTime = -1;
+        Npcs_AfterTimeJump();
         T.Toast("Godzina " + std::to_string((int)r.val) + ":00"); }));
     St(ST_OK, "działa"); Icon(ICN_CLOCK);
     T.Add(MkRow("freezetime", "Zatrzymaj czas dnia", "", C, S, K_TOGGLE)); St(ST_OK, "działa");

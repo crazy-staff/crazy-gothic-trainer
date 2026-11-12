@@ -48,7 +48,7 @@ void NoclipRestore() {
     g_ncNpc = nullptr; g_ncMode = -1;
     g_stealMouse = false; g_mouseDx = g_mouseDy = 0;
     if (!NpcExists(n)) return;
-    if (mode == 0) {
+    if (mode == 0 || mode == 1) {
         SetSleeping(n, false);
         zVEC3 p = Pos(n);
         TraceHit h1, h2;
@@ -75,10 +75,10 @@ void NoclipFrame(float dt) {
         g_ncNpc = h; g_ncMode = mode;
         g_ncSaved = fld<uint32_t>(h, VOB_FLAGS);
     }
-    if (mode == 0) {       // fly: no physics, no collision, AI asleep so it cannot snap us to the floor
-        fld<uint32_t>(h, VOB_FLAGS) &= ~NC_MASK;
-        if ((fld<uint8_t>(h, VOB_SLEEPMODE) & 3) != 0) SetSleeping(h, true);
-    }
+    // fly and glide (build 12: glide too): no physics, no collision, AI asleep - the hero stands still instead of
+    // playing run/stop animations on its own, and cannot fall when the floor ends
+    fld<uint32_t>(h, VOB_FLAGS) &= ~NC_MASK;
+    if ((fld<uint8_t>(h, VOB_SLEEPMODE) & 3) != 0) SetSleeping(h, true);
     g_stealMouse = false;   // build 11: the mouse is read from the engine's own state (works with ZMouseFix)
     if (T.menuOpen || !GameFocused()) return;
     auto k = [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; };
@@ -113,11 +113,16 @@ void NoclipFrame(float dt) {
     if (len < 1e-4f) return;
     zVEC3 np{ p.x + d.x / len * sp, p.y + d.y / len * sp, p.z + d.z / len * sp };
     if (mode == 1) {
-        // glide: stop in front of walls (ray at chest height), the game keeps us on the floor
+        // glide: stop in front of walls (ray at chest height) and follow the floor ourselves; no floor = keep height
         TraceHit hit;
         zVEC3 dir{ np.x - p.x, 0, np.z - p.z };
         if (TraceRay({ p.x, p.y + 60.f, p.z }, { dir.x * 1.6f, 0, dir.z * 1.6f }, TR_NEAREST | TR_VOB_IGNORE | TR_STAT_POLY | TR_POLY_IGNORE_TRANSP, hit))
             return;
+        const float* bb = &fld<float>(h, VOB_BBOX);
+        float feet = p.y - bb[1];   // origin above the lowest point of the body
+        TraceHit g;
+        if (TraceRay({ np.x, p.y + 120.f, np.z }, { 0, -2000.f, 0 }, TR_NEAREST | TR_VOB_IGNORE | TR_STAT_POLY, g) && g.pos.y < p.y + 120.f)
+            np.y = g.pos.y + feet;
     }
     SetPos(h, np);
 }
@@ -128,7 +133,7 @@ bool g_camRel = false; float g_cDist = 330, g_cPitch = -0.28f, g_cUp = 120;
 void NoclipCamera(void* h) {
     void* cv = fld<void*>(Game(), OG_CAMVOB);
     // build 10: when the mouse turns the hero the game camera no longer turns -> our camera must follow (#20)
-    if (!cv || !(On("nccam") || On("ncmouse"))) { g_camRel = false; return; }
+    if (!cv) { g_camRel = false; return; }   // build 12: always our camera in no-clip (the switch did nothing - removed)
     zVEC3 H = Pos(h);
     if (!g_camRel) { g_cPitchMouse = -0.28f; g_camRel = true; }
     g_cPitch = g_cPitchMouse;
@@ -158,6 +163,7 @@ void __fastcall hkChangeAttr(void* self, void* edx, int attr, int value) {
         }
         if (self == hero && attr == 2 && On("mana")) value = 0;
         if (attr == 0 && On("god") && self == MainHero()) value = 0;   // main body stays immortal while swapped
+        if (attr == 0 && On("noclip") && self == hero) value = 0;      // build 12: no damage in no-clip (falls, hits)
         if (self != hero && attr == 0) {
             Row* r = T.Get("dmg");
             if (r && r->on && r->val > 1.f && fld<void*>(hero, NPC_FOCUSVOB) == self) value = (int)std::lround(value * r->val);
@@ -312,10 +318,10 @@ void Act_ApplyLook() {
 
 void Player_Register() {
     const char* C = "Postać";
-    T.Add(MkRow("subject", "Kogo edytujesz", "", C, "Statystyki", K_VALUE, 0, 0, 2)); Hidden();
+    T.Add(MkRow("subject", "Kogo edytujesz", "", C, "Informacje", K_VALUE, 0, 0, 2)); Hidden();
     Opts({ { 0, "Obecna postać" }, { 1, "Bezimienny" }, { 2, "Cel" } }); St(ST_NEW, "nowe w build 5");
 
-    const char* SS = "Statystyki";
+    const char* SS = "Informacje";   // build 12: stats + skills in one place
     CardTitle("Atrybuty");
     auto attr = [&](const char* id, const char* name, int idx, float def, float mx) {
         T.Add(MkRow(id, name, "ustawia wartość po kliknięciu Ustaw", C, SS, K_ACTION, def, 1, mx, [idx](Row& r) {
@@ -336,7 +342,7 @@ void Player_Register() {
         fld<int>(Subject(), FieldOff("C_NPC.LP", 0x308)) += (int)r.val; T.Toast("+" + std::to_string((int)r.val) + " PN"); }));
     St(ST_OK, "działa"); Icon(ICN_STAR);
 
-    const char* SU = "Umiejętności";
+    const char* SU = "Informacje";
     CardTitle("Poziom umiejętności");
     for (auto& t : kTal) {
         const Tal* tp = &t;
@@ -427,8 +433,6 @@ void Player_Register() {
     T.Add(MkRow("ncmsens", "Czułość myszy", "", C, SR, K_VALUE, 1.0f, 0.2f, 4.f, nullptr, true)); St(ST_NEW, "nowe w build 9");
     T.Add(MkRow("ncspeed", "Prędkość", "m/s (Shift x4)", C, SR, K_VALUE, 9, 1, 100)); St(ST_OK, "build 3: działa");
     T.Add(MkRow("ncturn", "Obrót Q/E", "stopnie na sekundę", C, SR, K_VALUE, 130, 20, 720)); St(ST_OK, "build 3: działa");
-    T.Add(MkRow("nccam", "Kamera za plecami", "jak przy bieganiu: stała odległość za postacią, obraca się razem z nią", C, SR, K_TOGGLE));
-    T.rows.back().on = true; St(ST_NEW, "build 8: kamera latała na boki; build 9: stałe ustawienie jak w grze, bez kopiowania kamery gry (#20)");
     T.Add(MkRow("ncignore", "Wrogowie cię ignorują", "w no-clipie potwory i przeciwnicy cię nie zauważają", C, SR, K_TOGGLE));
     T.rows.back().on = true; St(ST_NEW, "nowe w build 6");
     CardTitle("Bohater");

@@ -56,6 +56,25 @@ void Marvin_Tick(TickCtx& c) {
     }
 }
 void Marvin_Register() {
+    {   // build 12: on-screen info window (Narzędzia › Nakładka) - drawn by the UI, these rows only choose what it shows
+        const char* N = "Nakładka";
+        CardTitle("Okno informacji");
+        T.Add(MkRow("hud", "Pokaż okno informacji", "zostaje na ekranie w trakcie gry; przeciągnij je myszką w menu", "Narzędzia", N, K_TOGGLE)); St(ST_NEW, "nowe w build 12"); Icon(ICN_LIST);
+        T.Add(MkRow("hudalpha", "Przezroczystość tła", "%", "Narzędzia", N, K_VALUE, 60, 0, 100)); St(ST_NEW, "nowe w build 12");
+        T.Add(MkRow("hudsize", "Wielkość tekstu", "%", "Narzędzia", N, K_VALUE, 100, 70, 200)); St(ST_NEW, "nowe w build 12");
+        CardTitle("Co pokazywać");
+        struct { const char* id; const char* name; const char* note; bool on; } items[] = {
+            { "hudfps", "FPS", "klatki na sekundę i czas klatki", true },
+            { "hudpos", "Koordynaty", "X / Y / Z bohatera", true },
+            { "hudspeed", "Prędkość ruchu", "m/s, liczona z ruchu bohatera", true },
+            { "hudtime", "Czas gry", "dzień i godzina", true },
+            { "hudworld", "Świat i miejsce", "nazwa świata i opis najbliższego miejsca", false },
+            { "hudstats", "HP i mana", "", false },
+            { "hudtarget", "Cel", "imię i HP postaci, w którą celujesz", false },
+            { "hudmods", "Liczba włączonych opcji", "", false },
+        };
+        for (auto& it : items) { T.Add(MkRow(it.id, it.name, it.note, "Narzędzia", N, K_TOGGLE)); T.rows.back().on = it.on; St(ST_NEW, "nowe w build 12"); }
+    }
     CardTitle("Tryb debug");
     T.Add(MkRow("marvin", "Tryb Marvina", "konsola F2, klawisze debug - bez wpisywania MARVIN", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_NEW, "build 9: nie wyłącza już Marvina włączonego w grze (#23)"); Icon(ICN_TERMINAL);
     T.Add(MkRow("waynet", "Pokaż waynet", "ścieżki NPC", "Narzędzia", "Konsola", K_TOGGLE)); St(ST_OK, "działa");

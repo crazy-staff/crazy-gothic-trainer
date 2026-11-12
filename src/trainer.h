@@ -6,7 +6,7 @@
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 11
+#define TRAINER_BUILD 12
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]
@@ -100,6 +100,7 @@ struct Trainer {
     bool menuOpen = false;
 
     int spawnMode = 0, spawnCount = 1, itemAmount = 1;
+    int spawnClone = 0;                  // 0 = bring the existing story NPC here, 1 = always a new copy
     std::vector<SavedPos> positions;
     std::vector<std::string> crashKeys;
     std::vector<ItemSet> sets;          // user + preset item sets (ui thread owns, game thread reads copies)
