@@ -1,5 +1,7 @@
 # Jak testować i zgłaszać problemy
 
+🇬🇧 [English](TESTING.md) · 🇵🇱 Polski
+
 Dzięki, że pomagasz! Wszystko, czego potrzebujesz, jest w grze — w **Centrum testera**.
 
 ## 1. Włącz tryb testera

@@ -1,32 +1,36 @@
 # Gothic 1 Crazy Trainer
 
-> 🗺️ **[Mapa drogowa: błędy, plany, pomysły — głosuj 👍](ROADMAP.md)** · strona: https://dawidseipold.github.io/gothic1-crazy-trainer/
+🇬🇧 English · 🇵🇱 [Polski](README.pl.md)
 
-Trainer / mod menu do **Gothic 1** w wersji Steam (`GothicMod.exe` 1.08k_mod), uruchamianego z **Union** i rendererem **GD3D11**.
-Statystyki, ekwipunek, spawner przedmiotów i postaci, teleport, ESP, arena, tryby „fun” (deszcz zaklęć, meteoryty, zombie, polimorfia…) i sporo więcej — wszystko z jednego menu w grze.
+> 🗺️ **[Roadmap: bugs, plans, ideas — vote 👍](ROADMAP.md)** · site: https://dawidseipold.github.io/gothic1-crazy-trainer/
+> 💡 **[Ideas & discussion](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas)** — every idea is its own thread, vote with the up arrow.
 
-> Tylko do gry jednoosobowej. Trainer jest w fazie testów: zanim zaczniesz, zrób kopię zapisów gry.
+A trainer / mod menu for the Steam version of **Gothic 1** (`GothicMod.exe` 1.08k_mod), running with **Union** and the **GD3D11** renderer.
+Stats, inventory, item and NPC spawner, teleports, ESP, radar, party management, arena, "fun" modes (spell rain, meteors, zombies, polymorph…) and much more — all from one in-game menu.
 
-## Pobieranie
+> Single-player only. The trainer is in testing: back up your saves before you start.
+> **The in-game menu is in Polish for now.** An English interface (with Polish as a translation) is planned — see the [idea thread](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas).
 
-Najnowsza wersja jest zawsze w **[Releases](https://github.com/dawidseipold/gothic1-crazy-trainer/releases/latest)** — pobierz plik `G1CrazyTrainer_buildN.zip`.
+## Download
 
-## Wymagania
+The latest version is always in **[Releases](https://github.com/dawidseipold/gothic1-crazy-trainer/releases/latest)** — download `G1CrazyTrainer_buildN.zip`.
 
-| Co | Uwagi |
+## Requirements
+
+| What | Notes |
 |---|---|
-| Gothic 1 ze Steama | z `GothicMod.exe` 1.08k_mod (Player Kit) |
-| [Union](https://steamcommunity.com/sharedfiles/filedetails/?id=2787491081) | ładuje pliki DLL z folderu `system\Autorun` — bez niego trainer się nie uruchomi |
-| [GD3D11](https://github.com/Kirides/GD3D11) | menu rysuje się przez renderer DirectX 11 — na zwykłym rendererze menu się nie pokaże |
+| Gothic 1 from Steam | with `GothicMod.exe` 1.08k_mod (Player Kit) |
+| [Union](https://steamcommunity.com/sharedfiles/filedetails/?id=2787491081) | loads DLLs from `system\Autorun` — the trainer will not start without it |
+| [GD3D11](https://github.com/Kirides/GD3D11) | the menu is drawn through the DirectX 11 renderer — it will not show on the original renderer |
 
-Najprościej mieć to wszystko przez **Steam Workshop dla Gothic** (Union i GD3D11 subskrybujesz w Warsztacie i uruchamiasz grę przez launcher Warsztatu).
+The easiest way is the **Steam Workshop for Gothic** (subscribe to Union and GD3D11 in the Workshop and start the game through the Workshop launcher).
 
-## Instalacja
+## Installation
 
-1. Rozpakuj pobrany `.zip`.
-2. Skopiuj **wszystkie pliki** z paczki do folderu `Gothic\system\Autorun`.
-   Folder gry znajdziesz w Steamie: prawy przycisk na Gothic → *Zarządzaj* → *Przeglądaj pliki lokalne*.
-   Jeśli folderu `Autorun` nie ma, utwórz go w `Gothic\system`.
+1. Unpack the downloaded `.zip`.
+2. Copy **all files** from the package into `Gothic\system\Autorun`.
+   Find the game folder in Steam: right-click Gothic → *Manage* → *Browse local files*.
+   If there is no `Autorun` folder, create it in `Gothic\system`.
    ```
    Gothic\
    └─ system\
@@ -34,58 +38,72 @@ Najprościej mieć to wszystko przez **Steam Workshop dla Gothic** (Union i GD3D
          ├─ G1CrazyTrainer.dll
          └─ G1CrazyTrainer_znane.txt
    ```
-3. Uruchom grę jak zwykle (z Union + GD3D11) i wczytaj zapis albo zacznij nową grę.
-4. Naciśnij **Insert** — otworzy się menu.
+3. Start the game as usual (with Union + GD3D11) and load a save or start a new game.
+4. Press **Insert** — the menu opens.
 
-### Aktualizacja
-Podmień `G1CrazyTrainer.dll` i `G1CrazyTrainer_znane.txt` na nowe. Ustawienia, skróty i historia zgłoszeń zostają.
+### Updating
+Replace `G1CrazyTrainer.dll` and `G1CrazyTrainer_znane.txt` with the new ones. Settings, hotkeys and report history are kept.
 
-### Odinstalowanie
-Usuń z `system\Autorun` plik `G1CrazyTrainer.dll` oraz wszystkie pliki i foldery zaczynające się od `G1CrazyTrainer`.
+### Uninstalling
+Delete `G1CrazyTrainer.dll` and every file and folder starting with `G1CrazyTrainer` from `system\Autorun`.
 
-## Sterowanie
+## Controls
 
-| Klawisz | Działanie |
+| Key | Action |
 |---|---|
-| **Insert** | otwiera / zamyka menu (gra jest wtedy zatrzymana) |
-| **Esc** | zamyka menu, wychodzi z no-clipa, przerywa generowanie portretów |
-| własne skróty | dowolna opcja: kliknij pole skrótu przy opcji i naciśnij klawisz / kombinację |
+| **Insert** | open / close the menu (the game is paused meanwhile) |
+| **Esc** | close the menu, leave no-clip, stop portrait generation |
+| **F11 / Shift+F11** | screenshot / screenshot of an area (for reports) |
+| custom hotkeys | any option: click the hotkey field next to it and press a key / combination |
 
-## Problemy i pomysły
+## Bugs and ideas
 
-Chcesz pomóc w testach? Przeczytaj **[TESTOWANIE.md](TESTOWANIE.md)** — w grze jest Centrum testera, które samo zbiera wszystko, czego potrzeba (zgłoszenia, dziennik, błędy, zrzuty), i pakuje to w jeden plik raportu do wysłania autorowi.
+Want to help test? Read **[TESTING.md](TESTING.md)** — the in-game Tester hub collects everything needed (reports, event log, errors, screenshots) into one report file.
 
-[Zgłoś błąd](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=blad.yml) ·
-[Zgłoś crash](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=crash.yml) ·
-[Zaproponuj funkcję](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=propozycja.yml)
+[Report a bug](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=blad.yml) ·
+[Report a crash](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=crash.yml) ·
+[Suggest a feature (Discussions)](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas)
 
-Pliki, które trainer tworzy w `system\Autorun`:
+You can write in English or Polish.
 
-| Plik | Co to |
+Files the trainer creates in `system\Autorun`:
+
+| File | What it is |
 |---|---|
-| `G1CrazyTrainer.ini` | ustawienia i skróty |
-| `G1CrazyTrainer.log` | log (przydaje się przy crashach) |
-| `G1CrazyTrainer_zgloszenia.txt` | historia twoich zgłoszeń i ocen |
-| `G1CrazyTrainer_raporty\` | wyeksportowane raporty dla autora |
-| `G1CrazyTrainer_obrazki\` | portrety postaci i ikony przedmiotów (można usunąć, wygenerują się ponownie) |
+| `G1CrazyTrainer.ini` | settings and hotkeys |
+| `G1CrazyTrainer.log` | log (useful for crashes) |
+| `G1CrazyTrainer_zgloszenia.txt` | history of your reports and ratings |
+| `G1CrazyTrainer_raporty\` | exported reports for the author |
+| `G1CrazyTrainer_obrazki\` | character portraits and item icons (safe to delete, they regenerate) |
 
-## Dla programistów
+## Labels
 
-Kompilacja krzyżowa z Linuksa (MinGW, 32-bit, statycznie):
+Every label is `kind: value`:
+`type:` (bug, crash, enhancement, idea, epic…) · `status:` (pending, approved, planned, in progress, needs verification, done, rejected) ·
+`priority:` (high, medium, low) · `area:` (code area of an issue) · `category:` (topic of an idea in Discussions) ·
+`source:`, `resolution:`, `help:`, `option: <id>`, `build: N`.
+
+## For developers
+
+Cross-compiled from Linux (MinGW, 32-bit, static):
 - `i686-w64-mingw32-g++-posix`
-- Dear ImGui 1.92 w `/root/ext/imgui`, MinHook w `/root/ext/minhook`
+- Dear ImGui 1.92 in `/root/ext/imgui`, MinHook in `/root/ext/minhook`
 
 ```
 ./build.sh   # -> out/G1CrazyTrainer.dll
 ```
 
-Struktura:
-- `src/core` – adresy i wywołania silnika (ZenGin), katalog przedmiotów/NPC, wspólne helpery
-- `src/mods` – moduły funkcji (każdy ma własne wiersze menu, logikę i hooki)
-- `src/ui.cpp` – menu (ImGui), `src/portrait.cpp` – portrety postaci
-- `src/tester.cpp` – Centrum testera: historia zgłoszeń, dziennik zdarzeń, eksport raportów, linki do GitHuba
-- `src/trainer.cpp` – kolejka akcji, ochrona przed crashami, zapis ustawień
-- `tools/reports.py` – łączy raporty testerów w jedno podsumowanie i zakłada z nich issues (`--github`)
-- `tools/known_issues.py` – generuje `G1CrazyTrainer_znane.txt` (znane problemy pokazywane w grze) z issues na GitHubie
-- `.github/workflows/release.yml` – dodanie `docs/release/bN.md` na main buduje DLL i publikuje release `bN`
-- `.github/ISSUE_TEMPLATE` – formularze zgłoszeń przez stronę, `.github/workflows/triage.yml` – automatyczne etykiety `opcja:<id>`, `build-N` i wskazywanie duplikatów
+Layout:
+- `src/core` – engine (ZenGin) addresses and calls, item/NPC catalogue, shared helpers
+- `src/mods` – feature modules (each has its own menu rows, logic and hooks)
+- `src/ui.cpp` – menu (ImGui), `src/portrait.cpp` – character portraits
+- `src/tester.cpp` – Tester hub: report history, event log, report export, GitHub links
+- `src/trainer.cpp` – action queue, crash protection, settings
+- `tools/reports.py` – merges tester reports into one overview and files issues (`--github`)
+- `tools/known_issues.py` – generates `G1CrazyTrainer_znane.txt` (known problems shown in game) from GitHub issues
+- `tools/discussions.py` + `docs/discussions/*.json` – ideas in Discussions (one thread per idea, `category:` labels)
+- `tools/roadmap.py` – builds `ROADMAP.md` and the roadmap site from issues and Discussions
+- `.github/workflows/release.yml` – adding `docs/release/bN.md` on main builds the DLL and publishes release `bN`
+- `.github/ISSUE_TEMPLATE` – web report forms, `.github/workflows/triage.yml` – automatic `option: <id>`, `build: N` labels and duplicate hints
+
+Commits, issues and discussions are in English (Polish welcome in comments).
