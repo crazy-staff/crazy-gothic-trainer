@@ -68,7 +68,9 @@ void* SavedTarget() {
     if (g_activeSaved >= (int)g_savedTargets.size()) g_activeSaved = (int)g_savedTargets.size() - 1;
     return g_activeSaved >= 0 ? g_savedTargets[g_activeSaved] : nullptr;
 }
+void* g_targetOverride = nullptr;   // build 14: Otoczenie runs target actions on a picked NPC
 void* Target() {
+    if (g_targetOverride && NpcExists(g_targetOverride)) return g_targetOverride;
     if (void* s = SavedTarget()) return s;
     return FocusNpc();
 }

@@ -43,6 +43,9 @@ void SetTalent(const Tal& t, int target) {
 const uint32_t NC_MASK = VOBF_PHYSICS | VOBF_COLLSTAT | VOBF_COLLDYN;
 // build 13: no-clip (fly) and glide are separate switches (exclusive); NcOn() = either of them
 bool NcOn() { return On("noclip") || On("glide"); }
+// build 14: no-clip and glide have their own settings (gl* / nc*), picked by the active mode
+const char* NcP(const char* suffix) { static std::string b; b = std::string(On("glide") ? "gl" : "nc") + suffix; return b.c_str(); }
+bool NcIgnore() { return (On("noclip") && On("ncignore")) || (On("glide") && On("glignore")); }
 // rays that also see bridges / grates (static vobs with collision), not only the level mesh
 const int TR_FLOOR = TR_NEAREST | TR_VOB_IGNORE_NO_CD_DYN | TR_STAT_POLY;
 float g_cPitchMouse = -0.28f;
@@ -73,6 +76,64 @@ void NoclipRestore() {
         f = (f & ~NC_MASK) | (g_ncSaved & NC_MASK);
     }
 }
+// ---- glide (build 14) ------------------------------------------------------------------------
+// Moves in 20 cm sub-steps. Per step: a ray at knee and at chest height looks ahead - a face steeper than the
+// allowed angle stops the hero (sliding along it); an allowed steep face (up to a vertical wall at 90) is climbed
+// straight up. Then a ray from knee height down finds the floor of the new spot. "Kolizja z obiektami" decides
+// whether vobs (trees, rocks, bridges, grates, fences) count, or only the level mesh.
+int GlideFlags() { return TR_NEAREST | TR_STAT_POLY | TR_POLY_NORMAL | (On("glcoll") ? (TR_VOB_IGNORE_NO_CD_DYN | TR_VOB_IGNORE_CHAR) : TR_VOB_IGNORE); }
+float SlopeDeg(const zVEC3& n) { float y = std::max(-1.f, std::min(1.f, n.y)); return std::acos(y) * 57.29578f; }
+void GlideMove(void* h, zVEC3 p, float dx, float dz) {
+    const float* bb = &fld<float>(h, VOB_BBOX);
+    float feet = std::max(40.f, std::min(140.f, p.y - bb[1]));
+    float footY = p.y - feet;
+    float maxAng = std::max(0.f, std::min(90.f, Val("glideslope")));
+    const float KNEE = 45.f, LOOK = 28.f;
+    float total = std::sqrt(dx * dx + dz * dz);
+    if (total < 1e-3f) return;
+    int steps = std::max(1, (int)std::ceil(total / 20.f));
+    float sx = dx / steps, sz = dz / steps, sl = total / steps;
+    const int F = GlideFlags();
+    zVEC3 cur = p;
+    for (int i = 0; i < steps; i++) {
+        float ux = sx / sl, uz = sz / sl;
+        bool climb = false, blocked = false;
+        for (int tries = 0; tries < 2 && !climb && !blocked; tries++) {
+            bool again = false;
+            for (float hgt : { footY + KNEE, footY + std::min(feet * 1.6f, 150.f) }) {
+                TraceHit w;
+                if (!TraceRay({ cur.x, hgt, cur.z }, { ux * (sl + LOOK), 0, uz * (sl + LOOK) }, F, w)) continue;
+                float ang = SlopeDeg(w.normal);
+                if (ang <= 60.f) continue;                       // a ramp - the floor ray below handles it
+                if (ang <= maxAng + 0.5f) { climb = true; break; } // allowed steep face: go up it
+                // too steep: slide along it (drop the part of the move that goes into the wall)
+                float nl = std::sqrt(w.normal.x * w.normal.x + w.normal.z * w.normal.z);
+                if (tries == 1 || nl < 1e-3f) { blocked = true; break; }
+                float nx = w.normal.x / nl, nz = w.normal.z / nl, d = ux * nx + uz * nz;
+                float vx = ux - nx * d, vz = uz - nz * d, vl = std::sqrt(vx * vx + vz * vz);
+                if (vl < 0.15f) { blocked = true; break; }
+                ux = vx / vl; uz = vz / vl; sl *= vl; again = true; break;
+            }
+            if (!again) break;
+        }
+        if (blocked) break;
+        if (climb) {   // straight up, unless the head hits something
+            TraceHit up;
+            if (TraceRay({ cur.x, footY + feet * 2.f, cur.z }, { 0, sl + 10.f, 0 }, F, up)) break;
+            footY += sl;
+            continue;
+        }
+        float nx = cur.x + ux * sl, nz = cur.z + uz * sl;
+        TraceHit g;
+        if (TraceRay({ nx, footY + KNEE, nz }, { 0, -100000.f, 0 }, F, g)) {
+            float rise = g.pos.y - footY;
+            if (rise > 1.f && SlopeDeg(g.normal) > maxAng + 0.5f) break;   // steeper floor than allowed: stop
+            footY = g.pos.y;
+        }   // no floor at all (over the void): keep the height
+        cur.x = nx; cur.z = nz;
+    }
+    SetPos(h, { cur.x, footY + feet, cur.z });
+}
 void NoclipFrame(float dt) {
     void* h = Player();
     if (!h) return;
@@ -91,12 +152,12 @@ void NoclipFrame(float dt) {
     auto k = [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; };
     float* m = &fld<float>(h, VOB_TRAFO);
     float yaw = 0;
-    float turn = Val("ncturn") * 0.0174533f;
+    float turn = Val(NcP("turn")) * 0.0174533f;
     if (k('Q') || k(VK_LEFT)) yaw -= turn * dt;
     if (k('E') || k(VK_RIGHT)) yaw += turn * dt;
-    if (On("ncmouse")) {   // mouse: X turns the hero, Y tilts the camera. Engine mouse state (LeGo: Cursor_Ptr 0x86CCAC: relX, relY)
+    if (On(NcP("mouse"))) {   // mouse: X turns the hero, Y tilts the camera. Engine mouse state (LeGo: Cursor_Ptr 0x86CCAC: relX, relY)
         int dx = at<int>(0x86CCAC), dy = at<int>(0x86CCB0);
-        float sens = Val("ncmsens") * 0.0022f;
+        float sens = Val(NcP("msens")) * 0.0022f;
         yaw += dx * sens;
         g_cPitchMouse = std::max(-1.1f, std::min(0.9f, g_cPitchMouse - dy * sens));
     }
@@ -109,7 +170,7 @@ void NoclipFrame(float dt) {
         }
     }
     zVEC3 at{ m[2], 0, m[10] }, right{ m[0], 0, m[8] };
-    float sp = Val("ncspeed") * 100.f * (k(VK_SHIFT) ? 4.f : 1.f) * dt;
+    float sp = Val(NcP("speed")) * 100.f * (k(VK_SHIFT) ? 4.f : 1.f) * dt;
     zVEC3 p = Pos(h), d{ 0, 0, 0 };
     if (k('W')) { d.x += at.x; d.z += at.z; }
     if (k('S')) { d.x -= at.x; d.z -= at.z; }
@@ -119,21 +180,7 @@ void NoclipFrame(float dt) {
     float len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
     if (len < 1e-4f) return;
     zVEC3 np{ p.x + d.x / len * sp, p.y + d.y / len * sp, p.z + d.z / len * sp };
-    if (mode == 1) {
-        // glide (build 13): walk up anything not steeper than the chosen angle, follow the floor incl. bridges and
-        // grates, never drop through them; no floor at all = keep the height
-        const float* bb = &fld<float>(h, VOB_BBOX);
-        float feet = std::max(40.f, std::min(140.f, p.y - bb[1]));
-        float footY = p.y - feet;
-        float stepLen = std::sqrt((np.x - p.x) * (np.x - p.x) + (np.z - p.z) * (np.z - p.z));
-        float ang = std::max(0.f, std::min(90.f, Val("glideslope"))) * 0.0174533f;
-        float maxRise = ang >= 1.55f ? 100000.f : stepLen * std::tan(ang) + 8.f;   // 90 deg = any wall
-        float probeTop = footY + std::min(maxRise, 3000.f) + 2.f;
-        TraceHit g;
-        bool hit = TraceRay({ np.x, probeTop, np.z }, { 0, -(probeTop - footY) - 4000.f, 0 }, TR_FLOOR, g);
-        if (hit && g.pos.y > footY + maxRise) return;               // too steep - stop here
-        if (hit) np.y = g.pos.y + feet; else np.y = p.y;           // no floor at all: keep the height
-    }
+    if (mode == 1) { GlideMove(h, p, np.x - p.x, np.z - p.z); return; }
     SetPos(h, np);
 }
 // chase camera (build 9): fixed distance behind the hero like the game's run camera; the hero's yaw (mouse X,
@@ -187,6 +234,7 @@ using fnCanSee = int(__fastcall*)(void*, void*, void*, int);
 fnCanSee oCanSee = nullptr;
 int __fastcall hkCanSee(void* self, void* edx, void* vob, int freeLos) {
     if (vob && On("ghost")) { void* h = Player(); if (vob == h && self != h) return 0; }
+    if (vob && !g_allies.empty() && Party_IgnoreSense(self, vob)) return 0;   // build 14
     return oCanSee(self, edx, vob, freeLos);
 }
 // sight + hearing + smell: covers guards noticing a drawn weapon, gate dialogs etc.
@@ -196,9 +244,10 @@ int __fastcall hkCanSense(void* self, void* edx, void* vob) {
     void* h = Player();
     if (vob && vob == h && self != h) {
         if (On("ghost")) return 0;
-        if (NcOn() && On("ncignore")) return 0;
+        if (NcOn() && NcIgnore()) return 0;
         if (On("allynotalk") && IsAlly(self)) return 0;   // allies stop interrupting the player with dialogs
     }
+    if (vob && !g_allies.empty() && Party_IgnoreSense(self, vob)) return 0;   // build 14
     return oCanSense(self, edx, vob);
 }
 // passive perceptions sent by/about the player (draw weapon, attack, theft...) are dropped in ghost mode
@@ -246,6 +295,7 @@ int __fastcall hkFightMode(void* self, void* edx, int mode) {
 using fnDamage = void(__fastcall*)(void*, void*, void*);
 fnDamage oDamage = nullptr;
 void __fastcall hkDamage(void* self, void* edx, void* desc) {
+    if (self && desc && !g_allies.empty() && Party_BlockDamage(self, fld<void*>(desc, 8))) return;   // build 14
     if (self && desc && (self == Player() || self == MainHero())) {
         void* att = fld<void*>(desc, 8);                  // oSDamageDescriptor::pNpcAttacker
         if (IsNpc(att) && IsAlly(att)) { Party_AllyHitPlayer(att); return; }   // party never hurts you
@@ -282,7 +332,7 @@ void Player_Tick(TickCtx& c) {
         c.s.subjectName = U(NpcName(sb)); c.s.subjectPtr = (uintptr_t)sb; c.s.subjectInst = InstName(sb);
     }
     static bool ncWas = false;
-    if (NcOn() && !ncWas && On("ncignore")) NpcsInRadius(4000.f, [](void* n) { Peace(n); });   // old aggro is dropped too
+    if (NcOn() && !ncWas && NcIgnore()) NpcsInRadius(4000.f, [](void* n) { Peace(n); });   // old aggro is dropped too
     ncWas = NcOn();
     if (NcOn()) { NoclipFrame(c.paused ? 0.f : c.dt); NoclipCamera(h); }
     else { g_camRel = false; if (g_ncNpc) NoclipRestore(); }
@@ -390,14 +440,13 @@ void Player_Register() {
             CallExt("Npc_SetTalentValue", { Arg::Npc(Subject()), Arg::Int(ConstInt(hp->konst, 1)), Arg::Int((int)r.val) }); }));
         St(ST_NEW, "nowe w build 6 (wymaksowanie ustawiało 50%)");
     }
-    CardTitle("Szybko");
     T.Add(MkRow("alltal", "Wymaksuj wszystko", "wszystkie umiejętności na max, 6. krąg, 100% trafienia", C, SU, K_ACTION, 0, 0, 0, [](Row&) {
         for (auto& t : kTal) SetTalent(t, t.maxLvl);
         for (auto& h : kHc) CallExt("Npc_SetTalentValue", { Arg::Npc(Subject()), Arg::Int(ConstInt(h.konst, 1)), Arg::Int(100) });
         for (const char* k : { "NPC_TALENT_PICKLOCK", "NPC_TALENT_PICKPOCKET", "NPC_TALENT_SNEAK" })
             CallExt("Npc_SetTalentValue", { Arg::Npc(Subject()), Arg::Int(ConstInt(k, 1)), Arg::Int(100) });
         T.Toast("Wszystkie umiejętności na maksa"); }));
-    NoVal(); Icon(ICN_STAR); St(ST_OK, "build 3: działa; build 4: + 100% trafienia");
+    NoVal(); Icon(ICN_STAR); Hidden(); St(ST_OK, "build 3: działa; build 4: + 100% trafienia; build 14: przycisk w nagłówku karty Poziom umiejętności");
 
     const char* SW = "Wygląd";
     CardTitle("Twarz i ciało");
@@ -445,18 +494,26 @@ void Player_Register() {
 
     const char* SR = "Ruch";
     CardTitle("No-clip");
-    T.Add(MkRow("noclip", "No-clip", "WASD, mysz obraca, Spacja/Ctrl góra/dół, Shift x4; Esc wyłącza (wtedy menu gry i zapis są bezpieczne)", C, SR, K_TOGGLE));
-    St(ST_BUG, "build 8: ruch i kamera gorsze niż w build 3; build 9: mysz obraca postać, kamera stale za plecami, lądowanie na kratach, nowy tryb Bieg (#20, #21)"); Icon(ICN_ROCKET); Excl({ "glide" });
-    T.Add(MkRow("glide", "Ślizg (po ziemi)", "jak no-clip, ale trzyma się podłoża, mostów i krat; ten sam skrót Esc wyłącza", C, SR, K_TOGGLE));
-    Excl({ "noclip" }); St(ST_NEW, "build 13: osobny przełącznik, kąt podejścia, mosty i kraty"); Icon(ICN_ARROWS);
-    T.Add(MkRow("glideslope", "Kąt podejścia ślizgu", "stopnie; 90 = wchodzi na każdą ścianę", C, SR, K_VALUE, 50, 0, 90)); St(ST_NEW, "nowe w build 13");
-    T.Add(MkRow("ncmouse", "Mysz obraca postać", "w trybie Latanie / Ślizg: ruch myszą w bok obraca postać, w górę/dół pochyla kamerę", C, SR, K_TOGGLE));
-    T.rows.back().on = true; St(ST_BUG, "build 9: kamera stała w miejscu przy obrocie; build 10: kamera zawsze idzie za postacią, gdy mysz ją obraca (#20)");
-    T.Add(MkRow("ncmsens", "Czułość myszy", "", C, SR, K_VALUE, 1.0f, 0.2f, 4.f, nullptr, true)); St(ST_NEW, "nowe w build 9");
+    T.Add(MkRow("noclip", "No-clip (latanie)", "przez ściany; WASD, mysz obraca, Spacja/Ctrl góra/dół, Shift x4; Esc wyłącza", C, SR, K_TOGGLE));
+    St(ST_OK, "build 12: działa (raport build 12)"); Icon(ICN_ROCKET); Excl({ "glide" });
     T.Add(MkRow("ncspeed", "Prędkość", "m/s (Shift x4)", C, SR, K_VALUE, 9, 1, 100)); St(ST_OK, "build 3: działa");
     T.Add(MkRow("ncturn", "Obrót Q/E", "stopnie na sekundę", C, SR, K_VALUE, 130, 20, 720)); St(ST_OK, "build 3: działa");
+    T.Add(MkRow("ncmouse", "Mysz obraca postać", "ruch myszą w bok obraca postać, w górę/dół pochyla kamerę", C, SR, K_TOGGLE));
+    T.rows.back().on = true; St(ST_OK, "build 12: działa");
+    T.Add(MkRow("ncmsens", "Czułość myszy", "", C, SR, K_VALUE, 1.0f, 0.2f, 4.f, nullptr, true)); St(ST_NEW, "nowe w build 9");
     T.Add(MkRow("ncignore", "Wrogowie cię ignorują", "w no-clipie potwory i przeciwnicy cię nie zauważają", C, SR, K_TOGGLE));
-    T.rows.back().on = true; St(ST_NEW, "nowe w build 6");
+    T.rows.back().on = true; St(ST_OK, "działa");
+    CardTitle("Ślizg");
+    T.Add(MkRow("glide", "Ślizg (po ziemi)", "chodzi po podłożu bez fizyki i animacji; WASD, Shift x4; Esc wyłącza", C, SR, K_TOGGLE));
+    Excl({ "noclip" }); St(ST_NEW, "build 13: częściowo - wjeżdżał pod ziemię, ściana wyrzucała w górę; build 14: nowy ruch krokami + kolizja z obiektami"); Icon(ICN_ARROWS);
+    T.Add(MkRow("glcoll", "Kolizja z obiektami", "drzewa, skały, mosty, kraty, płoty - wchodzisz na nie zamiast przez nie przelatywać", C, SR, K_TOGGLE));
+    T.rows.back().on = true; St(ST_NEW, "nowe w build 14");
+    T.Add(MkRow("glideslope", "Maks. nachylenie", "stopnie; strome ściany do tego kąta pokonuje (90 = wchodzi pionowo na każdą ścianę)", C, SR, K_VALUE, 50, 0, 90)); St(ST_NEW, "nowe w build 13");
+    T.Add(MkRow("glspeed", "Prędkość", "m/s (Shift x4)", C, SR, K_VALUE, 6, 1, 60)); St(ST_NEW, "nowe w build 14 (osobno od no-clipa)");
+    T.Add(MkRow("glturn", "Obrót Q/E", "stopnie na sekundę", C, SR, K_VALUE, 130, 20, 720)); St(ST_NEW, "nowe w build 14");
+    T.Add(MkRow("glmouse", "Mysz obraca postać", "", C, SR, K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 14");
+    T.Add(MkRow("glmsens", "Czułość myszy", "", C, SR, K_VALUE, 1.0f, 0.2f, 4.f, nullptr, true)); St(ST_NEW, "nowe w build 14");
+    T.Add(MkRow("glignore", "Wrogowie cię ignorują", "", C, SR, K_TOGGLE)); T.rows.back().on = true; St(ST_NEW, "nowe w build 14");
     CardTitle("Bohater");
     T.Add(MkRow("pspeed", "Szybkość bohatera", "tempo animacji = bieg, ataki, obrót", C, SR, K_SLIDER, 1.5f, 0.2f, 5, nullptr, true));
     St(ST_OK, "build 3: działa"); Icon(ICN_BOLT);

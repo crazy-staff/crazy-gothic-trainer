@@ -58,6 +58,9 @@ void Marvin_Tick(TickCtx& c) {
 void Marvin_Register() {
     {   // build 13: rescue tools (Narzędzia › Diagnostyka)
         const char* D = "Diagnostyka";
+        CardTitle("Zrzuty ekranu");
+        T.Add(MkRow("winkeyfix", "Zrzuty ekranu (Win+Shift+S)", "po naciśnięciu klawisza Windows gra na 8 s oddaje mysz i klawiaturę systemowi", "Narzędzia", D, K_TOGGLE));
+        T.rows.back().on = true; St(ST_NEW, "nowe w build 14 (UI-02)"); Icon(ICN_EYE);
         CardTitle("Ratunek");
         T.Add(MkRow("rescuedialog", "Zamknij zawieszoną rozmowę", "gdy okno dialogu nie reaguje", "Narzędzia", D, K_ACTION, 0, 0, 0, [](Row&) {
             void* h = Player(); if (!h) return;

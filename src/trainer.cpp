@@ -230,6 +230,14 @@ void Trainer::Tick() {
     if (menuOpen) escHold = true;
     else if (escHold && !(GetAsyncKeyState(VK_ESCAPE) & 0x8000)) escHold = false;
     bool wantK = !menuOpen && !escHold && !((On("noclip") || On("glide")) && inGame), wantM = !menuOpen;
+    // build 14 (UI-02): Win+Shift+S - the game holds mouse and keyboard through DirectInput, so the snipping overlay
+    // could not be used. A pressed Windows key hands both back to Windows for 8 s and frees the cursor.
+    static double winAt = -100;
+    if (((GetAsyncKeyState(VK_LWIN) | GetAsyncKeyState(VK_RWIN)) & 0x8000) && On("winkeyfix")) {
+        if (NowSec() - winAt > 8.0) { ClipCursor(nullptr); Log("klawisz Windows: oddaję mysz i klawiaturę systemowi na 8 s"); }
+        winAt = NowSec();
+    }
+    if (NowSec() - winAt < 8.0) { wantK = false; wantM = false; ClipCursor(nullptr); }
     HookDirectInput();
     g_blockInput = menuOpen || escHold;
     if (wantK != lastK || wantM != lastM || (menuOpen && NowSec() - lastInput > 0.03) || ((!wantK || !wantM) && NowSec() - lastInput > 0.25)) {
@@ -288,10 +296,12 @@ void Trainer::Init() {
         "kitthief", "trevive", "trob", "tremove", "tcast", "tfreeze", "tspellimm", "killallimm", "allvsme", "thanos", "thanosimm", "meteor",
         "meteorimm", "rain", "rainimm", "qsallies", "espskel", "sprint", "espbox", "espchestinv", "arena", "marvin", "espitm", "espnpc",
         "ncmouse", "allykeep", "peace", "killall", "tpto", "tpull", "noclip", "speedallies", "arenareward", "hud", "hudalpha", "hudsize",
-        "hudfps", "hudpos", "hudspeed", "hudtime", "hudworld", "hudstats", "hudtarget" };
-    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9-12)"; }
+        "hudfps", "hudpos", "hudspeed", "hudtime", "hudworld", "hudstats", "hudtarget",
+        "pvauto", "esptype", "rescuedialog", "rescuehero", "rescuetarget" };
+    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9-13)"; }
     struct Bad { const char* id; const char* why; };
-    static const Bad bad[] = { { "allynotalk", "build 11: po pierwszej rozmowie towarzysz wracał do rutyny; build 12: okno dialogu się blokowało; build 13: drużyna nie jest ruszana w czasie rozmowy + Ratunek › Zamknij rozmowę" } };
+    static const Bad bad[] = { { "allyfightbreak", "build 13: krwiopijca dalej leciał do przeciwnika; build 14: potwory też, cel = ty, 8 s nie widzi innych" },
+        { "allynotalk", "build 11: po pierwszej rozmowie towarzysz wracał do rutyny; build 12: okno dialogu się blokowało; build 13: drużyna nie jest ruszana w czasie rozmowy + Ratunek › Zamknij rozmowę" } };
     for (auto& b : bad) if (Row* r = Get(b.id)) { r->status = ST_BUG; r->hist = b.why; }
     tst::Load();   // tester history (also turns a crash from the previous session into a draft report)
 }

@@ -42,6 +42,7 @@ void TrackMainHero();
 
 // targets
 void* Target();                   // active saved target or focus npc
+extern void* g_targetOverride;
 void* Subject();                  // whom the Bohater pages edit: controlled body / Bezimienny / target
 void* SavedTarget();
 extern std::vector<void*> g_savedTargets;

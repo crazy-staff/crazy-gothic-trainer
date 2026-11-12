@@ -137,8 +137,70 @@ void Cap(std::vector<std::pair<float, Label>>& v, int maxN, Snapshot& s) {   // 
 void Esp_Hooks() {}
 void Esp_World() { g_npc.clear(); g_chests.clear(); g_chestInv.clear(); g_lastNpc = g_lastChest = 0; }
 
+// build 14: radar dots (independent of the ESP switches)
+void RadarTick(TickCtx& c) {
+    Snapshot& s = c.s;
+    void* h = c.hero; zVEC3 hp = Pos(h);
+    const float* m = &fld<float>(h, VOB_TRAFO);
+    float fl = std::sqrt(m[2] * m[2] + m[10] * m[10]); if (fl < 1e-3f) fl = 1;
+    s.rfx = m[2] / fl; s.rfz = m[10] / fl;
+    float rl = std::sqrt(m[0] * m[0] + m[8] * m[8]); if (rl < 1e-3f) rl = 1;
+    s.rrx = m[0] / rl; s.rrz = m[8] / rl;
+    float range = Val("radarrange") * 100.f;
+    int filter = (int)Val("radarfilter");
+    static std::unordered_map<void*, std::pair<double, bool>> hostile;   // attitude: script call, rare
+    double now = NowSec();
+    if (On("radarnpc")) ForEachNpc([&](void* n) {
+        if (n == h) return;
+        zVEC3 p = Pos(n); float dx = p.x - hp.x, dz = p.z - hp.z;
+        if (std::fabs(dx) > range || std::fabs(dz) > range) return;
+        bool dead = NpcDead(n);
+        if (dead && !On("radardead")) return;
+        bool ally = IsAlly(n), mon = IsMonster(n);
+        auto& hc = hostile[n];
+        if (now - hc.first > 1.0) { hc.first = now; hc.second = !dead && !ally && CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(h) }) == K.attHostile; }
+        bool host = hc.second;
+        if (filter == 1 && !host) return;
+        if (filter == 2 && mon) return;
+        if (filter == 3 && !mon) return;
+        if (filter == 4 && !ally) return;
+        RadarDot d{ dx, dz, dead ? g_espColors[4] : ally ? g_espColors[1] : host ? g_espColors[0] : mon ? g_espColors[3] : g_espColors[2], ally ? 3 : 0 };
+        d.name = U(NpcName(n));
+        char b[160]; std::string k = Npcs_Kind(n);
+        snprintf(b, sizeof b, "%s%s%s  ·  %d/%d HP  ·  %.0f m", GuildName(fld<int>(n, K.offGuild)).c_str(), k.empty() ? "" : "  ·  ", k.c_str(), Attr(n, 0), Attr(n, 1), std::sqrt(dx * dx + dz * dz) / 100.f);
+        d.info = b;
+        s.radar.push_back(std::move(d));
+    });
+    if (hostile.size() > 400) hostile.clear();
+    void* w = GameWorld();
+    if (On("radaritems")) ForEachList(fld<void*>(w, W_ITEMLIST), [&](void* it) {
+        zVEC3 p = Pos(it); float dx = p.x - hp.x, dz = p.z - hp.z;
+        if (std::fabs(dx) > range || std::fabs(dz) > range) return;
+        RadarDot d{ dx, dz, g_espColors[5], 1 };
+        d.name = ItemLine(it);
+        int v = K.offItemValue >= 0 ? fld<int>(it, K.offItemValue) : 0;
+        char b[64]; snprintf(b, sizeof b, "%d rudy  ·  %.0f m", v / 2, std::sqrt(dx * dx + dz * dz) / 100.f); d.info = b;
+        s.radar.push_back(std::move(d));
+    });
+    if (On("radarchests")) {
+        if (g_lastChest == 0 || now - g_lastChest > 30.0) {
+            g_lastChest = now; g_chests.clear();
+            ForEachList(fld<void*>(w, W_VOBLIST), [&](void* v) { if (*reinterpret_cast<uintptr_t*>(v) == VTBL_OCMOBCONTAINER) g_chests.push_back(v); });
+        }
+        for (void* v : g_chests) {
+            zVEC3 p = Pos(v); float dx = p.x - hp.x, dz = p.z - hp.z;
+            if (std::fabs(dx) > range || std::fabs(dz) > range) continue;
+            RadarDot d{ dx, dz, g_espColors[6], 2 };
+            d.name = "Skrzynia";
+            char b[40]; snprintf(b, sizeof b, "%.0f m", std::sqrt(dx * dx + dz * dz) / 100.f); d.info = b;
+            s.radar.push_back(std::move(d));
+        }
+    }
+    if (s.radar.size() > 300) s.radar.resize(300);
+}
 void Esp_Tick(TickCtx& c) {
     Snapshot& s = c.s;
+    if (On("radar")) RadarTick(c);
     s.espLines = On("espline");
     bool itm = On("espitm");
     bool npcOn = On("espnpc"), itemOn = itm && On("espitems"), chestOn = itm && On("espchest");
@@ -333,6 +395,24 @@ void Esp_Register() {
     St(ST_NEW, "build 6: nowa ramka 3D z kości");
     tog("espskel", "Szkielet", P, false, ST_NEW, "nowe w build 4 (do 40 m)");
     tog("espline", "Linie od dołu ekranu", P, false, ST_OK, "działa");
+
+    const char* RD = "Radar";
+    CardTitle("Radar");
+    tog("radar", "Radar", RD, false, ST_NEW, "nowe w build 14"); Icon(ICN_CROSSHAIR);
+    T.Add(MkRow("radarrange", "Zasięg", "m", C, RD, K_VALUE, 60, 10, 300)); St(ST_NEW, "nowe w build 14");
+    T.Add(MkRow("radarsize", "Rozmiar", "px", C, RD, K_VALUE, 240, 120, 600)); St(ST_NEW, "nowe w build 14");
+    T.Add(MkRow("radaralpha", "Krycie tła", "%", C, RD, K_VALUE, 75, 0, 100)); St(ST_NEW, "nowe w build 14");
+    T.Add(MkRow("radarpos", "Położenie", "", C, RD, K_VALUE, 0, 0, 3));
+    Opts({ { 0, "Prawy górny róg" }, { 1, "Lewy górny róg" }, { 2, "Prawy dolny róg" }, { 3, "Lewy dolny róg" } }); St(ST_NEW, "nowe w build 14");
+    tog("radarrot", "Obracaj z postacią", RD, true, ST_NEW, "nowe w build 14: przód zawsze u góry; wyłączone = północ u góry");
+    CardTitle("Co pokazywać");
+    tog("radarnpc", "Postacie", RD, true, ST_NEW, "nowe w build 14");
+    T.Add(MkRow("radarfilter", "Które postacie", "", C, RD, K_VALUE, 0, 0, 4));
+    Opts({ { 0, "Wszystkie" }, { 1, "Tylko wrogów" }, { 2, "Tylko ludzi" }, { 3, "Tylko potwory" }, { 4, "Tylko drużynę" } }); St(ST_NEW, "nowe w build 14");
+    tog("radardead", "Martwi", RD, false, ST_NEW, "nowe w build 14");
+    tog("radaritems", "Przedmioty", RD, false, ST_NEW, "nowe w build 14");
+    tog("radarchests", "Skrzynie", RD, false, ST_NEW, "nowe w build 14");
+    tog("radarnames", "Imiona przy najbliższych", RD, false, ST_NEW, "nowe w build 14: 6 najbliższych; najedź myszą (z otwartym menu) na kropkę = szczegóły");
 
     const char* I = "ESP przedmiotów";
     CardTitle("Główny wyłącznik");

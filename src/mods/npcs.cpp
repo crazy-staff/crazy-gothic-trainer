@@ -5,9 +5,13 @@
 #include <cmath>
 #include <cstdio>
 #include <unordered_map>
+#include <unordered_set>
+#include "../tester.h"
 
 using namespace g1;
 using namespace gx;
+std::string Npcs_Kind(void* n);
+bool Target_IsFrozen(void* n);
 std::string ToCp1250(const std::string& u);   // player.cpp
 
 namespace {
@@ -121,7 +125,10 @@ void Act_SpawnNpc(int sym, int count, int mode) {
         if (!T.spawnClone) {
             Sym* is = SymAt(sym);
             void* orig = is ? (void*)(uintptr_t)is->offset : nullptr;
-            if (IsNpc(orig) && !NpcDead(orig) && orig != Player() && orig != MainHero() && NpcInstance(orig) == sym) {
+            // build 14: the symbol can point at a deleted NPC (arena wolf removed, far monster deleted by the spawn
+            // manager) - that crashed "spawn WOLF". Only a living NPC from the world's list, and only humans (story
+            // characters); monsters are always created new.
+            if (NpcExists(orig) && IsNpc(orig) && !NpcDead(orig) && !IsMonster(orig) && orig != Player() && orig != MainHero() && NpcInstance(orig) == sym) {
                 zVEC3 p = SpawnPointNear(350.f, 450.f, base);
                 CallExt("Npc_ClearAIQueue", { Arg::Npc(orig) });
                 EnsureNpcAt(orig, p);
@@ -244,6 +251,7 @@ NearNpc Describe(void* n, void* h) {
     e.level = fld<int>(n, K.offLevel); e.dist = Dist(Pos(n), Pos(h)) / 100.f; e.ally = IsAlly(n); e.dead = NpcDead(n); e.monster = IsMonster(n);
     e.hostile = !e.dead && !e.ally && CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(h) }) == K.attHostile;
     auto it = g_pstate.find(n); e.pstate = it == g_pstate.end() ? 0 : it->second;
+    e.kind = Npcs_Kind(n); e.frozen = Target_IsFrozen(n) || g_frozenSpawn.count(n);
     return e;
 }
 void RefreshNearby(void* h) {
@@ -277,9 +285,9 @@ void KeepParty() {
                 bool wasReady = NpcReady(n) && VobInWorld(n);
                 if (wasReady && On("allyfightbreak")) CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
                 EnsureNpcAt(n, b);   // build 10: far allies are taken out of the world by the game - bring the real one back
-                // build 13: after the teleport either drop the fight and follow (default) or keep fighting (switch)
-                if (On("allyfightbreak") && NpcReady(n) && K.stFollow >= 0 && !IsMonster(n))
-                    CallExt("AI_StartState", { Arg::Npc(n), Arg::Int(K.stFollow), Arg::Int(1), Arg::Str("") });
+                // build 14: break the fight for monsters too (bloodfly flew back to its opponent): new target = you,
+                // follow state restarted, and for 8 s it does not notice anyone else (the old opponent included)
+                if (On("allyfightbreak")) Party_BreakFight(n);
             }
         }
         if (!NpcReady(n) || !VobInWorld(n)) continue;
@@ -303,6 +311,62 @@ void KeepParty() {
 }
 }
 
+// ---- build 14: the party never fights itself; neutral people leave a party monster alone ----------------
+std::unordered_map<void*, double> g_calmUntil;      // ally -> ignores everyone but you until then (fight break)
+std::unordered_set<void*> g_hostile;                 // npcs hostile to you (refreshed every 0.5 s while you have a party)
+std::unordered_map<void*, double> g_aggr;            // who hit you or a party member recently
+std::unordered_map<void*, double> g_calmAt;
+bool PartyEnemy(void* n) {
+    if (!n) return false;
+    if (g_hostile.count(n) || Arena_IsEnemy(n)) return true;
+    auto it = g_aggr.find(n); return it != g_aggr.end() && T.gameClock - it->second < 20.0;
+}
+void Party_BreakFight(void* n) {
+    g_calmUntil[n] = T.gameClock + 8.0;
+    Schedule(0.05, [n] {
+        if (!NpcAlive(n) || !NpcReady(n)) return;
+        void* h = Player();
+        CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
+        if (h) CallExt("Npc_SetTarget", { Arg::Npc(n), Arg::Npc(h) });
+        CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
+        if (IsMonster(n)) { if (K.stSummoned >= 0) CallExt("AI_StartState", { Arg::Npc(n), Arg::Int(K.stSummoned), Arg::Int(1), Arg::Str("") }); }
+        else if (K.stFollow >= 0) CallExt("AI_StartState", { Arg::Npc(n), Arg::Int(K.stFollow), Arg::Int(1), Arg::Str("") });
+    });
+}
+static void Calm(void* n) {
+    auto& t = g_calmAt[n];
+    if (T.gameClock - t < 0.5) return;
+    t = T.gameClock;
+    if (IsAlly(n)) { Party_BreakFight(n); return; }
+    Schedule(0.0, [n] { if (NpcAlive(n) && NpcReady(n)) Peace(n); });
+}
+bool Party_BlockDamage(void* victim, void* att) {
+    if (!IsNpc(att) || !IsNpc(victim) || att == victim || g_allies.empty()) return false;
+    void* h = Player(); void* mh = MainHero();
+    bool vA = IsAlly(victim), aA = IsAlly(att), vHero = victim == h || victim == mh, aHero = att == h || att == mh;
+    if (aHero) return false;                                      // your own hits always land
+    if (vA && aA) { Calm(att); return true; }                     // party members never fight each other
+    if (aA && !vHero && !PartyEnemy(victim)) { Calm(att); return true; }   // your wolf does not bite neutral people
+    if (vA && !aA && !PartyEnemy(att)) { Calm(att); return true; }        // neutral people leave your party alone
+    if ((vA || vHero) && !aA) g_aggr[att] = T.gameClock;          // whoever attacks you or the party is fair game
+    return false;
+}
+bool Party_IgnoreSense(void* self, void* vob) {
+    if (g_allies.empty() || !self || !vob || vob == self) return false;
+    void* h = Player();
+    if (vob == h || vob == MainHero()) return false;
+    if (!IsNpc(vob)) return false;
+    bool sA = IsAlly(self), vA = IsAlly(vob);
+    if (sA) {
+        auto it = g_calmUntil.find(self);
+        if (it != g_calmUntil.end() && T.gameClock < it->second) return true;   // fight break: sees only you
+        if (vA) return true;                                                     // party members do not notice each other
+        if (IsMonster(self) && !PartyEnemy(vob)) return true;                    // party monster ignores neutral people
+        return false;
+    }
+    if (vA && IsMonster(vob) && self != h && !PartyEnemy(self)) return true;    // neutral people ignore your monster
+    return false;
+}
 void Party_AllyHitPlayer(void* n) {
     static double last = 0;
     if (T.gameClock - last < 0.5) return;
@@ -314,6 +378,26 @@ void Party_AllyHitPlayer(void* n) {
         CallExt("Npc_SetAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
         auto it = g_pstate.find(n);
         if (it == g_pstate.end() || it->second == 0) MakeAlly(n); else Wait(n);
+    });
+}
+void Act_EnvCmd(uintptr_t p, int cmd) {
+    static const char* rowFor[] = { nullptr, "tpto", "tpull", nullptr, nullptr, nullptr, "tfreeze", "tkill", "trevive", "tremove" };
+    T.Queue("env:" + std::to_string(cmd), [p, cmd] {
+        void* n = (void*)p;
+        if (!NpcExists(n)) { T.Toast("Tej postaci już nie ma"); return; }
+        if (cmd >= 0 && cmd < 10 && rowFor[cmd]) {   // the Cel actions, run on this NPC instead of the target
+            if (Row* r = T.Get(rowFor[cmd])) if (r->act) { g_targetOverride = n; Guard("env:" + r->id, [&] { r->act(*r); }); g_targetOverride = nullptr; }
+            tst::Event("env", std::string(rowFor[cmd]) + " na " + InstName(n));
+            return;
+        }
+        switch (cmd) {
+        case 0: Act_SaveTargetPtr(p); break;
+        case 3: if (IsAlly(n)) { Act_PartyCmd(p, 5); } else if (!NpcDead(n)) { g_pstate[n] = 0; MakeAlly(n); T.Toast(U(NpcName(n)) + " dołącza do drużyny"); } break;
+        case 4: Peace(n); CallExt("Npc_SetAttitude", { Arg::Npc(n), Arg::Int(K.attNeutral) }); CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(K.attNeutral) });
+                T.Toast(U(NpcName(n)) + ": spokój"); break;
+        case 5: if (void* h = Player()) { Aggro(n, h); T.Toast(U(NpcName(n)) + " atakuje ciebie"); } break;
+        }
+        tst::Event("env", "akcja " + std::to_string(cmd) + " na " + InstName(n));
     });
 }
 void Act_PartyCmd(uintptr_t p, int cmd) {
@@ -422,7 +506,44 @@ void Npcs_Tick(TickCtx& c) {
     if (T.menuOpen) for (void* n : g_allies) if (NpcExists(n)) c.s.party.push_back(Describe(n, c.hero));
     g_spawnedNpcs.erase(std::remove_if(g_spawnedNpcs.begin(), g_spawnedNpcs.end(), [](const std::pair<void*, double>& e) { return !NpcExists(e.first); }), g_spawnedNpcs.end());
     if (T.menuOpen) for (auto& e : g_spawnedNpcs) c.s.spawned.push_back(Describe(e.first, c.hero));
+    // build 14: who is hostile to you (party fights only them); party members that vanished are logged
+    static double hostAt = 0;
+    if (!g_allies.empty() && !c.paused && T.gameClock - hostAt > 0.5) {
+        hostAt = T.gameClock;
+        std::unordered_set<void*> hs; void* hh = c.hero;
+        NpcsInRadius(6000.f, [&](void* n) { if (!IsAlly(n) && !NpcDead(n) && CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(hh) }) == K.attHostile) hs.insert(n); });
+        g_hostile.swap(hs);
+        for (auto it = g_aggr.begin(); it != g_aggr.end();) { if (T.gameClock - it->second > 30.0 || !NpcExists(it->first)) it = g_aggr.erase(it); else ++it; }
+        for (auto it = g_calmUntil.begin(); it != g_calmUntil.end();) { if (T.gameClock > it->second) it = g_calmUntil.erase(it); else ++it; }
+        static int sumAiv[4] = { -2, -2, -2, -2 };   // summoned-monster timers (names differ between script versions)
+        if (sumAiv[0] == -2) { const char* nm[] = { "AIV_MM_SUMMONTIME", "AIV_SUMMONTIME", "AIV_MM_SUMMONEDTIME", "AIV_SUMMONEDTIME" }; for (int i = 0; i < 4; i++) sumAiv[i] = ConstInt(nm[i], -1); }
+        for (void* n : g_allies) if (NpcExists(n) && IsMonster(n)) for (int a : sumAiv) if (a >= 0) SetNpcAivar(n, a, 0);
+    }
+    {   // log party members that disappeared (#build 14: wolf vanished when you flew far away)
+        static std::unordered_map<void*, std::string> known;
+        for (auto it = known.begin(); it != known.end();) {
+            if (!IsAlly(it->first)) { it = known.erase(it); continue; }
+            if (!NpcExists(it->first)) { Log("druzyna: %s znikna z listy postaci (usuniety przez gre)", it->second.c_str()); tst::Event("party", "zniknął: " + it->second); it = known.erase(it); continue; }
+            if (NpcDead(it->first)) { Log("druzyna: %s zginal", it->second.c_str()); tst::Event("party", "zginął: " + it->second); it = known.erase(it); continue; }
+            ++it;
+        }
+        for (void* n : g_allies) if (NpcAlive(n) && !known.count(n)) known[n] = InstName(n);
+    }
     if (On("allykeep") && !c.paused) Guard("row:allykeep", [] { KeepParty(); });
+    {   // build 14: Otoczenie - everybody around (party and dead included), only while that page is open
+        static std::vector<NearNpc> env; static double envAt = -10;
+        if (T.menuOpen && T.envWanted && NowSec() - envAt > 0.5) {
+            envAt = NowSec(); env.clear();
+            zVEC3 hp = Pos(c.hero); float r = std::max(5.f, Val("envradius")) * 100.f;
+            std::vector<std::pair<float, void*>> v;
+            ForEachNpc([&](void* n) { if (n != c.hero && n != MainHero()) { float d = Dist(Pos(n), hp); if (d <= r) v.push_back({ d, n }); } });
+            std::sort(v.begin(), v.end(), [](auto& a, auto& b) { return a.first < b.first; });
+            if (v.size() > 80) v.resize(80);
+            for (auto& e : v) env.push_back(Describe(e.second, c.hero));
+        }
+        T.envWanted = false;
+        if (T.menuOpen) c.s.env = env;
+    }
     // build 13: "wait" holds the exact spot. Routine is off; every 0.5 s: not fighting and moved > 1.2 m -> back
     // to the spot and facing; nothing queued -> a long AI_Wait. Never during dialogues, never frozen (can fight).
     static double waitCheck = 0;
@@ -487,5 +608,8 @@ void Npcs_Register() {
     T.Add(MkRow("allyfightbreak", "Po teleporcie przerywa walkę", "towarzysz przeniesiony do ciebie idzie za tobą zamiast wracać do przeciwnika", C, D, K_TOGGLE));
     T.rows.back().on = true; St(ST_NEW, "nowe w build 13");
     T.Add(MkRow("allykeepdist", "Przenieś z odległości", "m", C, D, K_VALUE, 30, 10, 150)); St(ST_NEW, "nowe w build 7");
+    CardTitle("Otoczenie");
+    T.Add(MkRow("envradius", "Promień", "m - kogo pokazuje lista Otoczenie", C, "Otoczenie", K_VALUE, 30, 5, 150)); St(ST_NEW, "nowe w build 14");
+    CardTitle("Zachowanie drużyny");
     T.Add(MkRow("allyradius", "Promień listy wyboru", "m", C, D, K_VALUE, 30, 5, 150)); St(ST_NEW, "nowe w build 4");
 }

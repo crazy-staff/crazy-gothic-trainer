@@ -28,6 +28,9 @@ extern const char* kRainFx[RAIN_FX_COUNT];
 extern const char* kRainNames[RAIN_FX_COUNT];
 void SpellOn(void* target, const char* fx, int dmg, void* killer = nullptr);
 void Party_AllyHitPlayer(void* npc);
+void Party_BreakFight(void* npc);                 // build 14: drop the fight, follow you, ignore others 8 s
+bool Party_BlockDamage(void* victim, void* att);  // build 14: party never fights itself / neutral people
+bool Party_IgnoreSense(void* self, void* vob);    // build 14: perception filter for the same
 extern const char* kTSpellNames[];
 extern const int kTSpellCount;
 void MakeMortal(void* npc);   // clear script immortality and 'immune' protections

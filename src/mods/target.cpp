@@ -116,6 +116,7 @@ void Act_Unswap() {
 }
 
 void Target_Hooks() {}
+bool Target_IsFrozen(void* n) { return g_tFrozen.count(n) != 0; }
 void Target_World() { g_info.clear(); g_tFrozen.clear(); g_heroRef = nullptr; /* old world's objects are gone */ }
 void Target_Tick(TickCtx& c) {
     Snapshot& s = c.s;

@@ -332,6 +332,8 @@ bool TraceRay(const zVEC3& start, const zVEC3& ray, int flags, TraceHit& out) {
     out.poly = fld<void*>(w, 0x40);
     const float* f = &fld<float>(w, 0x44);
     out.pos = { f[0], f[1], f[2] };
+    const float* nn = &fld<float>(w, 0x50);   // zTTraceRayReport::foundPolyNormal (Ikarus zCWorld.d)
+    out.normal = (flags & TR_POLY_NORMAL) ? zVEC3{ nn[0], nn[1], nn[2] } : zVEC3{ 0, 1, 0 };
     out.water = false;
     if (out.poly) {
         void* mat = fld<void*>(out.poly, 0x18);

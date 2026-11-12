@@ -47,10 +47,10 @@ struct Sec { const char* name; const char* icon; std::vector<const char*> subs; 
 const std::vector<Sec> kSecs = {
     { "Postać", ICN_USER, { "Informacje", "Wygląd", "Cheaty", "Ruch" } },
     { "Ekwipunek", ICN_BAG, { "Spawner", "Zestawy" } },
-    { "Postacie", ICN_USERS, { "Cel", "Drużyna", "Spawner" } },
+    { "Postacie", ICN_USERS, { "Cel", "Drużyna", "Otoczenie", "Spawner" } },
     { "Fun", ICN_FIRE, { "Walka", "Magia", "Chaos" } },
     { "Świat", ICN_MAP, { "Czas i fabuła", "Teleport" } },
-    { "Wizualia", ICN_EYE, { "ESP postaci", "ESP przedmiotów", "Kolory" } },
+    { "Wizualia", ICN_EYE, { "ESP postaci", "ESP przedmiotów", "Radar", "Kolory" } },
     { "Narzędzia", ICN_TERMINAL, { "Konsola", "Nakładka", "Kompendium", "Diagnostyka" } },
 };
 int curSec = 0, curSub = 0; bool cfgPage = false;
@@ -547,7 +547,7 @@ void TicketFlag(const char* target, ImVec2 p) {
     if (h) Tip("Zgłoś problem / pomysł: %s", target);
     if (c) OpenTicketFor(target, 2);
 }
-struct CardSpec { std::string title; std::vector<Row*> rows; std::function<float(float, float, float)> custom; float customH = 0; bool full = false; };
+struct CardSpec { std::string title; std::vector<Row*> rows; std::function<float(float, float, float)> custom; float customH = 0; bool full = false; Row* headRow = nullptr; };
 float CardHeight(const CardSpec& c) {
     float h = (c.title.empty() ? 0 : 44 * S) + PAD * S;
     for (auto* r : c.rows) h += RowH(*r);
@@ -560,6 +560,14 @@ void DrawCard(CardSpec& c, float x, float y, float w) {
     if (!c.title.empty()) {
         float tr = x + w - 12 * S;
         if (T.testerMode) { tr -= 26 * S; TicketFlag(("karta:" + c.title).c_str(), ImVec2(x + w - 34 * S, y + 12 * S)); }
+        if (c.headRow) {   // build 14: one-click action of the card as a button in its header
+            float bw = ButtonW(c.headRow->name.c_str());
+            tr -= bw + 8 * S;
+            ImGui::PushID(c.headRow->id.c_str());
+            if (Button("##hb", c.headRow->name.c_str(), ImVec2(tr + 8 * S, y + (44 * S - BtnH()) * 0.5f), true)) ApplyRow(*c.headRow);
+            ImGui::PopID();
+            tr -= 8 * S;
+        }
         TextClip(ImVec2(x + 18 * S, y + 14 * S), fBold, C_TEXT, c.title, tr);
         yy = y + 44 * S;
         DL()->AddLine(ImVec2(x + 18 * S, yy - 1), ImVec2(x + w - 18 * S, yy - 1), U32(C_LINE));
@@ -1326,6 +1334,70 @@ void PartyPage(const Snapshot& s, float w) {
         ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + rh + 4 * S)); ImGui::Dummy(ImVec2(w, 0));
     }
 }
+// ---- Postacie / Otoczenie (build 14): everybody around you, with the Cel actions on each of them
+int envFilter = 0; char envSearch[64] = "";
+void EnvPage(const Snapshot& s, float w) {
+    T.envWanted = true;
+    BeginPanel("##envp", nullptr, w);
+    InputBox("##esearch", envSearch, sizeof envSearch, "Szukaj po imieniu, gildii albo ID...", w * 0.36f);
+    ImGui::SameLine();
+    const char* fl[] = { "Wszyscy", "Ludzie", "Potwory", "Wrodzy", "Drużyna", "Zrespione", "Martwi" };
+    for (int k = 0; k < 7; k++) if (Chip(fl[k], envFilter == k)) envFilter = k;
+    ImGui::NewLine();
+    auto pass = [&](const NearNpc& n) {
+        if (envFilter != 6 && n.dead) return false;
+        if (envFilter == 1 && n.monster) return false;
+        if (envFilter == 2 && !n.monster) return false;
+        if (envFilter == 3 && !n.hostile) return false;
+        if (envFilter == 4 && !n.ally) return false;
+        if (envFilter == 5 && n.kind != "Zrespiony" && n.kind != "Arena") return false;
+        if (envFilter == 6 && !n.dead) return false;
+        return MatchQ(envSearch, n.name, n.guild) || MatchQ(envSearch, n.inst, n.kind);
+    };
+    int vis = 0; for (auto& n : s.env) if (pass(n)) vis++;
+    PF(fSmall); ImGui::TextColored(C_DIM, "%d postaci w promieniu %.0f m (zmienisz w karcie Otoczenie), %d pasuje do filtra. Najedź na ikonę, żeby zobaczyć akcję.",
+                                   (int)s.env.size(), gx::Val("envradius"), vis); ImGui::PopFont();
+    EndPanel();
+    struct Act { int cmd; const char* icon; const char* tip; const ImVec4* col; };
+    float h = 58 * S, bs = 30 * S;
+    int i = 0;
+    for (auto& n : s.env) {
+        if (!pass(n)) continue;
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        ListRowBg(p, w, h, i++);
+        ImGui::PushID((int)(n.ptr & 0x7FFFFFFF));
+        Avatar(ImVec2(p.x + 12 * S + 20 * S, p.y + h * 0.5f), 22 * S, n.monster, n.ptr, n.inst);
+        std::vector<Act> acts = { { 0, ICN_BOOKMARK, "Ustaw jako cel (lista w zakładce Cel)", &C_ACC }, { 1, ICN_SIGNIN, "Teleportuj mnie do niego", &C_G_MOVE },
+                                  { 2, ICN_MAGNET, "Przyciągnij do mnie", &C_G_MOVE } };
+        if (!n.dead) {
+            acts.push_back(n.ally ? Act{ 3, "\xef\x88\xb5", "Wyrzuć z drużyny", &C_G_ATK } : Act{ 3, "\xef\x88\xb4", "Dodaj do drużyny", &C_G_OTHER });
+            acts.push_back({ 4, ICN_HEART, "Uspokój (neutralny wobec ciebie)", &C_G_OTHER });
+            acts.push_back({ 5, ICN_CROSSHAIR, "Niech cię zaatakuje", &C_G_ATK });
+            acts.push_back({ 6, ICN_SNOW, n.frozen ? "Odmroź" : "Zamroź", &C_G_OTHER });
+            acts.push_back({ 7, ICN_KILL, "Zabij", &C_G_ATK });
+        } else acts.push_back({ 8, ICN_REFRESH, "Ożyw", &C_G_OTHER });
+        acts.push_back({ 9, ICN_TRASH, "Usuń ze świata", &C_G_ATK });
+        float bx = p.x + w - 12 * S - acts.size() * (bs + 5 * S) + 5 * S;
+        float tx = p.x + 62 * S;
+        float infoR = bx - 130 * S;
+        std::string nm = n.name + (n.dead ? "  (martwy)" : "") + (n.frozen ? "  (zamrożony)" : "");
+        TextClip(ImVec2(tx, p.y + 9 * S), fBold, n.dead ? C_DIM : n.ally ? C_ON : n.hostile ? C_ST_CRASH : C_TEXT, nm, infoR);
+        char b[260];
+        snprintf(b, sizeof b, "%s%s%s  ·  %s  ·  poziom %d  ·  %.0f m  ·  %s", n.kind.empty() ? "" : "[", n.kind.c_str(), n.kind.empty() ? "" : "]  ·  ",
+                 n.guild.c_str(), n.level, n.dist, n.inst.c_str());
+        TextClip(ImVec2(tx, p.y + 32 * S), fSmall, C_DIM, b, infoR);
+        HpBar(infoR + 10 * S, bx - 16 * S, p.y + h * 0.5f, n.hp, n.hpmax, C_HP, 5);
+        if (ImGui::IsMouseHoveringRect(ImVec2(infoR, p.y), ImVec2(bx - 10 * S, p.y + h))) Tip("%d / %d HP", n.hp, n.hpmax);
+        for (size_t k = 0; k < acts.size(); k++) {
+            ImGui::PushID((int)k);
+            if (IconButton("##ea", acts[k].icon, acts[k].tip, ImVec2(bx + k * (bs + 5 * S), p.y + (h - bs) * 0.5f), bs, C_TEXT, false, acts[k].col)) Act_EnvCmd(n.ptr, acts[k].cmd);
+            ImGui::PopID();
+        }
+        ImGui::PopID();
+        ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 4 * S)); ImGui::Dummy(ImVec2(w, 0));
+    }
+    if (vis == 0) { PF(fSmall); ImGui::TextColored(C_DIM, "Nikogo w pobliżu dla tego filtra."); ImGui::PopFont(); }
+}
 // ---- spell checklists (part of "Deszcz zaklęć" / "Magia na celu" cards)
 float SpellList(float x, float y, float w, bool draw, const char* rowId, const char* const* names, int n, const char* title) {
     float rowH = 32 * S;
@@ -1809,7 +1881,7 @@ std::set<std::string> g_tOpen;                     // expanded history in the ch
 struct KnownIssue { const char* id; const char* text; Status st = ST_NEW; };
 const KnownIssue kIssues[] = {
     { "UI-01", "Scroll kółkiem myszy w menu", ST_OK },
-    { "UI-02", "Win+Shift+S / zrzut ekranu przy włączonej grze", ST_BUG },
+    { "UI-02", "Win+Shift+S / zrzut ekranu przy włączonej grze", ST_NEW },
     { "UI-03", "Esc w menu trainera tylko zamyka menu", ST_OK },
     { "UI-04", "ESP i napisy chowają się w menu pauzy gry (Esc)", ST_OK },
     { "UI-05", "Suwaki: wartość nad suwakiem, równe wyrównanie", ST_OK },
@@ -1819,7 +1891,7 @@ const KnownIssue kIssues[] = {
     { "UI-09", "Okno aktywnych modów: wyłączone / tylko w menu / w grze", ST_OK },
     { "UI-10", "Lista skrótów klawiszowych", ST_OK },
     { "UI-11", "Teleport: filtr regionu i rodzaju miejsca", ST_OK },
-    { "UI-12", "Wygląd: przycisk Zastosuj (bez podglądu na klonie)", ST_BUG },
+    { "UI-12", "Wygląd: podgląd na klonie + przycisk Zastosuj", ST_OK },
     { "UI-13", "Pisanie w polach tekstowych nie steruje grą", ST_OK },
     { "UI-14", "Wydajność: przycięcia / spadki FPS przy włączonym trainerze", ST_OK },
     { "UI-15", "Okno testera: checklista, zgłoszenia, wysyłanie", ST_OK },
@@ -2329,46 +2401,226 @@ void TestsWindow(float dispW) {
 }
 
 // ------------------------------------------------------------------ overlays
+// build 14: one label (shared by the in-game overlay and the previews in Wizualia)
+void DrawLabel(ImDrawList* bg, const Label& L, bool lines, float ox, float oy, float W, float H) {
+    auto P = [&](float x, float y) { return ImVec2(ox + x * W, oy + y * H); };
+    ImVec2 a = P(L.x, L.y);
+    ImU32 col = L.color;
+    for (size_t i = 0; i + 3 < L.bones.size(); i += 4) bg->AddLine(P(L.bones[i], L.bones[i + 1]), P(L.bones[i + 2], L.bones[i + 3]), col, 1.4f * S);
+    if (L.box == 1) bg->AddRect(P(L.bx0, L.by0), P(L.bx1, L.by1), col, 3 * S, 1.5f * S);
+    if (L.box == 2) {
+        static const int E[12][2] = { {0,1},{0,2},{0,4},{1,3},{1,5},{2,3},{2,6},{3,7},{4,5},{4,6},{5,7},{6,7} };
+        for (auto& e : E) bg->AddLine(P(L.corners[e[0] * 2], L.corners[e[0] * 2 + 1]), P(L.corners[e[1] * 2], L.corners[e[1] * 2 + 1]), col, 1.3f * S);
+    }
+    if (lines && L.type == 0) {   // to the box, else to the skeleton's feet, else to the label
+        ImVec2 e = L.box ? P((L.bx0 + L.bx1) * 0.5f, L.by1) : (L.anchor && !L.bones.empty() ? P(L.ax, L.ay) : a);
+        bg->AddLine(ImVec2(ox + W * 0.5f, oy + H), e, (col & 0x00FFFFFF) | 0x90000000, 1.2f * S);
+    }
+    if (L.text.empty() && L.sub.empty() && L.hp < 0 && L.lines.empty()) return;
+    ImVec2 ts = L.text.empty() ? ImVec2(0, 0) : ImGui::CalcTextSize(L.text.c_str());
+    ImVec2 ss = L.sub.empty() ? ImVec2(0, 0) : ImGui::CalcTextSize(L.sub.c_str());
+    float bw = std::max(ts.x, ss.x);
+    for (auto& l : L.lines) bw = std::max(bw, ImGui::CalcTextSize(l.c_str()).x);
+    bw += 16 * S;
+    float lh = ImGui::GetTextLineHeight();
+    float bh = ts.y + ss.y + (L.hp >= 0 ? 7 * S : 0) + L.lines.size() * lh + 10 * S;
+    float topY = (L.box ? oy + L.by0 * H : a.y) - bh - 4 * S;
+    ImVec2 p0(a.x - bw * 0.5f, topY);
+    bg->AddRectFilled(p0, ImVec2(p0.x + bw, p0.y + bh), IM_COL32(14, 13, 22, 190), R_BTN());
+    float y = p0.y + 5 * S;
+    if (!L.text.empty()) { bg->AddText(ImVec2(a.x - ts.x * 0.5f, y), col, L.text.c_str()); y += ts.y; }
+    if (!L.sub.empty()) { bg->AddText(ImVec2(a.x - ss.x * 0.5f, y), IM_COL32(170, 170, 190, 255), L.sub.c_str()); y += ss.y; }
+    if (L.hp >= 0) {
+        float x0 = p0.x + 8 * S, x1 = p0.x + bw - 8 * S;
+        bg->AddRectFilled(ImVec2(x0, y + 2 * S), ImVec2(x1, y + 5 * S), IM_COL32(60, 60, 80, 255), 2 * S);
+        bg->AddRectFilled(ImVec2(x0, y + 2 * S), ImVec2(x0 + (x1 - x0) * L.hp, y + 5 * S), U32(C_ON), 2 * S);
+        y += 7 * S;
+    }
+    for (auto& l : L.lines) { bg->AddText(ImVec2(p0.x + 8 * S, y), IM_COL32(210, 210, 225, 255), l.c_str()); y += lh; }
+}
 void DrawEsp(const Snapshot& s, float W, float H) {
     ImDrawList* bg = ImGui::GetBackgroundDrawList();
     PF(fSmall);
-    for (auto& L : s.labels) {
-        ImVec2 a(L.x * W, L.y * H);
-        ImU32 col = L.color;
-        for (size_t i = 0; i + 3 < L.bones.size(); i += 4)
-            bg->AddLine(ImVec2(L.bones[i] * W, L.bones[i + 1] * H), ImVec2(L.bones[i + 2] * W, L.bones[i + 3] * H), col, 1.4f * S);
-        if (L.box == 1) bg->AddRect(ImVec2(L.bx0 * W, L.by0 * H), ImVec2(L.bx1 * W, L.by1 * H), col, 3 * S, 1.5f * S);
-        if (L.box == 2) {
-            static const int E[12][2] = { {0,1},{0,2},{0,4},{1,3},{1,5},{2,3},{2,6},{3,7},{4,5},{4,6},{5,7},{6,7} };
-            for (auto& e : E) bg->AddLine(ImVec2(L.corners[e[0] * 2] * W, L.corners[e[0] * 2 + 1] * H), ImVec2(L.corners[e[1] * 2] * W, L.corners[e[1] * 2 + 1] * H), col, 1.3f * S);
+    for (auto& L : s.labels) DrawLabel(bg, L, s.espLines, 0, 0, W, H);
+    ImGui::PopFont();
+}
+// build 14: radar. Dots are relative to the hero in world units; with "rotate" the hero's forward is up.
+void DrawRadar(ImDrawList* dl, ImVec2 c, float R, const std::vector<RadarDot>& dots, float fx, float fz, float rx, float rz, bool tips) {
+    float range = std::max(1.f, gx::Val("radarrange") * 100.f);
+    bool rot = gx::On("radarrot");
+    float alpha = std::max(0.f, std::min(1.f, gx::Val("radaralpha") / 100.f));
+    dl->AddCircleFilled(c, R, IM_COL32(14, 13, 22, (int)(alpha * 230)), 64);
+    dl->AddCircle(c, R, U32(C_ACC, 0.55f), 64, 1.6f * S);
+    for (float k : { 0.333f, 0.666f }) dl->AddCircle(c, R * k, IM_COL32(255, 255, 255, 28), 48, 1.f);
+    dl->AddLine(ImVec2(c.x - R, c.y), ImVec2(c.x + R, c.y), IM_COL32(255, 255, 255, 22));
+    dl->AddLine(ImVec2(c.x, c.y - R), ImVec2(c.x, c.y + R), IM_COL32(255, 255, 255, 22));
+    auto map = [&](float dx, float dz) {
+        float sx, sy;
+        if (rot) { sx = dx * rx + dz * rz; sy = -(dx * fx + dz * fz); } else { sx = dx; sy = -dz; }
+        return ImVec2(c.x + sx / range * R, c.y + sy / range * R);
+    };
+    if (!rot) {   // north marker
+        dl->AddText(fSmall, fSmall->LegacySize, ImVec2(c.x - 4 * S, c.y - R + 3 * S), IM_COL32(200, 200, 220, 160), "N");
+    }
+    // nearest npcs get names
+    std::vector<std::pair<float, size_t>> nearDots;
+    for (size_t i = 0; i < dots.size(); i++) if (dots[i].type == 0 || dots[i].type == 3) nearDots.push_back({ dots[i].x * dots[i].x + dots[i].z * dots[i].z, i });
+    std::sort(nearDots.begin(), nearDots.end());
+    std::set<size_t> named; if (gx::On("radarnames")) for (size_t k = 0; k < nearDots.size() && k < 6; k++) named.insert(nearDots[k].second);
+    ImVec2 mouse = ImGui::GetIO().MousePos; int best = -1; float bestD = 9 * S * 9 * S;
+    for (size_t i = 0; i < dots.size(); i++) {
+        const RadarDot& d = dots[i];
+        if (d.x * d.x + d.z * d.z > range * range) continue;
+        ImVec2 p = map(d.x, d.z);
+        ImU32 col = (d.color & 0x00FFFFFF) | 0xFF000000;
+        if (d.type == 1) dl->AddRectFilled(ImVec2(p.x - 2.2f * S, p.y - 2.2f * S), ImVec2(p.x + 2.2f * S, p.y + 2.2f * S), col);
+        else if (d.type == 2) { dl->AddQuadFilled(ImVec2(p.x, p.y - 4 * S), ImVec2(p.x + 4 * S, p.y), ImVec2(p.x, p.y + 4 * S), ImVec2(p.x - 4 * S, p.y), col); }
+        else { dl->AddCircleFilled(p, (d.type == 3 ? 4.2f : 3.6f) * S, col, 12); if (d.type == 3) dl->AddCircle(p, 6.5f * S, col, 16, 1.2f * S); }
+        if (named.count(i)) dl->AddText(fSmall, fSmall->LegacySize * 0.85f, ImVec2(p.x + 6 * S, p.y - 7 * S), IM_COL32(220, 220, 235, 220), d.name.c_str());
+        float mx = mouse.x - p.x, my = mouse.y - p.y;
+        if (tips && mx * mx + my * my < bestD) { bestD = mx * mx + my * my; best = (int)i; }
+    }
+    // hero arrow
+    float ax = 0, ay = -1;
+    if (!rot) { ax = fx; ay = -fz; }
+    float px = -ay, py = ax;
+    dl->AddTriangleFilled(ImVec2(c.x + ax * 8 * S, c.y + ay * 8 * S), ImVec2(c.x - ax * 5 * S + px * 5 * S, c.y - ay * 5 * S + py * 5 * S),
+                          ImVec2(c.x - ax * 5 * S - px * 5 * S, c.y - ay * 5 * S - py * 5 * S), U32(C_TEXT));
+    char rl[24]; snprintf(rl, sizeof rl, "%.0f m", range / 100.f);
+    dl->AddText(fSmall, fSmall->LegacySize * 0.85f, ImVec2(c.x - TextW(rl, fSmall) * 0.42f, c.y + R - 16 * S), IM_COL32(200, 200, 220, 150), rl);
+    if (best >= 0) { ImGui::SetTooltip("%s\n%s", dots[best].name.c_str(), dots[best].info.c_str()); }
+}
+void RadarOverlay(const Snapshot& s, float W, float H, bool menuOpen) {
+    float R = std::max(60.f, gx::Val("radarsize") * 0.5f) * S;
+    int pos = (int)gx::Val("radarpos");
+    float m = 24 * S;
+    ImVec2 c((pos == 1 || pos == 3) ? m + R : W - m - R, (pos >= 2) ? H - m - R : m + R + (pos == 0 ? 0 : 0));
+    PF(fSmall);
+    DrawRadar(ImGui::GetBackgroundDrawList(), c, R, s.radar, s.rfx, s.rfz, s.rrx, s.rrz, menuOpen);
+    ImGui::PopFont();
+}
+// ---- build 14: previews in every Wizualia tab (fake characters drawn with the current settings)
+void PreviewScene(float x, float y, float w, float h) {
+    DL()->AddRectFilledMultiColor(ImVec2(x, y), ImVec2(x + w, y + h), IM_COL32(40, 46, 62, 255), IM_COL32(40, 46, 62, 255), IM_COL32(26, 30, 26, 255), IM_COL32(26, 30, 26, 255));
+    DL()->AddRectFilled(ImVec2(x, y + h * 0.78f), ImVec2(x + w, y + h), IM_COL32(34, 40, 30, 255));
+}
+Label FakeNpc(float cx, float footY, float hgt, float aspect, unsigned col, const char* name, const char* guild, const char* kind, float dist, int hp, int hpmax, bool eq) {
+    Label L{}; L.type = 0; L.color = col; L.hp = -1;
+    float hw = hgt * 0.22f / aspect, top = footY - hgt;
+    L.x = cx; L.y = top - hgt * 0.04f;
+    bool skel = gx::On("espskel"), box = gx::On("espbox"); int mode = (int)gx::Val("espboxmode");
+    // stick figure (normalized to the preview rect)
+    float hx = cx, hy = top + hgt * 0.08f, nk = top + hgt * 0.17f, hip = top + hgt * 0.52f;
+    float pts[][4] = { { hx, hy, hx, nk }, { hx, nk, hx, hip }, { hx, nk, hx - hw * 0.8f, top + hgt * 0.36f }, { hx - hw * 0.8f, top + hgt * 0.36f, hx - hw * 0.9f, top + hgt * 0.52f },
+                       { hx, nk, hx + hw * 0.8f, top + hgt * 0.36f }, { hx + hw * 0.8f, top + hgt * 0.36f, hx + hw * 0.95f, top + hgt * 0.5f },
+                       { hx, hip, hx - hw * 0.45f, top + hgt * 0.76f }, { hx - hw * 0.45f, top + hgt * 0.76f, hx - hw * 0.5f, footY },
+                       { hx, hip, hx + hw * 0.45f, top + hgt * 0.76f }, { hx + hw * 0.45f, top + hgt * 0.76f, hx + hw * 0.55f, footY } };
+    if (skel) for (auto& b : pts) for (float v : b) L.bones.push_back(v);
+    L.anchor = true; L.ax = cx; L.ay = footY;
+    if (box) {
+        if (mode == 2 || mode == 4) {
+            float d = hw * 0.55f, dy = hgt * 0.05f;
+            float x0 = cx - hw, x1 = cx + hw, y0 = top - hgt * 0.03f, y1 = footY + hgt * 0.01f;
+            for (int i = 0; i < 8; i++) {
+                float px = (i & 1) ? x1 : x0, py = (i & 2) ? y0 : y1;
+                if (i & 4) { px += d; py -= dy; }
+                L.corners[i * 2] = px; L.corners[i * 2 + 1] = py;
+            }
+            L.box = 2; L.bx0 = x0; L.by0 = y0 - dy; L.bx1 = x1 + d; L.by1 = y1;
+        } else {
+            float pad = mode == 1 ? 0.f : hw * 0.15f;
+            L.box = 1; L.bx0 = cx - hw - pad; L.bx1 = cx + hw + pad; L.by0 = top - hgt * 0.03f; L.by1 = footY + hgt * 0.01f;
         }
-        if (s.espLines && L.type == 0) {   // to the box, else to the skeleton's feet, else to the label
-            ImVec2 e = L.box ? ImVec2((L.bx0 + L.bx1) * 0.5f * W, L.by1 * H) : (L.anchor && !L.bones.empty() ? ImVec2(L.ax * W, L.ay * H) : a);
-            bg->AddLine(ImVec2(W * 0.5f, H), e, (col & 0x00FFFFFF) | 0x90000000, 1.2f * S);
+    }
+    if (gx::On("espname")) L.text = name;
+    std::string sub; auto add = [&](const std::string& t) { if (!sub.empty()) sub += "  ·  "; sub += t; };
+    if (gx::On("espguild")) add(guild);
+    if (gx::On("esptype") && kind && *kind) add(std::string("[") + kind + "]");
+    if (gx::On("espdist")) { char b[16]; snprintf(b, sizeof b, "%.0fm", dist); add(b); }
+    if (gx::On("esphpnum")) { char b[32]; snprintf(b, sizeof b, "%d/%d HP", hp, hpmax); add(b); }
+    L.sub = sub;
+    if (gx::On("esphp")) L.hp = (float)hp / hpmax;
+    if (eq && gx::On("espeq")) L.lines = { "[założone] Ciężka zbroja strażnika", "Ciężki miecz", "Mikstura leczenia x3" };
+    return L;
+}
+float EspNpcPreview(float x, float y, float cw, bool draw) {
+    float h = 250 * S;
+    if (!draw) return h;
+    float px = x + 18 * S, pw = cw - 36 * S, py = y + 8 * S, ph = h - 16 * S;
+    PreviewScene(px, py, pw, ph);
+    DL()->PushClipRect(ImVec2(px, py), ImVec2(px + pw, py + ph), true);
+    if (gx::On("espnpc")) {
+        float aspect = pw / ph;
+        PF(fSmall);
+        Label a = FakeNpc(0.3f, 0.9f, 0.5f, aspect, g_espColors[0], "Strażnik", "Strażnicy", "", 12, 140, 200, true);
+        Label b = FakeNpc(0.74f, 0.86f, 0.36f, aspect, g_espColors[1], "Wilk", "Wilki", "Drużyna", 6, 60, 60, false);
+        DrawLabel(DL(), a, gx::On("espline"), px, py, pw, ph);
+        DrawLabel(DL(), b, gx::On("espline"), px, py, pw, ph);
+        ImGui::PopFont();
+    } else Text(ImVec2(px + 14 * S, py + 12 * S), fSmall, C_DIM, "ESP postaci jest wyłączone");
+    DL()->PopClipRect();
+    return h;
+}
+float EspItemPreview(float x, float y, float cw, bool draw) {
+    float h = 210 * S;
+    if (!draw) return h;
+    float px = x + 18 * S, pw = cw - 36 * S, py = y + 8 * S, ph = h - 16 * S;
+    PreviewScene(px, py, pw, ph);
+    DL()->PushClipRect(ImVec2(px, py), ImVec2(px + pw, py + ph), true);
+    if (gx::On("espitm")) {
+        PF(fSmall);
+        if (gx::On("espitems")) {
+            Label L{}; L.type = 1; L.hp = -1; L.x = 0.3f; L.y = 0.85f; L.color = g_espColors[5]; L.text = "Miecz bojowy"; L.sub = "60 rudy  ·  7m";
+            DL()->AddRectFilled(ImVec2(px + pw * 0.3f - 10 * S, py + ph * 0.85f), ImVec2(px + pw * 0.3f + 10 * S, py + ph * 0.85f + 3 * S), IM_COL32(150, 150, 160, 255));
+            DrawLabel(DL(), L, false, px, py, pw, ph);
         }
-        if (L.text.empty() && L.sub.empty() && L.hp < 0 && L.lines.empty()) continue;
-        ImVec2 ts = L.text.empty() ? ImVec2(0, 0) : ImGui::CalcTextSize(L.text.c_str());
-        ImVec2 ss = L.sub.empty() ? ImVec2(0, 0) : ImGui::CalcTextSize(L.sub.c_str());
-        float bw = std::max(ts.x, ss.x);
-        for (auto& l : L.lines) bw = std::max(bw, ImGui::CalcTextSize(l.c_str()).x);
-        bw += 16 * S;
-        float lh = ImGui::GetTextLineHeight();
-        float bh = ts.y + ss.y + (L.hp >= 0 ? 7 * S : 0) + L.lines.size() * lh + 10 * S;
-        float topY = (L.box ? L.by0 * H : a.y) - bh - 4 * S;
-        ImVec2 p0(a.x - bw * 0.5f, topY);
-        bg->AddRectFilled(p0, ImVec2(p0.x + bw, p0.y + bh), IM_COL32(14, 13, 22, 190), R_BTN());
-        float y = p0.y + 5 * S;
-        if (!L.text.empty()) { bg->AddText(ImVec2(a.x - ts.x * 0.5f, y), col, L.text.c_str()); y += ts.y; }
-        if (!L.sub.empty()) { bg->AddText(ImVec2(a.x - ss.x * 0.5f, y), IM_COL32(170, 170, 190, 255), L.sub.c_str()); y += ss.y; }
-        if (L.hp >= 0) {
-            float x0 = p0.x + 8 * S, x1 = p0.x + bw - 8 * S;
-            bg->AddRectFilled(ImVec2(x0, y + 2 * S), ImVec2(x1, y + 5 * S), IM_COL32(60, 60, 80, 255), 2 * S);
-            bg->AddRectFilled(ImVec2(x0, y + 2 * S), ImVec2(x0 + (x1 - x0) * L.hp, y + 5 * S), U32(C_ON), 2 * S);
-            y += 7 * S;
+        if (gx::On("espchest")) {
+            float cxp = px + pw * 0.72f, cyp = py + ph * 0.86f;
+            DL()->AddRectFilled(ImVec2(cxp - 22 * S, cyp - 22 * S), ImVec2(cxp + 22 * S, cyp + 4 * S), IM_COL32(110, 78, 46, 255), 3 * S);
+            Label L{}; L.type = 2; L.hp = -1; L.x = 0.72f; L.y = 0.86f - 30 * S / ph; L.color = g_espColors[6]; L.text = "Skrzynia"; L.sub = "9m";
+            if (gx::On("espchestinv")) L.lines = { "Bryłka rudy x25", "Pochodnia x2", "Mikstura many" };
+            DrawLabel(DL(), L, false, px, py, pw, ph);
         }
-        for (auto& l : L.lines) { bg->AddText(ImVec2(p0.x + 8 * S, y), IM_COL32(210, 210, 225, 255), l.c_str()); y += lh; }
+        if (!gx::On("espitems") && !gx::On("espchest")) Text(ImVec2(px + 14 * S, py + 12 * S), fSmall, C_DIM, "Włącz przedmioty albo skrzynie");
+        ImGui::PopFont();
+    } else Text(ImVec2(px + 14 * S, py + 12 * S), fSmall, C_DIM, "ESP przedmiotów jest wyłączone");
+    DL()->PopClipRect();
+    return h;
+}
+float ColorsPreview(float x, float y, float cw, bool draw) {
+    float h = 120 * S;
+    if (!draw) return h;
+    static const char* names[7] = { "Wróg", "Drużyna", "Neutralny", "Potwór", "Martwy", "Przedmiot", "Skrzynia" };
+    float px = x + 18 * S, pw = cw - 36 * S, py = y + 8 * S, ph = h - 16 * S;
+    PreviewScene(px, py, pw, ph);
+    PF(fSmall);
+    for (int i = 0; i < 7; i++) {
+        Label L{}; L.type = 1; L.hp = -1; L.color = g_espColors[i]; L.text = names[i];
+        L.x = (i + 0.5f) / 7.f; L.y = 0.62f;
+        DrawLabel(DL(), L, false, px, py, pw, ph);
+        DL()->AddCircleFilled(ImVec2(px + L.x * pw, py + ph * 0.75f), 4 * S, g_espColors[i]);
     }
     ImGui::PopFont();
+    return h;
+}
+float RadarPreview(float x, float y, float cw, bool draw) {
+    float R = std::min(120.f * S, (cw - 36 * S) * 0.5f);
+    float h = R * 2 + 24 * S;
+    if (!draw) return h;
+    static std::vector<RadarDot> fake;
+    float rg = gx::Val("radarrange") * 100.f;
+    fake.clear();
+    auto add = [&](float fx2, float fz2, int col, int type, const char* n, const char* inf) { fake.push_back({ fx2 * rg, fz2 * rg, g_espColors[col], type, n, inf }); };
+    if (gx::On("radarnpc")) {
+        add(0.2f, 0.5f, 0, 0, "Wilk", "Wilki · 60/60 HP"); add(-0.4f, 0.3f, 2, 0, "Kopacz", "Kopacze · 40/40 HP"); add(0.6f, -0.2f, 3, 0, "Ścierwojad", "Potwory");
+        add(-0.1f, -0.15f, 1, 3, "Diego", "Drużyna"); if (gx::On("radardead")) add(0.45f, 0.62f, 4, 0, "Martwy kret", "");
+    }
+    if (gx::On("radaritems")) { add(-0.55f, -0.5f, 5, 1, "Miecz", ""); add(0.1f, 0.8f, 5, 1, "Mikstura", ""); }
+    if (gx::On("radarchests")) add(-0.7f, 0.1f, 6, 2, "Skrzynia", "");
+    PF(fSmall);
+    DrawRadar(DL(), ImVec2(x + cw * 0.5f, y + 12 * S + R), R, fake, 0, 1, 1, 0, true);
+    ImGui::PopFont();
+    return h;
 }
 // build 12: on-screen info window - coordinates, FPS, speed... each line switchable in Narzędzia › Nakładka
 void HudWindow(const Snapshot& s, bool menuOpen, float dispW) {
@@ -2592,6 +2844,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
     ImDrawList* bg = ImGui::GetBackgroundDrawList();
     if (live) {
         DrawEsp(s, dispW, dispH);
+        if (s.inGame && gx::On("radar")) RadarOverlay(s, dispW, dispH, menuOpen);
         std::vector<std::string> hud;
         if (s.paused) hud.push_back("PAUZA  ·  menu trainera");
         if (s.swapped) hud.push_back("OBCE CIAŁO  ·  powrót: menu (Insert) -> przycisk u góry");
@@ -2599,7 +2852,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         if (s.speed) { char b[48]; snprintf(b, sizeof b, "TEMPO ŚWIATA  x%.2f", s.speedVal); hud.push_back(b); }
         if (s.quicksilver) hud.push_back("QUICKSILVER");
         if (s.ghost) hud.push_back("TRYB DUCHA");
-        if (s.noclip) hud.push_back("NO-CLIP  ·  WASD  Q/E  Spacja/Ctrl  ·  Esc = wyłącz");
+        if (s.noclip) hud.push_back(gx::On("glide") ? "ŚLIZG  ·  WASD  Q/E  ·  Esc = wyłącz" : "NO-CLIP  ·  WASD  Q/E  Spacja/Ctrl  ·  Esc = wyłącz");
         float hy = 20 * S;
         PF(fBold);
         for (auto& t : hud) {
@@ -2736,6 +2989,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
                     return 108 * S;
                 };
                 cards.insert(cards.begin(), nm);
+                if (CardSpec* c = FindCard(cards, "Poziom umiejętności")) c->headRow = T.Get("alltal");
             }
             if (sub == "Wygląd") {
                 // build 11: no stand-in clone - the card shows the character's portrait and an always visible apply button
@@ -2781,6 +3035,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         else if (cat == "Ekwipunek" && sub == "Zestawy") { Masonry(cards, w); SetsPage(w); }
         else if (cat == "Postacie" && sub == "Spawner") { Masonry(cards, w); NpcSpawner(s, w); }
         else if (cat == "Postacie" && sub == "Drużyna") { Masonry(cards, w); PartyPage(s, w); }
+        else if (cat == "Postacie" && sub == "Otoczenie") { Masonry(cards, w); EnvPage(s, w); }
         else if (cat == "Fun" && sub == "Magia") {
             if (CardSpec* c = FindCard(cards, "Deszcz zaklęć")) {
                 c->customH = RainSpells(0, 0, 0, false);
@@ -2790,6 +3045,14 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         }
         else if (cat == "Świat" && sub == "Teleport") { Masonry(cards, w); TeleportPage(s, w); }
         else if (cat == "Wizualia") {
+            // build 14: every tab starts with a preview of what its settings draw
+            CardSpec pv{ "Podgląd", {}, nullptr, 0, true };
+            std::function<float(float, float, float, bool)> f;
+            if (sub == "ESP postaci") f = EspNpcPreview;
+            else if (sub == "ESP przedmiotów") f = EspItemPreview;
+            else if (sub == "Kolory") f = ColorsPreview;
+            else if (sub == "Radar") f = RadarPreview;
+            if (f) { pv.customH = f(0, 0, w, false); pv.custom = [f](float x, float y, float cw2) { return f(x, y, cw2, true); }; cards.insert(cards.begin(), pv); }
             if (sub == "Kolory") {
                 CardSpec col{ "Kolory", {}, nullptr, EspColors(0, 0, 0, false), false };
                 col.custom = [](float x, float y, float cw2) { return EspColors(x, y, cw2, true); };
