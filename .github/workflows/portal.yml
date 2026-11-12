@@ -1,0 +1,46 @@
+# Builds our portal image: upstream Quackback (pinned in portal/QUACKBACK_VERSION) + the docs route
+# (portal/patch - new files only, nothing upstream is edited) + the docs pages from docs/pages.
+# Image: ghcr.io/dawidseipold/gothic1-portal:latest and :<quackback version>-<short sha>
+name: Portal image
+on:
+  push:
+    branches: [main]
+    paths: ["portal/**", "docs/pages/**", ".github/workflows/portal.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: portal
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upstream Quackback
+        run: |
+          V=$(cat portal/QUACKBACK_VERSION | tr -d '[:space:]')
+          echo "QB=$V" >> $GITHUB_ENV
+          git clone -q --depth 1 --branch "$V" https://github.com/QuackbackIO/quackback.git upstream
+      - name: Apply patch + docs
+        run: |
+          cp -r portal/patch/. upstream/
+          node portal/build-manifest.mjs upstream
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: upstream
+          file: upstream/apps/web/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/dawidseipold/gothic1-portal:latest
+            ghcr.io/dawidseipold/gothic1-portal:${{ env.QB }}-${{ github.sha }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

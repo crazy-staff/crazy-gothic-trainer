@@ -1,0 +1,6 @@
+[
+  { "title": "Overview", "pages": ["index", "faq"] },
+  { "title": "Getting started", "pages": ["getting-started/installation", "getting-started/controls", "getting-started/files"] },
+  { "include": "features/sections.json" },
+  { "title": "Guides", "pages": ["guides/testing", "guides/where-to-post"] }
+]

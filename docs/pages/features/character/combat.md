@@ -1,0 +1,128 @@
+---
+title: Combat
+description: Character › Combat — every option of this tab.
+---
+
+Combat helpers for the hero: attack speed, infinite ammo, free aim with an over-the-shoulder camera, and an aimbot / trigger bot that only work together with free aim.
+
+> **Note:** In the menu: **Postać › Walka** (the in-game menu is in Polish for now).
+
+## Attack speed
+
+Animation speed only with a weapon drawn: swings, drawing a bow, reloading a crossbow, casting spells.
+
+**Type:** Slider · **ID:** `atkspeed` · **Default:** 1.8 (range 1 – 5)
+
+## Infinite ammo
+
+Arrows and bolts refill by themselves while a bow / crossbow is drawn.
+
+**Type:** On / off · **ID:** `infammo`
+
+## Free aim
+
+Bow, crossbow, spells: over-the-shoulder camera, the mouse aims up/down — the shot flies at the character under the crosshair (also up and down).
+
+**Type:** On / off · **ID:** `freeaim`
+
+## Mouse up/down sensitivity
+
+**Type:** Value · **ID:** `famsens` · **Default:** 1 (range 0.2 – 4)
+
+## Camera distance
+
+Unit: m.
+
+**Type:** Value · **ID:** `famdist` · **Default:** 2.4 (range 1 – 6)
+
+## Side offset
+
+Cm (camera over the right shoulder).
+
+**Type:** Value · **ID:** `famside` · **Default:** 45 (range -120 – 120)
+
+## Highlight the target under the crosshair
+
+**Type:** On / off · **ID:** `fahl`
+
+## Aimbot
+
+Requires free aim; while the key is held it turns the hero to the target and puts the crosshair on it.
+
+**Type:** On / off · **ID:** `aimbot`
+
+Requires: **Free aim**.
+
+Cannot be on together with: Trigger bot (turning this on turns it off).
+
+## Key
+
+**Type:** Value · **ID:** `aimkey` · **Default:** 1 (range 0 – 5)
+
+Choices: *Always (with a bow / spell)*, *Mouse side button 4*, *Mouse side button 5*, *Middle mouse button*, *Caps Lock*, *V key*.
+
+## Delay after pressing
+
+Unit: ms.
+
+**Type:** Value · **ID:** `aimdelay` · **Default:** 0 (range 0 – 1000)
+
+## Priority
+
+**Type:** Value · **ID:** `aimprio` · **Default:** 0 (range 0 – 3)
+
+Choices: *Closest to the crosshair*, *Closest to you*, *Lowest HP*, *Highest HP*.
+
+## Field of view
+
+Degrees around where you look.
+
+**Type:** Value · **ID:** `aimfov` · **Default:** 90 (range 5 – 360)
+
+## Range
+
+Unit: m.
+
+**Type:** Value · **ID:** `aimdist` · **Default:** 40 (range 2 – 100)
+
+## Stick to the target
+
+Does not switch to another one while the target is alive and in range.
+
+**Type:** On / off · **ID:** `aimstick`
+
+## Also hidden targets
+
+Targets behind walls.
+
+**Type:** On / off · **ID:** `aimnonvis`
+
+## Trigger bot
+
+Requires free aim; shoots / casts when an allowed target is under the crosshair.
+
+**Type:** On / off · **ID:** `trigbot`
+
+Requires: **Free aim**.
+
+Cannot be on together with: Aimbot (turning this on turns it off).
+
+## Reaction time
+
+Unit: ms.
+
+**Type:** Value · **ID:** `trigdelay` · **Default:** 120 (range 0 – 2000)
+
+## Time between shots
+
+Unit: ms.
+
+**Type:** Value · **ID:** `trigcd` · **Default:** 450 (range 50 – 3000)
+
+## Attack keys in the game
+
+As set in your controls.
+
+**Type:** Value · **ID:** `trigkeys` · **Default:** 0 (range 0 – 1)
+
+Choices: *Ctrl + up arrow*, *Left mouse button + W*.
