@@ -22,7 +22,9 @@ BASE = f"https://github.com/{REPO}"
 
 def http(url, body=None, method=None, headers=HDR):
     r = urllib.request.Request(url, json.dumps(body).encode() if body is not None else None, headers, method=method)
-    try: raw = urllib.request.urlopen(r).read().decode("utf-8", "replace")
+    try:
+        resp = urllib.request.urlopen(r); raw = resp.read().decode("utf-8", "replace")
+        if raw.strip() and not raw.lstrip().startswith(("{", "[")): print("non-JSON from", url, resp.status, raw[:300])
     except urllib.error.HTTPError as e:
         print("HTTP", e.code, url, e.read().decode("utf-8", "replace")[:300]); raise
     return json.loads(raw) if raw.strip() else {}
@@ -149,7 +151,7 @@ def main():
     labels = all_labels()
     try: res = ask(item, labels, context_items())
     except Exception as e:
-        print("AI unavailable:", e); res = None
+        import traceback; traceback.print_exc(); print("AI unavailable:", e); res = None
     print(json.dumps(res, ensure_ascii=False, indent=1))
     if DRY: return
     if res and res.get("spam") and not owner:
