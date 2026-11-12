@@ -1,8 +1,8 @@
 # Gothic 1 Crazy Trainer — mapa drogowa
 
-Lista generuje się automatycznie z [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) (ostatnio: 2026-11-12 08:26 UTC).  
-**Głosowanie:** pomysły są w [Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — daj 👍 pod komentarzem z pomysłem.  
-Błąd: [zgłoś tutaj](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose). Nowy pomysł: napisz komentarz w pasującym temacie w Dyskusjach.
+Lista generuje się automatycznie z [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) (ostatnio: 2026-11-12 08:35 UTC).  
+**Głosowanie:** pomysły są w [Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — każdy pomysł to osobny wątek, głosuj strzałką w górę lub 👍.  
+Błąd: [zgłoś tutaj](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose). Nowy pomysł: [załóż wątek w Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=ideas).
 
 
 ## Błędy (1)
@@ -40,46 +40,46 @@ _Zaplanowane na kolejne buildy - w kolejności priorytetu (od góry)._
 
 | 👍 | # | Zgłoszenie | Etykiety |
 |---:|---:|---|---|
-| 0 | [Zapisy, zadania i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/136#discussioncomment-19559690) | Zapisy gry: menedżer slotów, kopie zapasowe, szybki zapis z trenera | pomysł |
-| 0 | [Postać i ekwipunek](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/132#discussioncomment-19559674) | Edytor ekwipunku bohatera i towarzyszy | pomysł |
-| 0 | [Teleport i mapa](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/135#discussioncomment-19559686) | Mapa świata w trenerze (klik = teleport) | pomysł |
-| 0 | [Świat: skrzynie, obiekty, pogoda, zdjęcia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/134#discussioncomment-19559680) | Edytor skrzyń: zawartość pojemników | pomysł |
-| 0 | [Teleport i mapa](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/135#discussioncomment-19559688) | Teleport do NPC po imieniu (nawet poza zasięgiem) | pomysł |
-| 0 | [Arena, bossowie i wyzwania](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/128#discussioncomment-19559638) | Bossowie elitarni: losowy potwór z mnożnikami i nagrodą | pomysł |
-| 0 | [Informacje na ekranie](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/130#discussioncomment-19559655) | Liczby obrażeń nad głową i licznik DPS | pomysł |
-| 0 | [Informacje na ekranie](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/130#discussioncomment-19559657) | Rutyny NPC: gdzie postać będzie o danej godzinie | pomysł |
-| 0 | [Zapisy, zadania i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/136#discussioncomment-19559692) | Dziennik zadań: podgląd i zmiana statusu questów | pomysł |
-| 0 | [Informacje na ekranie](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/130#discussioncomment-19559659) | Podświetlanie postaci ważnych (questy, handlarze, nauczyciele) | pomysł |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/131#discussioncomment-19559663) | Makra: nagrywanie i odtwarzanie sekwencji akcji trenera | pomysł |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/131#discussioncomment-19559664) | Profile ustawień (np. speedrun, chaos, testy) | pomysł |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/131#discussioncomment-19559667) | Sprawdzanie aktualizacji trenera w grze | pomysł |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/131#discussioncomment-19559669) | Angielska wersja interfejsu | pomysł |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/131#discussioncomment-19559665) | Ulubione opcje (pinezka) na pierwszej stronie | pomysł |
-| 0 | [Informacje na ekranie](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/130#discussioncomment-19559662) | Kompendium bestiariusza: statystyki wszystkich potworów i postaci | pomysł |
-| 0 | [Zapisy, zadania i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/136#discussioncomment-19559694) | Zmienne fabularne i rozdziały: podgląd i edycja | pomysł |
-| 0 | [Postać i ekwipunek](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/132#discussioncomment-19559676) | Presety postaci: zapisz i wczytaj wygląd + statystyki | pomysł |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/131#discussioncomment-19559671) | Statystyki sesji: zabici, zebrane przedmioty, dystans, czas | pomysł |
-| 0 | [Świat: skrzynie, obiekty, pogoda, zdjęcia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/134#discussioncomment-19559683) | Pogoda i niebo: deszcz, mgła, natychmiastowa zmiana | pomysł |
-| 0 | [Teleport i mapa](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/135#discussioncomment-19559689) | Ścieżki teleportu: nagraj trasę i odtwórz | pomysł |
-| 0 | [Świat: skrzynie, obiekty, pogoda, zdjęcia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/134#discussioncomment-19559682) | Budowanie: stawianie obiektów (skrzynie, ogniska, beczki) | pomysł |
-| 0 | [Arena, bossowie i wyzwania](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/128#discussioncomment-19559640) | Tryb hordy: rozszerzona arena z rankingiem | pomysł |
-| 0 | [Drużyna i bitwy](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/129#discussioncomment-19559653) | Wojny obozów: każ dwóm grupom walczyć | pomysł |
-| 0 | [Arena, bossowie i wyzwania](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/128#discussioncomment-19559644) | Manekin treningowy | pomysł |
-| 0 | [Drużyna i bitwy](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/129#discussioncomment-19559649) | Rozkazy drużyny: formacje, idź tam gdzie celuję, atakuj cel | pomysł |
-| 0 | [Drużyna i bitwy](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/129#discussioncomment-19559651) | Rozwój towarzyszy: statystyki i ekwipunek drużyny | pomysł |
-| 0 | [Świat: skrzynie, obiekty, pogoda, zdjęcia](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/134#discussioncomment-19559685) | Tryb zdjęć: wolna kamera bez HUD | pomysł |
-| 0 | [Stream i chaos](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/133#discussioncomment-19559677) | Tryb streamera: losowe zdarzenia chaosu co X minut | pomysł |
-| 0 | [Stream i chaos](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/133#discussioncomment-19559679) | Integracja z czatem Twitch (głosowanie na chaos) | pomysł |
-| 0 | [Arena, bossowie i wyzwania](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/128#discussioncomment-19559645) | Wyzwania i osiągnięcia trenera | pomysł |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/131#discussioncomment-19559666) | Skróty klawiszowe do stron i makr | pomysł |
+| 0 | [Zapisy i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/167) | Zapisy gry: menedżer slotów, kopie zapasowe, szybki zapis z trenera |  |
+| 0 | [Postać](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/156) | Edytor ekwipunku bohatera i towarzyszy |  |
+| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/164) | Mapa świata w trenerze (klik = teleport) |  |
+| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/160) | Edytor skrzyń: zawartość pojemników |  |
+| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/165) | Teleport do NPC po imieniu (nawet poza zasięgiem) |  |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/137) | Bossowie elitarni: losowy potwór z mnożnikami i nagrodą |  |
+| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/144) | Liczby obrażeń nad głową i licznik DPS |  |
+| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/145) | Rutyny NPC: gdzie postać będzie o danej godzinie |  |
+| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/146) | Podświetlanie postaci ważnych (questy, handlarze, nauczyciele) |  |
+| 0 | [Zapisy i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/168) | Dziennik zadań: podgląd i zmiana statusu questów |  |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/148) | Makra: nagrywanie i odtwarzanie sekwencji akcji trenera |  |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/149) | Profile ustawień (np. speedrun, chaos, testy) |  |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/152) | Sprawdzanie aktualizacji trenera w grze |  |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/153) | Angielska wersja interfejsu |  |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/150) | Ulubione opcje (pinezka) na pierwszej stronie |  |
+| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/147) | Kompendium bestiariusza: statystyki wszystkich potworów i postaci |  |
+| 0 | [Zapisy i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/169) | Zmienne fabularne i rozdziały: podgląd i edycja |  |
+| 0 | [Postać](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/157) | Presety postaci: zapisz i wczytaj wygląd + statystyki |  |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/154) | Statystyki sesji: zabici, zebrane przedmioty, dystans, czas |  |
+| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/162) | Pogoda i niebo: deszcz, mgła, natychmiastowa zmiana |  |
+| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/166) | Ścieżki teleportu: nagraj trasę i odtwórz |  |
+| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/161) | Budowanie: stawianie obiektów (skrzynie, ogniska, beczki) |  |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/138) | Tryb hordy: rozszerzona arena z rankingiem |  |
+| 0 | [Drużyna](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/143) | Wojny obozów: każ dwóm grupom walczyć |  |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/139) | Manekin treningowy |  |
+| 0 | [Drużyna](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/141) | Rozkazy drużyny: formacje, idź tam gdzie celuję, atakuj cel |  |
+| 0 | [Drużyna](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/142) | Rozwój towarzyszy: statystyki i ekwipunek drużyny |  |
+| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/163) | Tryb zdjęć: wolna kamera bez HUD |  |
+| 0 | [Stream i chaos](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/158) | Tryb streamera: losowe zdarzenia chaosu co X minut |  |
+| 0 | [Stream i chaos](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/159) | Integracja z czatem Twitch (głosowanie na chaos) |  |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/140) | Wyzwania i osiągnięcia trenera |  |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/151) | Skróty klawiszowe do stron i makr |  |
 
 ## Pomysły - głosuj (1)
 
-_Pomysły są w Dyskusjach: daj 👍 pod komentarzem z pomysłem - najwyżej ocenione robimy najpierw._
+_Każdy pomysł to osobny wątek w Dyskusjach: zagłosuj strzałką w górę lub 👍 - najwyżej ocenione robimy najpierw._
 
 | 👍 | # | Zgłoszenie | Etykiety |
 |---:|---:|---|---|
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/131#discussioncomment-19559672) | Testy automatyczne: symulacja w grze | pomysł |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/155) | Testy automatyczne: symulacja w grze |  |
 
 ## Zrobione (60)
 
