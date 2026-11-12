@@ -79,16 +79,16 @@ void NoclipFrame(float dt) {
         fld<uint32_t>(h, VOB_FLAGS) &= ~NC_MASK;
         if ((fld<uint8_t>(h, VOB_SLEEPMODE) & 3) != 0) SetSleeping(h, true);
     }
-    g_stealMouse = On("ncmouse") && !T.menuOpen && GameFocused();
-    if (T.menuOpen || !GameFocused()) { g_mouseDx = g_mouseDy = 0; return; }
+    g_stealMouse = false;   // build 11: the mouse is read from the engine's own state (works with ZMouseFix)
+    if (T.menuOpen || !GameFocused()) return;
     auto k = [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; };
     float* m = &fld<float>(h, VOB_TRAFO);
     float yaw = 0;
     float turn = Val("ncturn") * 0.0174533f;
     if (k('Q') || k(VK_LEFT)) yaw -= turn * dt;
     if (k('E') || k(VK_RIGHT)) yaw += turn * dt;
-    {   // mouse: X turns the hero, Y tilts the camera (build 9, #20)
-        long dx = InterlockedExchange(&g_mouseDx, 0), dy = InterlockedExchange(&g_mouseDy, 0);
+    if (On("ncmouse")) {   // mouse: X turns the hero, Y tilts the camera. Engine mouse state (LeGo: Cursor_Ptr 0x86CCAC: relX, relY)
+        int dx = at<int>(0x86CCAC), dy = at<int>(0x86CCB0);
         float sens = Val("ncmsens") * 0.0022f;
         yaw += dx * sens;
         g_cPitchMouse = std::max(-1.1f, std::min(0.9f, g_cPitchMouse - dy * sens));

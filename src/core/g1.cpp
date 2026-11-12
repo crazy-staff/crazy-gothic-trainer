@@ -244,14 +244,21 @@ void* SpawnNpc(int inst, const zVEC3& pos, bool noRoutine) {
         static int offRtn = FieldOff("C_NPC.DAILY_ROUTINE", -1);
         if (offRtn >= 0) fld<int>(npc, offRtn) = 0;
     }
-    void* sm = fld<void*>(g, OG_SPAWNMAN);
-    reinterpret_cast<fn_spawn>(F_SPAWN_NPC_POS)(sm, npc, &pos, 0.f);
+    // build 11: oCNpc::Enable puts it into the world right here with its model (like the console "insert").
+    // The spawn manager path left our NPCs disabled (no body, invisible in GD3D11, popping up later).
+    EnableNpc(npc, pos);
+    if (g_homeWorldOk && !VobInWorld(npc)) {
+        void* sm = fld<void*>(g, OG_SPAWNMAN);
+        reinterpret_cast<fn_spawn>(F_SPAWN_NPC_POS)(sm, npc, &pos, 0.f);
+    }
     Release(npc);  // world holds its own reference
     return npc;
 }
 // zCVob::homeWorld - set while the vob is inserted. The spawn manager takes NPCs far from the player out of the
 // world (they keep their model and stay in the npc list -> ESP showed "skeletons" without a body).
-constexpr uintptr_t VOB_HOMEWORLD = 0xB8;
+constexpr uintptr_t VOB_HOMEWORLD = 0xA8;   // build 11: from GD3D11's G1 1.08k memory map (0xB8 is the visual)
+constexpr uintptr_t F_NPC_ENABLE = 0x6A2000; // oCNpc::Enable(zVEC3&) - insert + model + register for rendering
+using fn_enable = void(__thiscall*)(void*, const zVEC3*);
 bool g_homeWorldOk = false;   // offset verified on the hero by the self test
 bool VobInWorld(void* v) {
     if (!v) return false;
@@ -259,16 +266,14 @@ bool VobInWorld(void* v) {
     return fld<void*>(v, VOB_HOMEWORLD) == GameWorld();
 }
 // put an existing (despawned) npc object back into the world
-void RespawnNpc(void* npc, const zVEC3& pos) {
-    void* g = Game(); if (!g || !npc) return;
-    void* sm = fld<void*>(g, OG_SPAWNMAN);
-    reinterpret_cast<fn_spawn>(F_SPAWN_NPC_POS)(sm, npc, &pos, 0.f);
-}
-// teleport an npc; if the game has taken it out of the world, insert it again right there (model, AI, rendering)
+void EnableNpc(void* npc, const zVEC3& pos);
+void RespawnNpc(void* npc, const zVEC3& pos) { EnableNpc(npc, pos); }
+void EnableNpc(void* npc, const zVEC3& pos) { if (npc) reinterpret_cast<fn_enable>(F_NPC_ENABLE)(npc, &pos); }
+// teleport an npc; if the game has taken it out of the world, enable it again right there (model, AI, rendering)
 void EnsureNpcAt(void* npc, const zVEC3& pos) {
     if (!npc) return;
     if (VobInWorld(npc)) { SafeSetPos(npc, pos); return; }
-    RespawnNpc(npc, pos);
+    EnableNpc(npc, pos);
 }
 void* SpawnItem(int inst, const zVEC3& pos) {
     void* w = GameWorld();

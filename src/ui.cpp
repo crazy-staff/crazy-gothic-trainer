@@ -960,7 +960,7 @@ void ItemSpawner(float w) {
             ImGui::PopID();
             TextClip(ImVec2(x, p.y + 10 * S), fBold, C_TEXT, e.name, bx);
             char sub[300];
-            snprintf(sub, sizeof sub, "%s%s%s  ·  sprzedaż %d rudy", e.sub.empty() ? kItemCatNames[e.cat] : e.sub.c_str(), e.info.empty() ? "" : "  ·  ", e.info.c_str(), e.value / 2);
+            snprintf(sub, sizeof sub, "%s%s%s  ·  %d rudy", e.sub.empty() ? kItemCatNames[e.cat] : e.sub.c_str(), e.info.empty() ? "" : "  ·  ", e.info.c_str(), e.value / 2);
             TextClip(ImVec2(p.x + 62 * S, p.y + 31 * S), fSmall, C_DIM, sub, bx);
             if (ImGui::IsMouseHoveringRect(p, ImVec2(bx, p.y + h)) && ImGui::IsWindowHovered()) {
                 std::vector<std::pair<std::string, std::string>> kv = { { "Kategoria", e.sub.empty() ? kItemCatNames[e.cat] : e.sub }, { "ID", e.id } };
@@ -1587,11 +1587,10 @@ void CompendiumPage(float w) {
     if (Chip(b1, g_cmpKind == 1, ICN_USER)) g_cmpKind = 1;
     if (Chip(b2, g_cmpKind == 2, ICN_BAG)) g_cmpKind = 2;
     ImGui::NewLine();
-    PF(fSmall); ImGui::TextColored(C_DIM, "Brakuje: %d postaci, %d przedmiotów", missNpc, missItem); ImGui::PopFont();
+    PF(fSmall); ImGui::TextColored(C_DIM, "Portrety postaci robią się same, gdy wycelujesz w postać albo ją zapiszesz.  ·  Brakuje ikon przedmiotów: %d", missItem); ImGui::PopFont();
+    (void)missNpc;
     ImVec2 bp = ImGui::GetCursorScreenPos();
-    float b1w = ButtonW("Zrób brakujące portrety postaci");
-    if (Button("##cmpn", "Zrób brakujące portrety postaci", bp, false)) Act_PhotoBatch(2);
-    if (Button("##cmpi", "Zrób brakujące ikony przedmiotów", ImVec2(bp.x + b1w + 8 * S, bp.y), false)) Act_PhotoBatch(1);
+    if (Button("##cmpi", "Zrób brakujące ikony przedmiotów", bp, false)) Act_PhotoBatch(1);
     ImGui::SetCursorScreenPos(ImVec2(bp.x, bp.y + BtnH()));
     ImGui::Dummy(ImVec2(0, 0));
     EndPanel();
@@ -1798,23 +1797,23 @@ void ConfigPage(float w) {
 int testFilter = 0, testDot = -1; char testSearch[64] = "";
 int g_tTab = 0;                                    // 0 checklist, 1 tickets, 2 new ticket, 3 send, 4 log
 std::set<std::string> g_tOpen;                     // expanded history in the checklist / ticket list
-struct KnownIssue { const char* id; const char* text; };
+struct KnownIssue { const char* id; const char* text; Status st = ST_NEW; };
 const KnownIssue kIssues[] = {
-    { "UI-01", "Scroll kółkiem myszy w menu" },
-    { "UI-02", "Win+Shift+S / zrzut ekranu przy włączonej grze" },
-    { "UI-03", "Esc w menu trainera tylko zamyka menu" },
-    { "UI-04", "ESP i napisy chowają się w menu pauzy gry (Esc)" },
-    { "UI-05", "Suwaki: wartość nad suwakiem, równe wyrównanie" },
-    { "UI-06", "Przełącznik Obecna postać / Bezimienny / Cel" },
-    { "UI-07", "Portrety postaci i ikony przedmiotów" },
-    { "UI-08", "Spawner przedmiotów: wyszukiwanie, sortowanie, filtry" },
-    { "UI-09", "Okno aktywnych modów: wyłączone / tylko w menu / w grze" },
-    { "UI-10", "Lista skrótów klawiszowych" },
-    { "UI-11", "Teleport: filtr regionu i rodzaju miejsca" },
-    { "UI-12", "Podgląd wyglądu (Postać › Wygląd)" },
-    { "UI-13", "Pisanie w polach tekstowych nie steruje grą" },
-    { "UI-14", "Wydajność: przycięcia / spadki FPS przy włączonym trainerze" },
-    { "UI-15", "Okno testera: checklista, zgłoszenia, wysyłanie" },
+    { "UI-01", "Scroll kółkiem myszy w menu", ST_OK },
+    { "UI-02", "Win+Shift+S / zrzut ekranu przy włączonej grze", ST_BUG },
+    { "UI-03", "Esc w menu trainera tylko zamyka menu", ST_OK },
+    { "UI-04", "ESP i napisy chowają się w menu pauzy gry (Esc)", ST_OK },
+    { "UI-05", "Suwaki: wartość nad suwakiem, równe wyrównanie", ST_OK },
+    { "UI-06", "Przełącznik Obecna postać / Bezimienny / Cel", ST_OK },
+    { "UI-07", "Portrety postaci (na bieżąco) i ikony przedmiotów", ST_BUG },
+    { "UI-08", "Spawner przedmiotów: wyszukiwanie, sortowanie, filtry", ST_OK },
+    { "UI-09", "Okno aktywnych modów: wyłączone / tylko w menu / w grze", ST_OK },
+    { "UI-10", "Lista skrótów klawiszowych", ST_OK },
+    { "UI-11", "Teleport: filtr regionu i rodzaju miejsca", ST_OK },
+    { "UI-12", "Wygląd: przycisk Zastosuj (bez podglądu na klonie)", ST_BUG },
+    { "UI-13", "Pisanie w polach tekstowych nie steruje grą", ST_OK },
+    { "UI-14", "Wydajność: przycięcia / spadki FPS przy włączonym trainerze", ST_OK },
+    { "UI-15", "Okno testera: checklista, zgłoszenia, wysyłanie", ST_OK },
 };
 // form draft
 struct Draft {
@@ -1926,7 +1925,11 @@ void TestRow(const std::string& id, const std::string& name, const std::string& 
     if (testFilter > 0 && st != testFilter - 1) return;
     int nT = (int)tst::For(id).size(), nK = (int)tst::KnownFor(id).size();
     if (testFilter == 5 && !nK) return;
-    if (testDot >= 0) { Row* rr = T.Get(id); int dot = rr ? (int)rr->status : (int)ST_NEW; if (dot != testDot) return; }
+    if (testDot >= 0) {
+        int dot = ST_NEW;
+        if (Row* rr = T.Get(id)) dot = rr->status; else for (auto& k : kIssues) if (id == k.id) dot = k.st;
+        if (dot != testDot) return;
+    }
     if (!MatchQ(testSearch, name, id) && !MatchQ(testSearch, where, where)) return;
     static const char* stN[] = { "Nie sprawdzone", "Działa", "Częściowo", "Nie działa" };
     static const ImVec4* stC[] = { &C_DIM, &C_ST_OK, &C_ST_BUG, &C_ST_CRASH };
@@ -2665,30 +2668,21 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         if (cat == "Postać" && (sub == "Statystyki" || sub == "Umiejętności" || sub == "Wygląd")) {
             SubjectBar(s, w);
             if (sub == "Wygląd") {
-                // preview on a stand-in: look values changed -> photograph a dummy after a short pause; nothing is applied until "Zastosuj"
-                int sig = (int)gx::Val("vhead") * 1000000 + (int)gx::Val("vface") * 100 + (int)gx::Val("vbody") * 10 + (int)gx::Val("vskin");
-                if (lookSig == 0) lookSig = sig;
-                if (sig != lookSig) { lookSig = sig; lookAt = NowSec() + 0.6; lookDirty = true; }
-                if (lookAt > 0 && NowSec() > lookAt && !ImGui::IsMouseDown(0)) { lookAt = 0; Act_LookPreview(); }
-                CardSpec pv{ "Podgląd", {}, nullptr, 286 * S, false };
-                std::string key = lookDirty ? std::string("LOOKPREVIEW") : s.subjectInst; uintptr_t sp = s.subjectPtr;
+                // build 11: no stand-in clone - the card shows the character's portrait and an always visible apply button
+                CardSpec pv{ "Wygląd postaci", {}, nullptr, 270 * S, false };
+                std::string key = s.subjectInst; uintptr_t sp = s.subjectPtr;
                 pv.custom = [key, sp](float x, float y, float cw2) -> float {
-                    float sz = 190 * S;
+                    float sz = 170 * S;
                     ImVec2 c(x + cw2 * 0.5f, y + 8 * S + sz * 0.5f);
                     if (void* tex = PortraitFor(key)) DL()->AddImage((ImTextureID)(intptr_t)tex, ImVec2(c.x - sz * 0.5f, c.y - sz * 0.5f), ImVec2(c.x + sz * 0.5f, c.y + sz * 0.5f));
-                    else { IconAt(DL(), c, ICN_USER, U32(C_FAINT), 40 * S); if (key != "LOOKPREVIEW") AskPhoto(sp, key); }
-                    float by = y + sz + 18 * S;
-                    if (lookDirty) {
-                        float b1 = ButtonW("Zastosuj wygląd"), b2 = ButtonW("Cofnij");
-                        float bx = x + (cw2 - b1 - b2 - 8 * S) * 0.5f;
-                        if (Button("##lookok", "Zastosuj wygląd", ImVec2(bx, by), true)) { Act_ApplyLook(); lookDirty = false; }
-                        if (Button("##lookno", "Cofnij", ImVec2(bx + b1 + 8 * S, by), false)) { lookDirty = false; lookAt = 0; lookSig = 0; }
-                    } else {
-                        TextClip(ImVec2(x + 18 * S, by + BtnH() + 6 * S), fSmall, C_FAINT, "Suwaki zmieniają tylko podgląd (sobowtór). Postać zmienia się po \"Zastosuj wygląd\".", x + cw2 - 12 * S);
-                        float bw = ButtonW("Odśwież portret");
-                        if (Button("##photo", "Odśwież portret", ImVec2(x + (cw2 - bw) * 0.5f, by), false)) Act_Photo(0, true);
-                    }
-                    return 286 * S;
+                    else { IconAt(DL(), c, ICN_USER, U32(C_FAINT), 40 * S); AskPhoto(sp, key); }
+                    float by = y + sz + 16 * S;
+                    float b1 = ButtonW("Zastosuj wygląd"), b2 = ButtonW("Odśwież portret");
+                    float bx = x + (cw2 - b1 - b2 - 8 * S) * 0.5f;
+                    if (Button("##lookok", "Zastosuj wygląd", ImVec2(bx, by), true)) Act_ApplyLook();
+                    if (Button("##photo", "Odśwież portret", ImVec2(bx + b1 + 8 * S, by), false)) Act_Photo(0, true);
+                    TextClip(ImVec2(x + 18 * S, by + BtnH() + 8 * S), fSmall, C_FAINT, "Ustaw głowę, twarz, ciało i skórę niżej, potem kliknij \"Zastosuj wygląd\".", x + cw2 - 12 * S);
+                    return 270 * S;
                 };
                 CardSpec nm{ "Imię", {}, nullptr, 0, false };
                 nm.customH = 60 * S;

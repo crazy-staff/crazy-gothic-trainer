@@ -271,7 +271,7 @@ void Esp_Tick(TickCtx& c) {
             Label L{}; L.type = 1; L.hp = -1;
             if (!Project(p, L.x, L.y)) return;
             L.text = ItemLine(it);
-            char b[64]; snprintf(b, sizeof b, "sprzedasz za %d rudy  ·  %.0fm", v / 2, d / 100.f); L.sub = b;   // Gothic 1 traders pay half
+            char b[64]; snprintf(b, sizeof b, "%d rudy  ·  %.0fm", v / 2, d / 100.f); L.sub = b;   // Gothic 1 traders pay half
             L.color = g_espColors[5];
             itemL.push_back({ d, std::move(L) });
         });

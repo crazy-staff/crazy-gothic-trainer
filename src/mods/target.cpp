@@ -95,6 +95,7 @@ void HoldHero(void* hero) {
     g_heroRef = hero; fld<int>(hero, 4)++;   // zCObject::refCtr
     g_heroLastPos = Pos(hero);
 }
+bool Target_KeepBody(void* npc) { return npc && npc == g_heroRef; }
 void DropHeroRef() { if (g_heroRef) { Release(g_heroRef); g_heroRef = nullptr; } }
 void Act_Unswap() {
     T.Queue("row:unswap", [] {

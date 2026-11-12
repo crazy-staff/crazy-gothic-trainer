@@ -1,5 +1,6 @@
 // NPC module: spawner, arena waves, mass ally/kill.
 #include "mods.h"
+#include "MinHook.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -270,7 +271,20 @@ void Act_PartyCmd(uintptr_t p, int cmd) {
     });
 }
 
-void Npcs_Hooks() {}
+// build 11: oCSpawnManager::CheckRemoveNpc (0x6D0A80, from GD3D11's G1 1.08k map) takes NPCs far from the player
+// out of the world. Party members, our spawned NPCs and your own body while you control someone else stay in.
+bool Target_KeepBody(void* npc);
+using fnCheckRemove = int(__fastcall*)(void*, void*, void*);
+fnCheckRemove oCheckRemove = nullptr;
+int __fastcall hkCheckRemove(void* self, void* edx, void* npc) {
+    if (npc) {
+        if (std::find(g_allies.begin(), g_allies.end(), npc) != g_allies.end()) return 0;
+        for (auto& e : g_spawnedNpcs) if (e.first == npc) return 0;
+        if (Target_KeepBody(npc)) return 0;
+    }
+    return oCheckRemove(self, edx, npc);
+}
+void Npcs_Hooks() { MH_CreateHook((LPVOID)0x6D0A80, (LPVOID)&hkCheckRemove, (LPVOID*)&oCheckRemove); }
 // an arena enemy brought you to 0 HP (the hit was clamped to 1 HP) or you died during the arena
 void Arena_PlayerDown() {
     if (g_lost || !On("arena")) return;

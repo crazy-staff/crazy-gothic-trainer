@@ -173,7 +173,8 @@ void* SpawnNpc(int inst, const zVEC3& pos, bool noRoutine = false);
 void RespawnNpc(void* npc, const zVEC3& pos);
 extern bool g_homeWorldOk;
 bool VobInWorld(void* v);
-void EnsureNpcAt(void* npc, const zVEC3& pos);   // teleport, re-inserting the npc if the game disabled it
+void EnsureNpcAt(void* npc, const zVEC3& pos);
+void EnableNpc(void* npc, const zVEC3& pos);       // oCNpc::Enable   // teleport, re-inserting the npc if the game disabled it
 void* SpawnItem(int inst, const zVEC3& pos);
 void RemoveVob(void* vob);
 void SetSleeping(void* vob, bool s);

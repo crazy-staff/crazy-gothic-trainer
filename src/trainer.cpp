@@ -147,7 +147,7 @@ static void SelfTest(Snapshot& s) {
     d.push_back({ "Raytrace (podłoże pod bohaterem)", ground && std::fabs(g.y - Pos(h).y) < 1000.f });
     d.push_back({ "Model bohatera (zCModel)", VobModel(h) != nullptr });
     d.push_back({ "Katalog: przedmioty/NPC", g_cat.items.size() > 50 && g_cat.npcs.size() > 50 });
-    g_homeWorldOk = fld<void*>(h, 0xB8) == GameWorld();
+    g_homeWorldOk = fld<void*>(h, 0xA8) == GameWorld();
     d.push_back({ "Obecność postaci w świecie (zCVob::homeWorld)", g_homeWorldOk });
     for (auto& x : d) Log("AUTOTEST %s: %s", x.ok ? "OK " : "BLAD", x.text.c_str());
     s.diag = d;
@@ -283,6 +283,17 @@ void Trainer::Init() {
     Player_Register(); Items_Register(); Npcs_Register(); Target_Register(); Chaos_Register(); World_Register();
     Esp_Register(); Teleport_Register(); Marvin_Register(); Photo_Register();
     for (auto& r : rows) if (Crashed("row:" + r.id)) { r.status = ST_CRASH; r.hist = "crashowało w poprzedniej sesji (wykryte automatycznie)"; }
+    // statuses confirmed by the tester's reports (build 9 + 10) - overrides what the modules registered
+    static const char* okIds[] = { "hclock", "hcpocket", "hcsneak", "nohit", "noweapon", "mana", "ncignore", "kitwar", "kitarcher", "kitmage",
+        "kitthief", "trevive", "trob", "tremove", "tcast", "tfreeze", "tspellimm", "killallimm", "allvsme", "thanos", "thanosimm", "meteor",
+        "meteorimm", "rain", "rainimm", "qsallies", "espskel", "sprint", "espbox", "espchestinv", "arena", "marvin", "espitm", "espnpc" };
+    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9/10)"; }
+    struct Bad { const char* id; const char* why; };
+    static const Bad bad[] = { { "noclip", "build 10: kamera nie obracała się; build 11: kamera pisana co klatkę, mysz ze stanu gry" },
+        { "ncmouse", "build 10: mysz nic nie robiła; build 11: odczyt myszy ze stanu gry (działa z ZMouseFix)" },
+        { "allykeep", "build 10: towarzysze znikali; build 11: gra nie usuwa drużyny ze świata, powrót przez oCNpc::Enable" },
+        { "allynotalk", "build 10: teleport drużyny nie działał - patrz Pilnuj drużyny" } };
+    for (auto& b : bad) if (Row* r = Get(b.id)) { r->status = ST_BUG; r->hist = b.why; }
     tst::Load();   // tester history (also turns a crash from the previous session into a draft report)
 }
 void ApplyRow(Row& r) {

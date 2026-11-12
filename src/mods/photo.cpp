@@ -116,10 +116,12 @@ void* SpawnQuiet(int kind, int sym, const zVEC3& p) {
 void Photo_Request(void* npc) {   // portrait of a character (cached per script instance)
     if (!NpcExists(npc)) return;
     std::string key = npc == MainHero() ? "PC_HERO" : InstName(npc);
-    bool real = npc == MainHero() || g_customLook.count(npc) || npc == Player();
+    // build 11: always the real character where it stands (clones were never enabled by the game: empty shots,
+    // "testmodel" leftovers and crashes) - portraits are made on the fly for targeted / saved characters
+    if (!NpcReady(npc) || NpcDead(npc)) return;
     for (auto& j : g_jobs) if (j.key == key) return;
     if (PortraitHas(key)) return;
-    g_jobs.push_back({ real ? 0 : 1, npc, NpcInstance(npc), key, false });
+    g_jobs.push_back({ 0, npc, NpcInstance(npc), key, false });
     g_total++;
 }
 void Photo_Refresh(void* npc) {   // look changed: real character, overwrite cache
@@ -133,19 +135,7 @@ void Act_Photo(uintptr_t p, bool force) {
     T.Queue("row:photo", [p, force] { void* n = p ? (void*)p : Subject(); if (force) Photo_Refresh(n); else Photo_Request(n); });
 }
 // preview of a look on a stand-in (same script instance as the edited character, or any human)
-void Act_LookPreview() {
-    T.Queue("row:photo", [] {
-        void* sb = Subject();
-        int sym = -1;
-        if (sb && !IsMonster(sb) && sb != MainHero()) sym = NpcInstance(sb);
-        if (sym < 0) for (auto& e : g_cat.npcs) if (!e.monster && e.group != NG_MAGES) { sym = e.sym; break; }
-        if (sym < 0) return;
-        for (auto it = g_jobs.begin(); it != g_jobs.end();) { if (it->key == "LOOKPREVIEW") it = g_jobs.erase(it); else ++it; }
-        Job j{ 1, nullptr, sym, "LOOKPREVIEW", true };
-        j.look[0] = (int)Val("vhead"); j.look[1] = (int)Val("vface"); j.look[2] = (int)Val("vbody"); j.look[3] = (int)Val("vskin");
-        g_jobs.push_front(j); g_total++;
-    });
-}
+void Act_LookPreview() {}   // build 11: no stand-in clone (left TESTMODEL npcs behind)
 void Act_PhotoItem(int sym) {
     T.Queue("row:photo", [sym] {
         Sym* s = SymAt(sym); if (!s) return;
@@ -158,7 +148,8 @@ void Act_PhotoItem(int sym) {
 void Act_PhotoBatch(int what) {
     T.Queue("row:photobatch", [what] {
         g_batch = true;
-        if (what == 0) {
+        if (what == 0 || what == 2) { g_batch = false; return; }   // build 11: no batch portraits of characters
+        if (false) {
             std::set<std::string> seen;
             ForEachNpc([&](void* n) {
                 if (!NpcReady(n)) return;
@@ -189,6 +180,12 @@ void Act_PhotoKey(const std::string& key) {
     T.Queue("row:photo", [key] {
         if (key == "PC_HERO") { if (MainHero()) Photo_Refresh(MainHero()); return; }
         bool item = key.rfind("I_", 0) == 0;
+        if (!item) {   // characters: photograph the real one if it is loaded
+            void* found = nullptr;
+            ForEachNpc([&](void* n) { if (!found && InstName(n) == key && NpcReady(n) && !NpcDead(n)) found = n; });
+            if (found) Photo_Refresh(found); else T.Toast("Tej postaci nie ma w pobliżu - podejdź i wyceluj w nią");
+            return;
+        }
         int sym = SymIndex((item ? key.substr(2) : key).c_str());
         if (sym < 0) { T.Toast("Nie znam instancji " + key); return; }
         for (auto it = g_jobs.begin(); it != g_jobs.end();) { if (it->key == key) it = g_jobs.erase(it); else ++it; }
@@ -196,17 +193,23 @@ void Act_PhotoKey(const std::string& key) {
     });
 }
 void Act_PhotoCancel() { T.Queue("row:photocancel", [] { g_jobs.clear(); g_batch = false; T.Toast("Przerwano generowanie obrazków"); }); }
-void Cam_Override(const float* m) { std::copy(m, m + 12, g_ext); g_extThisFrame = true; }
+// build 11: also write the camera right away (like the portrait studio does every frame - that path is proven);
+// the DoAI hook alone did not turn the camera in no-clip
+void Cam_Override(const float* m) {
+    std::copy(m, m + 12, g_ext); g_extThisFrame = true;
+    if (void* g = Game()) WriteCam(fld<void*>(g, OG_CAMVOB), m);
+}
 
+// build 11: remove stand-in clones left by builds 6-10 ("...TESTMODELL" instances from the look preview). The game
+// may insert old ones later when you walk near, so this also runs every 10 s.
+void CleanClones() {
+    std::vector<void*> junk;
+    ForEachNpc([&](void* n) { std::string k = InstName(n); if (k.find("TESTMODELL") != std::string::npos && n != Player() && n != MainHero()) junk.push_back(n); });
+    for (void* n : junk) RemoveVob(n);
+    if (!junk.empty()) { RefreshNpcSet(); Log("usunieto %d klonow testmodel", (int)junk.size()); }
+}
 void Photo_Register() {
     CardTitle("Portrety i ikony");
-    T.Add(MkRow("photoauto", "Portrety postaci przy wczytaniu", "przy wczytaniu świata robi portrety postaci, których jeszcze nie ma (raz, potem z pliku)",
-                "Konfiguracja", "Konfiguracja", K_TOGGLE));
-    T.rows.back().on = true; St(ST_NEW, "nowe w build 6");
-    T.Add(MkRow("photoall", "Zrób portrety postaci w pobliżu", "postacie wczytane przez grę", "Konfiguracja", "Konfiguracja", K_ACTION, 0, 0, 0, [](Row&) { Act_PhotoBatch(0); }));
-    NoVal(); St(ST_NEW, "build 8: postacie nakładały się na siebie; build 9: każda w osobnym miejscu + odczekanie klatek (#3)");
-    T.Add(MkRow("photoeveryone", "Zrób portrety wszystkich postaci z gry", "każda postać i potwór ze skryptów, także niewczytane; kilka minut, Esc przerywa", "Konfiguracja", "Konfiguracja", K_ACTION, 0, 0, 0, [](Row&) { Act_PhotoBatch(2); }));
-    NoVal(); St(ST_NEW, "nowe w build 9");
     T.Add(MkRow("photoitems", "Zrób ikony wszystkich przedmiotów", "około minuty; Esc przerywa", "Konfiguracja", "Konfiguracja", K_ACTION, 0, 0, 0, [](Row&) { Act_PhotoBatch(1); }));
     NoVal(); St(ST_NEW, "nowe w build 6");
 }
@@ -218,9 +221,12 @@ void Photo_World() {
     g_gone = nullptr; g_goneWait = 0;
     g_jobs.clear(); g_override = false; g_hidden = false; g_subj = nullptr; g_spawned = false; g_active = false; g_photoStage = 0;
     g_customLook.clear(); g_batch = false; g_done = g_total = 0;
-    if (On("photoauto")) Schedule(3.0, [] { Act_PhotoBatch(0); });
+    // build 11: remove stand-in clones left by builds 6-10 ("...TESTMODELL", look preview, portrait studio)
+    Schedule(2.0, [] { CleanClones(); });
 }
 void Photo_Tick(TickCtx& c) {
+    static double cleanAt = 0;
+    if (T.gameClock - cleanAt > 10.0) { cleanAt = T.gameClock; CleanClones(); }
     void* cam = fld<void*>(c.game, OG_CAMVOB);
     if (!g_active && g_gone) {   // strictly one character at a time: wait until the previous clone is really gone
         RefreshNpcSet();
