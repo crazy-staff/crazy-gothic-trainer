@@ -1,6 +1,6 @@
 # Gothic 1 Crazy Trainer — roadmap
 
-Generated automatically from [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) and [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions) (last update: 2026-11-12 09:31 UTC).  
+Generated automatically from [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) and [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions) (last update: 2026-11-12 15:25 UTC).  
 **Voting:** every idea is its own thread in [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — vote with the up arrow or 👍.  
 Bug: [report it here](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose). New idea: [start a thread in Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=ideas).
 
@@ -40,12 +40,12 @@ _Every idea is its own thread in Discussions: vote with the up arrow or 👍 - t
 
 | 👍 | # | Item | Labels |
 |---:|---:|---|---|
+| 0 | [Union plugins](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/277) | Port more Union plugins into the trainer | priority: low, status: pending |
 | 0 | [Gameplay](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/276) | Hardcore mode: death deletes the save, saving only on exit | priority: low, status: pending |
 | 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/275) | Photo mode: free camera without HUD | priority: low, status: pending |
 | 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/274) | Weather and sky: rain, fog, instant change | priority: low, status: pending |
 | 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/273) | Building: place objects (chests, campfires, barrels) | priority: low, status: pending |
 | 0 | [World](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/272) | Chest editor: container contents | priority: high, status: pending |
-| 0 | [Union plugins](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/271) | Port more Union plugins into the trainer | priority: low, status: pending |
 | 0 | [Union plugins](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/270) | Extended console (like MarvinHelper, only better) | priority: medium, status: pending |
 | 0 | [Union plugins](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/269) | Engine bug fixes from Union plugins (zBugFixes, G1Fixes and others) | priority: high, status: pending |
 | 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/268) | Teleport paths: record a route and replay it | priority: low, status: pending |
