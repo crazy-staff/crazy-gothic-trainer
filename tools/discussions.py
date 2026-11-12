@@ -44,6 +44,8 @@ def label_id(name, desc):
 def idea_body(i):
     o = f"<!-- idea:{i['key']} -->\n{i['desc']}\n"
     if i.get("order"): o += f"\nKolejność: {i['order']} _(priorytet autora)_\n"
+    if i.get("related"): o += "\nPowiązane: " + ", ".join(i["related"]) + "\n"
+    if i.get("credit"): o += f"\n**Źródło / credit:** {i['credit']}\n"
     if i.get("issues"): o += "\n_Wcześniej: " + ", ".join(f"#{n}" for n in i["issues"]) + "_\n"
     return o + "\n**Głosuj:** strzałka w górę albo 👍 pod tym wątkiem. Uwagi i szczegóły piszcie w komentarzach."
 
@@ -71,9 +73,20 @@ def main():
                             r=repo["id"], c=cat["id"], t=i["title"], b=idea_body(i))["createDiscussion"]["discussion"]
                     print("utworzono", d["url"], i["title"])
             links[i["title"]] = d["url"]
-            if t["label"] not in {l["name"] for l in d["labels"]["nodes"]}:
-                gql("mutation($i:ID!,$l:[ID!]!){addLabelsToLabelable(input:{labelableId:$i,labelIds:$l}){clientMutationId}}", i=d["id"], l=[lid])
-                print("  etykieta", t["label"], "->", d["number"])
+            if i.get("addenda"):   # merged ideas -> one comment each (marker <!-- add:KEY -->)
+                have = gql("""query($o:String!,$n:String!,$x:Int!){repository(owner:$o,name:$n){discussion(number:$x){comments(first:100){nodes{body}}}}}""",
+                           o=OWNER, n=NAME, x=d["number"])["repository"]["discussion"]["comments"]["nodes"]
+                for a in i["addenda"]:
+                    m = f"<!-- add:{a['key']} -->"
+                    if not any(c["body"].startswith(m) for c in have):
+                        comment(d["id"], f"{m}\n**Dołączony pomysł:** {a['text']}")
+                        print("  dopisano", a["key"], "->", d["number"])
+            want = [t["label"]] + i.get("labels", [])
+            miss = [x for x in want if x not in {l["name"] for l in d["labels"]["nodes"]}]
+            if miss:
+                ids = [lid if x == t["label"] else label_id(x, "") for x in miss]
+                gql("mutation($i:ID!,$l:[ID!]!){addLabelsToLabelable(input:{labelableId:$i,labelIds:$l}){clientMutationId}}", i=d["id"], l=ids)
+                print("  etykiety", miss, "->", d["number"])
             for n in i.get("issues", []):
                 iss = rest("GET", f"issues/{n}")
                 if iss and iss["state"] == "open":

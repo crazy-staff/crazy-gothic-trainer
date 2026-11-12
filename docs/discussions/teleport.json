@@ -7,6 +7,12 @@
    "desc": "Mapa z pozycją bohatera, drużyny, NPC i przedmiotów; kliknięcie teleportuje.",
    "issues": [
     72
+   ],
+   "addenda": [
+    {
+     "key": "itemmap",
+     "text": "mapa z przedmiotami na bazie [ItemMap](https://github.com/Sefaris/ItemMap) (Sefaris) — integracja ItemMapPlugin albo własna implementacja na bazie jego kodu, z creditem."
+    }
    ]
   },
   {

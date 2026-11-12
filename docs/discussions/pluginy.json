@@ -1,0 +1,24 @@
+{
+ "label": "kategoria: Pluginy Uniona",
+ "label_desc": "Port open-source pluginów Uniona do trenera — zawsze z creditem dla autorów.",
+ "ideas": [
+  {
+   "key": "n-bugfix",
+   "title": "Poprawki błędów silnika z pluginów Uniona (zBugFixes, G1Fixes i inne)",
+   "desc": "Wbudowane poprawki błędów silnika, każda jako osobna opcja do włączenia.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_",
+   "credit": "[zBugFixes](https://github.com/UnresolvedExternal/Plugins_2021/tree/main/src/zBugFixes/Workspace/Entry) (UnresolvedExternal), [G1Fixes](https://github.com/Sefaris/G1Fixes) (Sefaris)"
+  },
+  {
+   "key": "n-console",
+   "title": "Rozszerzona konsola (jak MarvinHelper, tylko lepsza)",
+   "desc": "Więcej komend konsoli, podpowiedzi, historia i wyszukiwanie — na bazie pomysłów z MarvinHelper.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_",
+   "credit": "[Union_MarvinHelper](https://github.com/UnresolvedExternal/Union_AlterDamage/tree/master/src/Union_MarvinHelper) (UnresolvedExternal)"
+  },
+  {
+   "key": "n-unionports",
+   "title": "Port kolejnych pluginów Uniona do trenera",
+   "desc": "Zbiorczy wątek: które pluginy z listy warto przenieść do trenera (z creditem). Dopisujcie propozycje w komentarzach — każdy większy dostanie własny wątek.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_",
+   "credit": "[lista pluginów Uniona](https://sefaris.eu/union/plugins)"
+  }
+ ]
+}

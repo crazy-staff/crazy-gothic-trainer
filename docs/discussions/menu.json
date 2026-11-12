@@ -71,6 +71,11 @@
    "issues": [
     25
    ]
+  },
+  {
+   "key": "n-themes",
+   "title": "Własne motywy menu: lista stylów do edycji i wczytywania",
+   "desc": "Motywy zapisane w plikach (kolory, zaokrąglenia, czcionki), lista gotowych stylów i możliwość wgrania własnych lub udostępnienia innym.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_"
   }
  ],
  "label": "kategoria: Menu i wygoda",

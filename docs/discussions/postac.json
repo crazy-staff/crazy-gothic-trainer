@@ -7,6 +7,12 @@
    "desc": "Lista posiadanych przedmiotów: zmiana ilości, usuwanie, zakładanie, przekazanie towarzyszowi.",
    "issues": [
     66
+   ],
+   "addenda": [
+    {
+     "key": "partygive",
+     "text": "przekazywanie przedmiotów towarzyszom (i odbieranie od nich) prosto z ekwipunku."
+    }
    ]
   },
   {

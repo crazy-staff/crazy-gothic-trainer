@@ -1,0 +1,45 @@
+{
+ "label": "kategoria: Rozgrywka",
+ "label_desc": "Zmiany w sterowaniu i zasadach gry.",
+ "ideas": [
+  {
+   "key": "n-skipdlg",
+   "title": "Pomijanie zakolejkowanych dialogów",
+   "desc": "Jeden klawisz pomija wszystkie kwestie czekające w kolejce rozmowy, a nie tylko bieżącą. Opcjonalnie automatyczne przewijanie.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_",
+   "related": [
+    "#127 (nowe UI dialogów)"
+   ]
+  },
+  {
+   "key": "n-nojump",
+   "title": "Całkowite wyłączenie skoku pod prawym przyciskiem myszy",
+   "desc": "Opcja, która całkiem usuwa skok przypisany do prawego przycisku myszy (żadnych przypadkowych skoków przy celowaniu i walce).\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_",
+   "related": [
+    "#119 (Alt = skok przy aimbocie)"
+   ]
+  },
+  {
+   "key": "n-regen",
+   "title": "Regeneracja życia i many w czasie",
+   "desc": "Osobne suwaki: ile punktów życia i many odnawia się co sekundę, z opcją „tylko poza walką”.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_"
+  },
+  {
+   "key": "n-acro",
+   "title": "Przełącznik akrobatyki bez oduczania",
+   "desc": "Włączanie i wyłączanie animacji akrobatyki w dowolnej chwili, bez oduczania umiejętności — żeby wybrać, które animacje skoku i upadku chcesz.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_"
+  },
+  {
+   "key": "n-fightstyle",
+   "title": "Zmiana animacji stylu walki z bindem",
+   "desc": "Wybór zestawu animacji walki (np. poziom wyszkolenia jedno- i dwuręcznej) niezależnie od umiejętności, z przełączaniem pod klawisz.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_"
+  },
+  {
+   "key": "n-hardcore",
+   "title": "Tryb hardcore: śmierć usuwa zapis, zapis tylko przy wyjściu",
+   "desc": "Po śmierci zapis jest kasowany. Zapisać grę można tylko przy wychodzeniu z gry.\n\n_zgłoszone przez autora (lista pomysłów, 12.11.2026)_",
+   "related": [
+    "#167 (menedżer zapisów)"
+   ]
+  }
+ ]
+}
