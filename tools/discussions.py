@@ -16,10 +16,12 @@ REPO = os.environ.get("GITHUB_REPOSITORY", "dawidseipold/gothic1-crazy-trainer")
 OWNER, NAME = REPO.split("/")
 HDR = {"Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}", "Accept": "application/vnd.github+json"}
 
+class GqlError(Exception): pass
+
 def gql(q, **v):
     r = urllib.request.Request("https://api.github.com/graphql", json.dumps({"query": q, "variables": v}).encode(), HDR)
     d = json.load(urllib.request.urlopen(r))
-    if d.get("errors"): raise SystemExit(d["errors"])
+    if d.get("errors"): raise GqlError(d["errors"])
     return d["data"]
 
 def rest(method, path, body=None):
@@ -85,9 +87,21 @@ def main():
                                {discussion{""" + DISC + "}}}", r=repo["id"], c=cat["id"], t=i["title"], b=body)["createDiscussion"]["discussion"]
                     print("created", d["url"], i["title"])
                 elif d["title"] != i["title"] or d["body"].strip() != body.strip():
-                    gql("mutation($d:ID!,$t:String!,$b:String!){updateDiscussion(input:{discussionId:$d,title:$t,body:$b}){discussion{id}}}",
-                        d=d["id"], t=i["title"], b=body)
-                    print("updated", d["number"], i["title"])
+                    try:
+                        gql("mutation($d:ID!,$t:String!,$b:String!){updateDiscussion(input:{discussionId:$d,title:$t,body:$b}){discussion{id}}}",
+                            d=d["id"], t=i["title"], b=body)
+                        print("updated", d["number"], i["title"])
+                    except GqlError as e:   # the Actions token may not edit discussions: recreate (only while it has no votes/comments)
+                        print("update refused:", d["number"], e)
+                        info = gql("query($o:String!,$n:String!,$x:Int!){repository(owner:$o,name:$n){discussion(number:$x){upvoteCount comments(first:20){nodes{body}}}}}",
+                                   o=OWNER, n=NAME, x=d["number"])["repository"]["discussion"]
+                        own = all(c["body"].startswith("<!-- add:") for c in info["comments"]["nodes"])
+                        if info["upvoteCount"] or not own: print("  kept (has votes or comments)"); continue
+                        gql("mutation($d:ID!){deleteDiscussion(input:{id:$d}){discussion{id}}}", d=d["id"])
+                        old = d["number"]
+                        d = gql("""mutation($r:ID!,$c:ID!,$t:String!,$b:String!){createDiscussion(input:{repositoryId:$r,categoryId:$c,title:$t,body:$b})
+                                   {discussion{""" + DISC + "}}}", r=repo["id"], c=cat["id"], t=i["title"], b=body)["createDiscussion"]["discussion"]
+                        print(f"recreated #{old} -> #{d['number']}", i["title"])
             for a in i.get("addenda", []):   # merged ideas -> one comment each (marker <!-- add:KEY -->)
                 m, body = f"<!-- add:{a['key']} -->", addendum_body(a)
                 c = next((c for c in d["comments"]["nodes"] if c["body"].startswith(m)), None)
