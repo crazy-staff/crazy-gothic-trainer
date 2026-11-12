@@ -1,6 +1,4 @@
 {
- "title": "Pomysły: Menu i wygoda",
- "intro": "Makra, profile, ulubione, skróty, aktualizacje, język, statystyki, testy.",
  "ideas": [
   {
    "key": "i86",
@@ -74,5 +72,7 @@
     25
    ]
   }
- ]
+ ],
+ "label": "kategoria: Menu i wygoda",
+ "label_desc": "Makra, profile, ulubione, skróty, aktualizacje, język, statystyki, testy."
 }

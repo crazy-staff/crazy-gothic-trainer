@@ -1,6 +1,4 @@
 {
- "title": "Pomysły: Świat: skrzynie, obiekty, pogoda, zdjęcia",
- "intro": "Wszystko, co zmienia świat wokół bohatera.",
  "ideas": [
   {
    "key": "i75",
@@ -38,5 +36,7 @@
     85
    ]
   }
- ]
+ ],
+ "label": "kategoria: Świat",
+ "label_desc": "Wszystko, co zmienia świat wokół bohatera."
 }

@@ -1,6 +1,4 @@
 {
- "title": "Pomysły: Teleport i mapa",
- "intro": "Mapa świata, teleport do NPC, nagrywane trasy.",
  "ideas": [
   {
    "key": "i72",
@@ -29,5 +27,7 @@
     73
    ]
   }
- ]
+ ],
+ "label": "kategoria: Teleport",
+ "label_desc": "Mapa świata, teleport do NPC, nagrywane trasy."
 }

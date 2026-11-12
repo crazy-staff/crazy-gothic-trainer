@@ -1,6 +1,4 @@
 {
- "title": "Pomysły: Arena, bossowie i wyzwania",
- "intro": "Tryby walki dla zabawy.",
  "ideas": [
   {
    "key": "i77",
@@ -38,5 +36,7 @@
     92
    ]
   }
- ]
+ ],
+ "label": "kategoria: Arena",
+ "label_desc": "Tryby walki dla zabawy."
 }

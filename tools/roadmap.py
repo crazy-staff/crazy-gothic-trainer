@@ -17,33 +17,28 @@ def fetch():
     return out
 
 def fetch_ideas():
-    """Ideas = comments in the Discussions "Ideas" category (tools/discussions.py). Vote = 👍 on the comment."""
+    """Ideas = discussions in the "Ideas" category, one per idea; category = label "kategoria: …". Vote = upvote + 👍."""
     tok = os.environ.get("GITHUB_TOKEN", "")
     if not tok: return []
     o, n = REPO.split("/")
-    q = """query($o:String!,$n:String!){repository(owner:$o,name:$n){discussions(first:100){nodes{title url body closed upvoteCount author{login} category{slug name}
-      comments(first:100){nodes{body url isMinimized reactionGroups{content reactors{totalCount}}}}}}}}"""
-    req = urllib.request.Request("https://api.github.com/graphql", json.dumps({"query": q, "variables": {"o": o, "n": n}}).encode(),
-                                 {"Authorization": f"Bearer {tok}"})
-    try: d = json.load(urllib.request.urlopen(req))["data"]["repository"]["discussions"]["nodes"]
-    except Exception as e: print("dyskusje niedostępne:", e); return []
-    out = []
-    for t in d:
-        if t["closed"] or t["category"]["slug"] != "ideas": continue
-        if not t["title"].startswith("Pomysły:"):   # someone's own thread = one idea, waiting to be sorted into a theme
-            out.append({"idea": True, "ref": "nowy", "number": 0, "title": t["title"][:120], "html_url": t["url"], "body": t["body"] or "",
-                        "state": "open", "labels": [{"name": "pomysł"}, {"name": "do przejrzenia"}], "reactions": {"+1": t["upvoteCount"]}})
-            continue
-        theme = t["title"].split(":", 1)[-1].strip()
-        for c in t["comments"]["nodes"]:
-            if c["isMinimized"]: continue
-            body = c["body"]
-            lines = [l.strip("# ").strip() for l in re.sub(r"<!--.*?-->", "", body, flags=re.S).strip().splitlines() if l.strip()]
-            if not lines: continue
-            up = sum(g["reactors"]["totalCount"] for g in c["reactionGroups"] if g["content"] == "THUMBS_UP")
-            out.append({"idea": True, "ref": theme, "number": 0, "title": lines[0][:120], "html_url": c["url"], "body": body,
-                        "state": "open", "labels": [{"name": "pomysł"}], "reactions": {"+1": up}})
-    return out
+    q = """query($o:String!,$n:String!,$c:String){repository(owner:$o,name:$n){discussions(first:100,after:$c){pageInfo{hasNextPage endCursor}
+      nodes{number title url body closed upvoteCount category{slug} labels(first:20){nodes{name}} reactionGroups{content reactors{totalCount}}}}}}"""
+    out, cur = [], None
+    while True:
+        req = urllib.request.Request("https://api.github.com/graphql", json.dumps({"query": q, "variables": {"o": o, "n": n, "c": cur}}).encode(),
+                                     {"Authorization": f"Bearer {tok}"})
+        try: d = json.load(urllib.request.urlopen(req))["data"]["repository"]["discussions"]
+        except Exception as e: print("dyskusje niedostępne:", e); return out
+        for t in d["nodes"]:
+            if t["closed"] or t["category"]["slug"] != "ideas": continue
+            labs = [l["name"] for l in t["labels"]["nodes"]]
+            kat = next((l.split(":", 1)[1].strip() for l in labs if l.startswith("kategoria:")), None)
+            up = t["upvoteCount"] + sum(g["reactors"]["totalCount"] for g in t["reactionGroups"] if g["content"] == "THUMBS_UP")
+            out.append({"idea": True, "ref": kat or "do przejrzenia", "number": t["number"], "title": t["title"][:120], "html_url": t["url"],
+                        "body": t["body"] or "", "state": "open", "labels": [{"name": l} for l in labs if not l.startswith("kategoria:")],
+                        "reactions": {"+1": up}})
+        if not d["pageInfo"]["hasNextPage"]: return out
+        cur = d["pageInfo"]["endCursor"]
 
 def ref(i): return i.get("ref") or f"#{i['number']}"
 
@@ -65,7 +60,7 @@ SECTIONS = [
     ("doing", "W trakcie", "Nad tym właśnie pracujemy."),
     ("verify", "Do sprawdzenia w grze", "Poprawione w ostatnim buildzie - czeka na potwierdzenie testerów."),
     ("plans", "Plany", "Zaplanowane na kolejne buildy - w kolejności priorytetu (od góry)."),
-    ("ideas", "Pomysły - głosuj", "Pomysły są w Dyskusjach: daj 👍 pod komentarzem z pomysłem - najwyżej ocenione robimy najpierw."),
+    ("ideas", "Pomysły - głosuj", "Każdy pomysł to osobny wątek w Dyskusjach: zagłosuj strzałką w górę lub 👍 - najwyżej ocenione robimy najpierw."),
     ("done", "Zrobione", "Ostatnio zamknięte."),
     ("other", "Inne", ""),
 ]
@@ -90,8 +85,8 @@ def build(issues):
 def md(groups, now):
     o = [f"# Gothic 1 Crazy Trainer — mapa drogowa\n",
          f"Lista generuje się automatycznie z [GitHub Issues](https://github.com/{REPO}/issues) (ostatnio: {now} UTC).  ",
-         f"**Głosowanie:** pomysły są w [Dyskusjach](https://github.com/{REPO}/discussions/categories/ideas) — daj 👍 pod komentarzem z pomysłem.  ",
-         f"Błąd: [zgłoś tutaj](https://github.com/{REPO}/issues/new/choose). Nowy pomysł: napisz komentarz w pasującym temacie w Dyskusjach.\n"]
+         f"**Głosowanie:** pomysły są w [Dyskusjach](https://github.com/{REPO}/discussions/categories/ideas) — każdy pomysł to osobny wątek, głosuj strzałką w górę lub 👍.  ",
+         f"Błąd: [zgłoś tutaj](https://github.com/{REPO}/issues/new/choose). Nowy pomysł: [załóż wątek w Dyskusjach](https://github.com/{REPO}/discussions/new?category=ideas).\n"]
     for k, title, desc in SECTIONS:
         g = groups[k]
         if not g: continue
@@ -131,7 +126,7 @@ main{{max-width:980px;margin:auto;padding:0 24px 40px}}section{{display:none}}se
 .t{{font-weight:600}}.l{{margin-top:4px}}.lab,.ms{{display:inline-block;font-size:12px;background:#2a2540;border-radius:6px;padding:1px 7px;margin:2px 4px 0 0;color:#c9c3dd}}.ms{{background:#3a2140;color:#f6b3ea}}
 </style></head><body><header><h1>Gothic 1 Crazy Trainer — mapa drogowa</h1>
 <p>Błędy, plany i pomysły prosto z <a href="https://github.com/{REPO}/issues">GitHub Issues</a>. Aktualizacja: {now} UTC.</p>
-<p><b>Jak głosować:</b> pomysły są w <a href="https://github.com/{REPO}/discussions/categories/ideas">Dyskusjach</a> - daj 👍 pod komentarzem z pomysłem. <a href="https://github.com/{REPO}/issues/new/choose">Zgłoś błąd lub pomysł</a> · <a href="https://github.com/{REPO}/releases">Pobierz trener</a></p></header>
+<p><b>Jak głosować:</b> pomysły są w <a href="https://github.com/{REPO}/discussions/categories/ideas">Dyskusjach</a> - każdy pomysł to osobny wątek, głosuj strzałką w górę lub 👍. <a href="https://github.com/{REPO}/issues/new/choose">Zgłoś błąd lub pomysł</a> · <a href="https://github.com/{REPO}/releases">Pobierz trener</a></p></header>
 <nav>{"".join(tabs)}</nav><input id="q" placeholder="Szukaj (np. drużyna, ślizg, radar)..."><main>{"".join(bodies)}</main>
 <script>
 const bs=[...document.querySelectorAll('nav button')],ss=[...document.querySelectorAll('section')];

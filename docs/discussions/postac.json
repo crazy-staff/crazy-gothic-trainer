@@ -1,6 +1,4 @@
 {
- "title": "Pomysły: Postać i ekwipunek",
- "intro": "Edytory bohatera: ekwipunek, presety postaci.",
  "ideas": [
   {
    "key": "i66",
@@ -20,5 +18,7 @@
     69
    ]
   }
- ]
+ ],
+ "label": "kategoria: Postać",
+ "label_desc": "Edytory bohatera: ekwipunek, presety postaci."
 }

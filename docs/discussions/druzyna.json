@@ -1,6 +1,4 @@
 {
- "title": "Pomysły: Drużyna i bitwy",
- "intro": "Rozkazy, rozwój towarzyszy, walki obozów.",
  "ideas": [
   {
    "key": "i81",
@@ -29,5 +27,7 @@
     79
    ]
   }
- ]
+ ],
+ "label": "kategoria: Drużyna",
+ "label_desc": "Rozkazy, rozwój towarzyszy, walki obozów."
 }

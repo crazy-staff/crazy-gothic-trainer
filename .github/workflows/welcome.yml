@@ -16,6 +16,6 @@ jobs:
             const d = context.payload.discussion;
             const ideas = `https://github.com/${context.repo.owner}/${context.repo.repo}/discussions/categories/ideas`;
             const body = d.category.slug === 'ideas'
-              ? 'Dzięki za pomysł! 👍 Już jest na [mapie drogowej](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/blob/main/ROADMAP.md) w sekcji pomysłów. Przy najbliższym przeglądzie dopiszę go do pasującego tematu albo połączę z podobnym i dam tu link — głosy i rozmowa przejdą tam.'
+              ? 'Dzięki za pomysł! Już jest na [mapie drogowej](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/blob/main/ROADMAP.md) — inni mogą na niego głosować strzałką w górę lub 👍. Przy najbliższym przeglądzie dostanie etykietę kategorii (a jeśli jest już bardzo podobny pomysł, podlinkuję go tutaj).'
               : 'Dzięki! Jeśli to pomysł na funkcję, nie przejmuj się kategorią — przy najbliższym przeglądzie przeniosę go do [Pomysłów](' + ideas + '). Błędy najlepiej zgłaszać przez Centrum testera w grze albo w zakładce Issues.';
             await github.graphql(`mutation($d:ID!,$b:String!){addDiscussionComment(input:{discussionId:$d,body:$b}){comment{id}}}`, { d: d.node_id, b: body });

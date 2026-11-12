@@ -1,6 +1,4 @@
 {
- "title": "Pomysły: Stream i chaos",
- "intro": "Losowe zdarzenia i integracja z czatem.",
  "ideas": [
   {
    "key": "i88",
@@ -20,5 +18,7 @@
     89
    ]
   }
- ]
+ ],
+ "label": "kategoria: Stream i chaos",
+ "label_desc": "Losowe zdarzenia i integracja z czatem."
 }

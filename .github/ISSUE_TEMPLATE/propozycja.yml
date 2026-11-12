@@ -5,7 +5,7 @@ labels: ["propozycja"]
 body:
   - type: markdown
     attributes:
-      value: "Ten formularz jest na zmiany w istniejących opcjach. Nowe funkcje zbieramy w [Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — tam daj 👍 albo dopisz komentarz w pasującym temacie."
+      value: "Ten formularz jest na zmiany w istniejących opcjach. Nowe funkcje zbieramy w [Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — tam zagłosuj na podobny pomysł albo załóż nowy wątek."
   - type: input
     id: opcja
     attributes:

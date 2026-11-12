@@ -1,6 +1,4 @@
 {
- "title": "Pomysły: Informacje na ekranie",
- "intro": "Liczby obrażeń, rutyny NPC, podświetlanie ważnych postaci, bestiariusz.",
  "ideas": [
   {
    "key": "i78",
@@ -38,5 +36,7 @@
     95
    ]
   }
- ]
+ ],
+ "label": "kategoria: Informacje",
+ "label_desc": "Liczby obrażeń, rutyny NPC, podświetlanie ważnych postaci, bestiariusz."
 }

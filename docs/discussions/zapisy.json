@@ -1,6 +1,4 @@
 {
- "title": "Pomysły: Zapisy, zadania i fabuła",
- "intro": "Zarządzanie zapisami gry, dziennik zadań, zmienne fabularne.",
  "ideas": [
   {
    "key": "i65",
@@ -30,5 +28,7 @@
     68
    ]
   }
- ]
+ ],
+ "label": "kategoria: Zapisy i fabuła",
+ "label_desc": "Zarządzanie zapisami gry, dziennik zadań, zmienne fabularne."
 }
