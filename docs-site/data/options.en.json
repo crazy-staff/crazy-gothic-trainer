@@ -1,0 +1,49 @@
+{
+ "categories": {
+  "Postać": "Character", "Postacie": "Characters", "Wizualia": "Visuals", "Ekwipunek": "Inventory", "Świat": "World", "Fun": "Fun",
+  "Walka": "Combat", "Ruch": "Movement", "Informacje": "Information", "Wygląd": "Appearance", "Cheaty": "Cheats",
+  "ESP postaci": "Character ESP", "ESP przedmiotów": "Item ESP", "Widżety": "Widgets", "Celownik": "Crosshair", "Grafika": "Graphics",
+  "Zbieranie": "Pickup", "Zestawy": "Kits", "Drużyna": "Party", "Cel": "Target", "Czas i fabuła": "Time and story", "Magia": "Magic", "Chaos": "Chaos"
+ },
+ "intro": {
+  "Postać/Walka": "Combat helpers for the hero: attack speed, infinite ammo, free aim with an over-the-shoulder camera, and an aimbot / trigger bot that only work together with free aim.",
+  "Postać/Ruch": "Ways to move around the world: no-clip (fly through walls), glide (walk on the ground without physics), hero speed and sprint. No-clip and glide cannot be on at the same time."
+ },
+ "options": {
+  "atkspeed": ["Attack speed", "animation speed only with a weapon drawn: swings, drawing a bow, reloading a crossbow, casting spells"],
+  "infammo": ["Infinite ammo", "arrows and bolts refill by themselves while a bow / crossbow is drawn"],
+  "freeaim": ["Free aim", "bow, crossbow, spells: over-the-shoulder camera, the mouse aims up/down — the shot flies at the character under the crosshair (also up and down)"],
+  "famsens": ["Mouse up/down sensitivity", ""],
+  "famdist": ["Camera distance", "m"],
+  "famside": ["Side offset", "cm (camera over the right shoulder)"],
+  "fahl": ["Highlight the target under the crosshair", ""],
+  "aimbot": ["Aimbot", "requires free aim; while the key is held it turns the hero to the target and puts the crosshair on it"],
+  "aimkey": ["Key", "", ["Always (with a bow / spell)", "Mouse side button 4", "Mouse side button 5", "Middle mouse button", "Caps Lock", "V key"]],
+  "aimdelay": ["Delay after pressing", "ms"],
+  "aimprio": ["Priority", "", ["Closest to the crosshair", "Closest to you", "Lowest HP", "Highest HP"]],
+  "aimfov": ["Field of view", "degrees around where you look"],
+  "aimdist": ["Range", "m"],
+  "aimstick": ["Stick to the target", "does not switch to another one while the target is alive and in range"],
+  "aimnonvis": ["Also hidden targets", "targets behind walls"],
+  "trigbot": ["Trigger bot", "requires free aim; shoots / casts when an allowed target is under the crosshair"],
+  "trigdelay": ["Reaction time", "ms"],
+  "trigcd": ["Time between shots", "ms"],
+  "trigkeys": ["Attack keys in the game", "as set in your controls", ["Ctrl + up arrow", "Left mouse button + W"]],
+  "noclip": ["No-clip (flying)", "through walls; WASD, mouse turns, Space/Ctrl up/down, Shift x4; Esc turns it off"],
+  "ncspeed": ["Speed", "m/s (Shift x4)"],
+  "ncturn": ["Q/E turning", "degrees per second"],
+  "ncmouse": ["Mouse turns the hero", "moving the mouse sideways turns the hero, up/down tilts the camera"],
+  "ncmsens": ["Mouse sensitivity", ""],
+  "ncignore": ["Enemies ignore you", "monsters and enemies do not notice you in no-clip"],
+  "glide": ["Glide (on the ground)", "walks on the ground without physics and animations; WASD, Shift x4; Esc turns it off"],
+  "glcoll": ["Collide with objects", "trees, rocks, bridges, grates, fences — you walk onto them instead of passing through"],
+  "glideslope": ["Max slope", "degrees; steep walls up to this angle are climbed (90 = climbs any wall vertically)"],
+  "glspeed": ["Speed", "m/s (Shift x4)"],
+  "glturn": ["Q/E turning", "degrees per second"],
+  "glmouse": ["Mouse turns the hero", ""],
+  "glmsens": ["Mouse sensitivity", ""],
+  "glignore": ["Enemies ignore you", ""],
+  "pspeed": ["Hero speed", "animation speed = running, attacks, turning"],
+  "sprint": ["Sprint", "running overlay from the speed potion"]
+ }
+}

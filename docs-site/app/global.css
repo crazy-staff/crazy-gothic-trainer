@@ -1,0 +1,175 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+/* ---- Colours: the Quackback portal branding (= trainer menu) ---------------- */
+:root,
+.dark {
+  --qb-bg: #0e0e13;
+  --qb-header-bg: #0a0a0d;
+  --qb-card: #13131a;
+  --qb-muted: #1b1b24;
+  --qb-secondary: #21212b;
+  --qb-accent-bg: #26233a;
+  --qb-fg: #ebebf5;
+  --qb-muted-fg: #8c8ca1;
+  --qb-border: #2b2b38;
+  --qb-primary: #a88cff;
+  --qb-radius: 0.6rem;
+  --qb-header-height: 109px;
+
+  --color-fd-background: var(--qb-bg);
+  --color-fd-foreground: var(--qb-fg);
+  --color-fd-muted: var(--qb-muted);
+  --color-fd-muted-foreground: var(--qb-muted-fg);
+  --color-fd-popover: #17171f;
+  --color-fd-popover-foreground: var(--qb-fg);
+  --color-fd-card: var(--qb-card);
+  --color-fd-card-foreground: var(--qb-fg);
+  --color-fd-border: var(--qb-border);
+  --color-fd-primary: var(--qb-primary);
+  --color-fd-primary-foreground: #14111b;
+  --color-fd-secondary: var(--qb-secondary);
+  --color-fd-secondary-foreground: var(--qb-fg);
+  --color-fd-accent: var(--qb-accent-bg);
+  --color-fd-accent-foreground: var(--qb-fg);
+  --color-fd-ring: var(--qb-primary);
+
+  /* the portal header sits above the docs grid */
+  --fd-banner-height: var(--qb-header-height);
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+body {
+  font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+  background: var(--qb-bg);
+}
+
+/* ---- Portal header (copy of Quackback's) ------------------------------------ */
+.qb-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: var(--qb-header-height);
+  padding: 8px 0;
+  background: var(--qb-header-bg);
+  border-bottom: 1px solid var(--qb-border);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  color: var(--qb-fg);
+}
+.qb-wrap {
+  max-width: 72rem;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 1.5rem;
+}
+.qb-row {
+  display: flex;
+  height: 48px;
+  align-items: center;
+  justify-content: space-between;
+}
+.qb-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+.qb-logo-box {
+  width: 32px;
+  height: 32px;
+  border-radius: calc(var(--qb-radius) * 0.6);
+  background: var(--qb-primary);
+  color: #14111b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+.qb-btn {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border: 1px solid var(--qb-border);
+  border-radius: calc(var(--qb-radius) * 0.8);
+  color: var(--qb-fg);
+}
+.qb-btn:hover {
+  background: var(--qb-muted);
+}
+.qb-navrow {
+  margin-top: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.qb-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.qb-tab {
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  border-radius: calc(var(--qb-radius) * 0.8);
+  color: var(--qb-muted-fg);
+  transition: color 0.15s, background-color 0.15s;
+}
+.qb-tab:hover {
+  color: var(--qb-fg);
+  background: color-mix(in oklab, var(--qb-muted) 50%, transparent);
+}
+.qb-tab--active {
+  color: var(--qb-fg);
+  background: var(--qb-muted);
+}
+
+/* ---- Grid + glow under the header (Quackback help-center hero) --------------- */
+.qb-glow {
+  pointer-events: none;
+  position: absolute;
+  top: var(--qb-header-height);
+  left: 0;
+  right: 0;
+  height: 420px;
+  overflow: hidden;
+  z-index: 0;
+}
+.qb-glow-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.13;
+  background-image: linear-gradient(to right, rgb(128 128 128) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(128 128 128) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: radial-gradient(ellipse 80% 62% at 50% 0%, #000 30%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 62% at 50% 0%, #000 30%, transparent 78%);
+}
+.qb-glow-light {
+  position: absolute;
+  top: -8rem;
+  left: 50%;
+  height: 20rem;
+  width: 760px;
+  max-width: 100%;
+  transform: translateX(-50%);
+  filter: blur(40px);
+  background: radial-gradient(ellipse at center, color-mix(in oklch, var(--qb-primary) 20%, transparent), transparent 70%);
+}
+#nd-docs-layout {
+  position: relative;
+  z-index: 1;
+  --fd-layout-width: 80rem;
+}
+/* cards, code and tables in the portal style */
+#nd-page .prose :where(table) {
+  border-radius: var(--qb-radius);
+}
