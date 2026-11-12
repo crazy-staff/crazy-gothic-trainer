@@ -22,9 +22,9 @@
   {
    "key": "n-unionports",
    "title": "Port more Union plugins into the trainer",
-   "desc": "Umbrella thread: which plugins from the list are worth bringing into the trainer (with credit). Add suggestions in the comments - each bigger one gets its own thread.",
+   "desc": "Umbrella thread: which plugins from the list are worth bringing into the trainer (with credit). Add suggestions in the comments - each bigger one gets its own post.",
    "note": "Suggested by the author (idea list, 2026-11-12).",
-   "credit": "[lista pluginów Uniona](https://sefaris.eu/union/plugins)",
+   "credit": "[list of Union plugins](https://sefaris.eu/union/plugins)",
    "priority": "low",
    "status": "pending"
   }
