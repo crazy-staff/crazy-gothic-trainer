@@ -1,6 +1,6 @@
 # Gothic 1 Crazy Trainer — mapa drogowa
 
-Lista generuje się automatycznie z [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) (ostatnio: 2026-11-12 08:52 UTC).  
+Lista generuje się automatycznie z [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) (ostatnio: 2026-11-12 08:56 UTC).  
 **Głosowanie:** pomysły są w [Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — każdy pomysł to osobny wątek, głosuj strzałką w górę lub 👍.  
 Błąd: [zgłoś tutaj](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose). Nowy pomysł: [załóż wątek w Dyskusjach](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=ideas).
 
@@ -34,65 +34,58 @@ _Poprawione w ostatnim buildzie - czeka na potwierdzenie testerów._
 | 0 | [#22](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/22) | Przejęte ciało: powrót do Bezimiennego, gdy ten zniknął (za daleko) | błąd, obszar:postać, priorytet:wysoki, do-weryfikacji |
 | 0 | [#16](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/16) | Drużyna: „Czekaj” — postać ma stać dokładnie tam, gdzie kazano | błąd, obszar:drużyna, priorytet:wysoki, do-weryfikacji |
 
-## Plany (32)
+## Plany (46)
 
-_Zaplanowane na kolejne buildy - w kolejności priorytetu (od góry)._
-
-| 👍 | # | Zgłoszenie | Etykiety |
-|---:|---:|---|---|
-| 0 | [Zapisy i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/167) | Zapisy gry: menedżer slotów, kopie zapasowe, szybki zapis z trenera |  |
-| 0 | [Postać](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/156) | Edytor ekwipunku bohatera i towarzyszy |  |
-| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/164) | Mapa świata w trenerze (klik = teleport) |  |
-| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/160) | Edytor skrzyń: zawartość pojemników |  |
-| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/165) | Teleport do NPC po imieniu (nawet poza zasięgiem) |  |
-| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/137) | Bossowie elitarni: losowy potwór z mnożnikami i nagrodą |  |
-| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/144) | Liczby obrażeń nad głową i licznik DPS |  |
-| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/145) | Rutyny NPC: gdzie postać będzie o danej godzinie |  |
-| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/146) | Podświetlanie postaci ważnych (questy, handlarze, nauczyciele) |  |
-| 0 | [Zapisy i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/168) | Dziennik zadań: podgląd i zmiana statusu questów |  |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/148) | Makra: nagrywanie i odtwarzanie sekwencji akcji trenera |  |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/149) | Profile ustawień (np. speedrun, chaos, testy) |  |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/152) | Sprawdzanie aktualizacji trenera w grze |  |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/153) | Angielska wersja interfejsu |  |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/150) | Ulubione opcje (pinezka) na pierwszej stronie |  |
-| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/147) | Kompendium bestiariusza: statystyki wszystkich potworów i postaci |  |
-| 0 | [Zapisy i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/169) | Zmienne fabularne i rozdziały: podgląd i edycja |  |
-| 0 | [Postać](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/157) | Presety postaci: zapisz i wczytaj wygląd + statystyki |  |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/154) | Statystyki sesji: zabici, zebrane przedmioty, dystans, czas |  |
-| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/162) | Pogoda i niebo: deszcz, mgła, natychmiastowa zmiana |  |
-| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/166) | Ścieżki teleportu: nagraj trasę i odtwórz |  |
-| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/161) | Budowanie: stawianie obiektów (skrzynie, ogniska, beczki) |  |
-| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/138) | Tryb hordy: rozszerzona arena z rankingiem |  |
-| 0 | [Drużyna](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/143) | Wojny obozów: każ dwóm grupom walczyć |  |
-| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/139) | Manekin treningowy |  |
-| 0 | [Drużyna](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/141) | Rozkazy drużyny: formacje, idź tam gdzie celuję, atakuj cel |  |
-| 0 | [Drużyna](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/142) | Rozwój towarzyszy: statystyki i ekwipunek drużyny |  |
-| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/163) | Tryb zdjęć: wolna kamera bez HUD |  |
-| 0 | [Stream i chaos](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/158) | Tryb streamera: losowe zdarzenia chaosu co X minut |  |
-| 0 | [Stream i chaos](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/159) | Integracja z czatem Twitch (głosowanie na chaos) |  |
-| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/140) | Wyzwania i osiągnięcia trenera |  |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/151) | Skróty klawiszowe do stron i makr |  |
-
-## Pomysły - głosuj (14)
-
-_Każdy pomysł to osobny wątek w Dyskusjach: zagłosuj strzałką w górę lub 👍 - najwyżej ocenione robimy najpierw._
+_Zatwierdzone pomysły - od najwyższego priorytetu._
 
 | 👍 | # | Zgłoszenie | Etykiety |
 |---:|---:|---|---|
-| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/182) | Tryb hardcore: śmierć usuwa zapis, zapis tylko przy wyjściu |  |
-| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/181) | Zmiana animacji stylu walki z bindem |  |
-| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/180) | Przełącznik akrobatyki bez oduczania |  |
-| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/179) | Regeneracja życia i many w czasie |  |
-| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/178) | Całkowite wyłączenie skoku pod prawym przyciskiem myszy |  |
-| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/177) | Pomijanie zakolejkowanych dialogów |  |
-| 0 | [Pluginy Uniona](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/176) | Port kolejnych pluginów Uniona do trenera |  |
-| 0 | [Pluginy Uniona](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/175) | Rozszerzona konsola (jak MarvinHelper, tylko lepsza) |  |
-| 0 | [Pluginy Uniona](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/174) | Poprawki błędów silnika z pluginów Uniona (zBugFixes, G1Fixes i inne) |  |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/173) | Własne motywy menu: lista stylów do edycji i wczytywania |  |
-| 0 | [Grafika i kamera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/172) | Dyndająca broń przy pasie |  |
-| 0 | [Grafika i kamera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/171) | Ukrywanie roślinności, która zasłania bohatera |  |
-| 0 | [Grafika i kamera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/170) | Wyłączenie efektu wizualnego pod wodą |  |
-| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/155) | Testy automatyczne: symulacja w grze |  |
+| 0 | [Zapisy i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/167) | Zapisy gry: menedżer slotów, kopie zapasowe, szybki zapis z trenera | priorytet:wysoki, status: zatwierdzony |
+| 0 | [Postać](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/156) | Edytor ekwipunku bohatera i towarzyszy | priorytet:wysoki, status: zatwierdzony |
+| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/164) | Mapa świata w trenerze (klik = teleport) | priorytet:wysoki, status: zatwierdzony |
+| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/160) | Edytor skrzyń: zawartość pojemników | priorytet:wysoki, status: zatwierdzony |
+| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/165) | Teleport do NPC po imieniu (nawet poza zasięgiem) | priorytet:wysoki, status: zatwierdzony |
+| 0 | [Pluginy Uniona](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/174) | Poprawki błędów silnika z pluginów Uniona (zBugFixes, G1Fixes i inne) | priorytet:wysoki, status: zatwierdzony |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/137) | Bossowie elitarni: losowy potwór z mnożnikami i nagrodą | priorytet:średni, status: zatwierdzony |
+| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/144) | Liczby obrażeń nad głową i licznik DPS | priorytet:średni, status: zatwierdzony |
+| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/145) | Rutyny NPC: gdzie postać będzie o danej godzinie | priorytet:średni, status: zatwierdzony |
+| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/146) | Podświetlanie postaci ważnych (questy, handlarze, nauczyciele) | priorytet:średni, status: zatwierdzony |
+| 0 | [Zapisy i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/168) | Dziennik zadań: podgląd i zmiana statusu questów | priorytet:średni, status: zatwierdzony |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/148) | Makra: nagrywanie i odtwarzanie sekwencji akcji trenera | priorytet:średni, status: zatwierdzony |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/149) | Profile ustawień (np. speedrun, chaos, testy) | priorytet:średni, status: zatwierdzony |
+| 0 | [Grafika i kamera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/171) | Ukrywanie roślinności, która zasłania bohatera | priorytet:średni, status: zatwierdzony |
+| 0 | [Pluginy Uniona](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/175) | Rozszerzona konsola (jak MarvinHelper, tylko lepsza) | priorytet:średni, status: zatwierdzony |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/177) | Pomijanie zakolejkowanych dialogów | priorytet:średni, status: zatwierdzony |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/178) | Całkowite wyłączenie skoku pod prawym przyciskiem myszy | priorytet:średni, status: zatwierdzony |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/152) | Sprawdzanie aktualizacji trenera w grze | priorytet:niski, status: zatwierdzony |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/153) | Angielska wersja interfejsu | priorytet:niski, status: zatwierdzony |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/150) | Ulubione opcje (pinezka) na pierwszej stronie | priorytet:niski, status: zatwierdzony |
+| 0 | [Informacje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/147) | Kompendium bestiariusza: statystyki wszystkich potworów i postaci | priorytet:niski, status: zatwierdzony |
+| 0 | [Zapisy i fabuła](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/169) | Zmienne fabularne i rozdziały: podgląd i edycja | priorytet:niski, status: zatwierdzony |
+| 0 | [Postać](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/157) | Presety postaci: zapisz i wczytaj wygląd + statystyki | priorytet:niski, status: zatwierdzony |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/154) | Statystyki sesji: zabici, zebrane przedmioty, dystans, czas | priorytet:niski, status: zatwierdzony |
+| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/162) | Pogoda i niebo: deszcz, mgła, natychmiastowa zmiana | priorytet:niski, status: zatwierdzony |
+| 0 | [Teleport](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/166) | Ścieżki teleportu: nagraj trasę i odtwórz | priorytet:niski, status: zatwierdzony |
+| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/161) | Budowanie: stawianie obiektów (skrzynie, ogniska, beczki) | priorytet:niski, status: zatwierdzony |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/138) | Tryb hordy: rozszerzona arena z rankingiem | priorytet:niski, status: zatwierdzony |
+| 0 | [Drużyna](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/143) | Wojny obozów: każ dwóm grupom walczyć | priorytet:niski, status: zatwierdzony |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/139) | Manekin treningowy | priorytet:niski, status: zatwierdzony |
+| 0 | [Drużyna](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/141) | Rozkazy drużyny: formacje, idź tam gdzie celuję, atakuj cel | priorytet:niski, status: zatwierdzony |
+| 0 | [Drużyna](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/142) | Rozwój towarzyszy: statystyki i ekwipunek drużyny | priorytet:niski, status: zatwierdzony |
+| 0 | [Świat](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/163) | Tryb zdjęć: wolna kamera bez HUD | priorytet:niski, status: zatwierdzony |
+| 0 | [Stream i chaos](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/158) | Tryb streamera: losowe zdarzenia chaosu co X minut | priorytet:niski, status: zatwierdzony |
+| 0 | [Stream i chaos](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/159) | Integracja z czatem Twitch (głosowanie na chaos) | priorytet:niski, status: zatwierdzony |
+| 0 | [Arena](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/140) | Wyzwania i osiągnięcia trenera | priorytet:niski, status: zatwierdzony |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/151) | Skróty klawiszowe do stron i makr | priorytet:niski, status: zatwierdzony |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/155) | Testy automatyczne: symulacja w grze | priorytet:niski, status: zatwierdzony |
+| 0 | [Grafika i kamera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/170) | Wyłączenie efektu wizualnego pod wodą | priorytet:niski, status: zatwierdzony |
+| 0 | [Grafika i kamera](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/172) | Dyndająca broń przy pasie | priorytet:niski, status: zatwierdzony |
+| 0 | [Menu i wygoda](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/173) | Własne motywy menu: lista stylów do edycji i wczytywania | priorytet:niski, status: zatwierdzony |
+| 0 | [Pluginy Uniona](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/176) | Port kolejnych pluginów Uniona do trenera | priorytet:niski, status: zatwierdzony |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/179) | Regeneracja życia i many w czasie | priorytet:niski, status: zatwierdzony |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/180) | Przełącznik akrobatyki bez oduczania | priorytet:niski, status: zatwierdzony |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/181) | Zmiana animacji stylu walki z bindem | priorytet:niski, status: zatwierdzony |
+| 0 | [Rozgrywka](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/182) | Tryb hardcore: śmierć usuwa zapis, zapis tylko przy wyjściu | priorytet:niski, status: zatwierdzony |
 
 ## Zrobione (60)
 
