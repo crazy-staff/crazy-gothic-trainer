@@ -46,7 +46,7 @@ const float PAD = 6;   // inner padding of a card (rows are inset by this on eve
 struct Sec { const char* name; const char* icon; std::vector<const char*> subs; };
 const std::vector<Sec> kSecs = {
     { "Postać", ICN_USER, { "Informacje", "Wygląd", "Cheaty", "Ruch" } },
-    { "Ekwipunek", ICN_BAG, { "Spawner", "Zestawy" } },
+    { "Ekwipunek", ICN_BAG, { "Spawner", "Zestawy", "Zbieranie" } },
     { "Postacie", ICN_USERS, { "Cel", "Drużyna", "Otoczenie", "Spawner" } },
     { "Fun", ICN_FIRE, { "Walka", "Magia", "Chaos" } },
     { "Świat", ICN_MAP, { "Czas i fabuła", "Teleport" } },
@@ -54,7 +54,18 @@ const std::vector<Sec> kSecs = {
     { "Narzędzia", ICN_TERMINAL, { "Konsola", "Nakładka", "Kompendium", "Diagnostyka" } },
 };
 int curSec = 0, curSub = 0; bool cfgPage = false;
+// build 15: every page keeps what was typed in its search box (Konfiguracja: "Pamiętaj wyszukiwanie")
+std::map<int, std::string> g_searchMem;
+void SwapSearch(int newSec, int newSub);
 Row* editRow = nullptr; char editBuf[32]; bool editFirst = false;
+void SwapSearch(int newSec, int newSub) {
+    extern char search[96];
+    g_searchMem[curSec * 100 + curSub] = search;
+    search[0] = 0;
+    if (!gx::On("keepsearch")) { g_searchMem.clear(); return; }
+    auto it = g_searchMem.find(newSec * 100 + newSub);
+    if (it != g_searchMem.end()) snprintf(search, sizeof search, "%s", it->second.c_str());
+}
 Row* bindRow = nullptr; bool bindKeys[256];
 char search[96] = "", gsearch[96] = "";
 int itemCat = -1, npcGroup = -1; std::string itemSub;
@@ -611,6 +622,30 @@ std::vector<CardSpec> CardsFor(const std::string& cat, const std::string& sub, c
     return out;
 }
 CardSpec* FindCard(std::vector<CardSpec>& v, const char* title) { for (auto& c : v) if (c.title == title) return &c; return nullptr; }
+// build 15: a card of checkmarks for hidden toggle rows (2 columns); added to an existing card of that title or as a new one
+void ChecksCard(std::vector<CardSpec>& cards, const char* title, std::vector<const char*> ids, const char* header = nullptr) {
+    int n = 0; for (auto id : ids) if (T.Get(id)) n++;
+    float hh = header ? 34 * S : 8 * S;
+    float h = hh + (n + 1) / 2 * 34 * S + 8 * S;
+    auto fn = [ids, header, hh, h](float x, float y, float cw) -> float {
+        if (header) Text(ImVec2(x + 18 * S, y + 10 * S), fBold, C_TEXT, header);
+        int i = 0;
+        for (auto id : ids) {
+            Row* r = T.Get(id); if (!r) continue;
+            float cx = x + 18 * S + (i % 2) * (cw - 36 * S) * 0.5f, cy = y + hh + (i / 2) * 34 * S;
+            ImGui::PushID(id);
+            if (Check("##c", r->on, ImVec2(cx, cy))) { r->on = !r->on; tst::Event(r->id, r->on ? "włączono" : "wyłączono"); T.Save(); }
+            if (T.testerMode) {}
+            ImGui::PopID();
+            Text(ImVec2(cx + 28 * S, cy + 1 * S), fReg, r->on ? C_TEXT : C_DIM, r->name.c_str());
+            if (ImGui::IsMouseHoveringRect(ImVec2(cx, cy), ImVec2(cx + (cw - 36 * S) * 0.5f, cy + 24 * S)) && !r->note.empty()) Tip("%s", r->note.c_str());
+            i++;
+        }
+        return h;
+    };
+    if (CardSpec* c = FindCard(cards, title)) { c->customH = h; c->custom = fn; return; }
+    CardSpec cs{ title, {}, nullptr, h, false }; cs.custom = fn; cards.push_back(cs);
+}
 void SectionLabel(const char* t) {
     ImGui::Dummy(ImVec2(0, 6 * S));
     ImVec2 sp = ImGui::GetCursorScreenPos();
@@ -1143,7 +1178,7 @@ void TargetPage(const Snapshot& s, float w) {
         { "Kontrola", &C_G_CTRL, { "swap", "mind" } },
         { "Przemieszczanie", &C_G_MOVE, { "tpull", "tpto", "yeet" } },
         { "Atak", &C_G_ATK, { "tkill", "tcast", "tfreeze" } },
-        { "Inne", &C_G_OTHER, { "trevive", "trob", "tremove" } },
+        { "Inne", &C_G_OTHER, { "trevive", "trob", "tphoto", "tremove" } },
     };
     ImVec2 p = ImGui::GetCursorScreenPos();
     // build 9 (#12): actions on the right, one group per line (room for more actions later)
@@ -1266,7 +1301,9 @@ void PartyPage(const Snapshot& s, float w) {
     static const ImVec4* stCol[] = { &C_ON, &C_ST_BUG, &C_DIM };
     struct Cmd { int id; const char* icon; const char* tip; const ImVec4* col; };
     static const Cmd cmds[] = { { 0, ICN_USERS, "Idź za mną", &C_G_OTHER }, { 1, ICN_PAUSE, "Czekaj tutaj", &C_ST_BUG }, { 2, ICN_FLAG, "Wróć na posterunek", &C_DIM },
-                                { 3, ICN_MAGNET, "Przywołaj do mnie", &C_G_MOVE }, { 4, ICN_SIGNIN, "Teleportuj mnie do niego", &C_G_MOVE }, { 5, ICN_TIMES, "Wyrzuć z drużyny", &C_G_ATK } };
+                                { 3, ICN_MAGNET, "Przywołaj do mnie", &C_G_MOVE }, { 4, ICN_SIGNIN, "Teleportuj mnie do niego", &C_G_MOVE }, { 5, ICN_TIMES, "Wyrzuć z drużyny", &C_G_ATK },
+                                { 110, ICN_CAMERA, "Zrób portret", &C_G_OTHER }, { 109, ICN_TRASH, "Usuń ze świata", &C_G_ATK } };
+    const int NC = (int)(sizeof cmds / sizeof cmds[0]);
     float h = 58 * S;
     int i = 0;
     for (auto& n : s.party) {
@@ -1275,15 +1312,17 @@ void PartyPage(const Snapshot& s, float w) {
         ImGui::PushID((int)(n.ptr & 0x7FFFFFFF));
         Avatar(ImVec2(p.x + 12 * S + 20 * S, p.y + h * 0.5f), 24 * S, n.monster, n.ptr, n.inst);
         float tx = p.x + 64 * S;
-        float bs = 32 * S, bx = p.x + w - 12 * S - 6 * (bs + 6 * S) + 6 * S;
+        float bs = 32 * S, bx = p.x + w - 12 * S - NC * (bs + 6 * S) + 6 * S;
         TextClip(ImVec2(tx, p.y + 10 * S), fBold, n.dead ? C_ST_CRASH : C_TEXT, n.name, bx - 140 * S);
         char b[200]; snprintf(b, sizeof b, "%s  ·  %.0f m  ·  %d/%d HP", n.guild.c_str(), n.dist, n.hp, n.hpmax);
         TextClip(ImVec2(tx, p.y + 31 * S), fSmall, C_DIM, b, bx - 140 * S);
         float pw; PF(fSmall); float sw = ImGui::CalcTextSize(stName[n.pstate % 3]).x + 14 * S; ImGui::PopFont();
         Pill(ImVec2(bx - sw - 12 * S, p.y + (h - 22 * S) * 0.5f), stName[n.pstate % 3], *stCol[n.pstate % 3], &pw);
-        for (int k = 0; k < 6; k++) {
+        for (int k = 0; k < NC; k++) {
             ImGui::PushID(k);
-            if (IconButton("##pc", cmds[k].icon, cmds[k].tip, ImVec2(bx + k * (bs + 6 * S), p.y + (h - bs) * 0.5f), bs, C_TEXT, false, cmds[k].col)) Act_PartyCmd(n.ptr, cmds[k].id);
+            if (IconButton("##pc", cmds[k].icon, cmds[k].tip, ImVec2(bx + k * (bs + 6 * S), p.y + (h - bs) * 0.5f), bs, C_TEXT, false, cmds[k].col)) {
+                if (cmds[k].id >= 100) Act_EnvCmd(n.ptr, cmds[k].id - 100); else Act_PartyCmd(n.ptr, cmds[k].id);
+            }
             ImGui::PopID();
         }
         ImGui::PopID();
@@ -1376,6 +1415,7 @@ void EnvPage(const Snapshot& s, float w) {
             acts.push_back({ 6, ICN_SNOW, n.frozen ? "Odmroź" : "Zamroź", &C_G_OTHER });
             acts.push_back({ 7, ICN_KILL, "Zabij", &C_G_ATK });
         } else acts.push_back({ 8, ICN_REFRESH, "Ożyw", &C_G_OTHER });
+        acts.push_back({ 10, ICN_CAMERA, "Zrób portret", &C_G_OTHER });
         acts.push_back({ 9, ICN_TRASH, "Usuń ze świata", &C_G_ATK });
         float bx = p.x + w - 12 * S - acts.size() * (bs + 5 * S) + 5 * S;
         float tx = p.x + 62 * S;
@@ -1397,6 +1437,79 @@ void EnvPage(const Snapshot& s, float w) {
         ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 4 * S)); ImGui::Dummy(ImVec2(w, 0));
     }
     if (vis == 0) { PF(fSmall); ImGui::TextColored(C_DIM, "Nikogo w pobliżu dla tego filtra."); ImGui::PopFont(); }
+}
+// ---- Ekwipunek / Zbieranie (build 15): every item lying in the world - coordinates, teleport, pick-up bot
+int mapCat = -1; char mapSearch[64] = ""; int mapMinVal = 0; std::set<uintptr_t> mapPick; bool mapByValue = false;
+void MapItemsPage(const Snapshot& s, float w) {
+    T.mapWanted = true;
+    SectionLabel("Przedmioty na mapie");
+    static const std::vector<MapItem> none;
+    const std::vector<MapItem>& all = s.mapItems ? *s.mapItems : none;
+    BeginPanel("##mapp", nullptr, w);
+    InputBox("##msearch", mapSearch, sizeof mapSearch, "Szukaj po nazwie albo ID...", w * 0.34f);
+    ImGui::SameLine();
+    if (Chip("Wszystkie", mapCat == -1)) mapCat = -1;
+    for (int c = 0; c <= IC_COUNT; c++) { ImGui::PushID(c); if (Chip(c == IC_COUNT ? "Ruda" : kItemCatNames[c], mapCat == c)) mapCat = c; ImGui::PopID(); }
+    ImGui::NewLine();
+    if (Chip("Najbliższe", !mapByValue)) mapByValue = false;
+    if (Chip("Najcenniejsze", mapByValue)) mapByValue = true;
+    ImGui::NewLine();
+    std::vector<const MapItem*> v;
+    for (auto& m : all) {
+        if (mapCat >= 0 && m.cat != mapCat) continue;
+        if (m.value < mapMinVal) continue;
+        if (!MatchQ(mapSearch, m.name, m.id)) continue;
+        v.push_back(&m);
+    }
+    if (mapByValue) std::stable_sort(v.begin(), v.end(), [](const MapItem* a, const MapItem* b) { return a->value > b->value; });
+    ImVec2 bp = ImGui::GetCursorScreenPos(); float x2 = bp.x;
+    auto btn = [&](const char* id, const char* l, bool prim) { bool r = Button(id, l, ImVec2(x2, bp.y), prim); x2 += ButtonW(l) + 8 * S; return r; };
+    if (btn("##mall", "Zaznacz widoczne", false)) for (auto* m : v) mapPick.insert(m->ptr);
+    if (btn("##mnone", "Odznacz", false)) mapPick.clear();
+    char l1[64]; snprintf(l1, sizeof l1, "Bot: zbierz zaznaczone (%d)", (int)mapPick.size());
+    if (!s.botOn) {
+        if (btn("##mbot", l1, true) && !mapPick.empty()) { Act_BotStart(std::vector<uintptr_t>(mapPick.begin(), mapPick.end())); mapPick.clear(); }
+        char l2[64]; snprintf(l2, sizeof l2, "Bot: zbierz widoczne (%d)", (int)v.size());
+        if (btn("##mbotv", l2, false) && !v.empty()) { std::vector<uintptr_t> p; for (auto* m : v) p.push_back(m->ptr); Act_BotStart(p); }
+    } else if (btn("##mstop", "Zatrzymaj bota", true)) Act_BotStop();
+    if (btn("##mcsv", "Zapisz listę do pliku (CSV)", false)) {
+        std::string path = DataPath("G1CrazyTrainer_przedmioty.csv");
+        if (FILE* f = fopen(path.c_str(), "wb")) {
+            fprintf(f, "\xEF\xBB\xBFnazwa;instancja;kategoria;wartosc;ilosc;x;y;z\r\n");
+            for (auto* m : v) fprintf(f, "%s;%s;%s;%d;%d;%.0f;%.0f;%.0f\r\n", m->name.c_str(), m->id.c_str(), m->cat == IC_COUNT ? "Ruda" : kItemCatNames[m->cat], m->value, m->amount, m->x, m->y, m->z);
+            fclose(f); T.Toast("Zapisano " + std::to_string(v.size()) + " pozycji: G1CrazyTrainer_przedmioty.csv");
+        }
+    }
+    ImGui::SetCursorScreenPos(ImVec2(bp.x, bp.y + BtnH() + 8 * S));
+    PF(fSmall);
+    if (s.botOn) ImGui::TextColored(C_ON, "Bot zbiera: zostało %d, zebrano %d  ·  Esc w grze przerywa", s.botLeft, s.botGot);
+    else ImGui::TextColored(C_DIM, "%d przedmiotów w świecie, %d pasuje  ·  bot teleportuje cię do każdego po kolei (najkrótsza trasa) i podnosi go", (int)all.size(), (int)v.size());
+    ImGui::PopFont();
+    EndPanel();
+    float h = 46 * S;
+    ImGuiListClipper clip; clip.Begin((int)v.size(), h + 4 * S);
+    while (clip.Step())
+        for (int k = clip.DisplayStart; k < clip.DisplayEnd; k++) {
+            const MapItem& m = *v[k];
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            ListRowBg(p, w, h, k);
+            ImGui::PushID((int)(m.ptr & 0x7FFFFFFF));
+            bool on = mapPick.count(m.ptr) != 0;
+            if (Check("##c", on, ImVec2(p.x + 12 * S, p.y + (h - 18 * S) * 0.5f))) { if (on) mapPick.erase(m.ptr); else mapPick.insert(m.ptr); }
+            float ic = 34 * S; ImVec2 ip(p.x + 40 * S, p.y + (h - ic) * 0.5f);
+            if (void* tex = PortraitFor("I_" + m.id)) DL()->AddImage((ImTextureID)(intptr_t)tex, ip, ImVec2(ip.x + ic, ip.y + ic));
+            else { DL()->AddRectFilled(ip, ImVec2(ip.x + ic, ip.y + ic), U32(C_ACCD, 0.5f), R_BTN()); IconAt(DL(), ImVec2(ip.x + ic * 0.5f, ip.y + ic * 0.5f), CatIcon(m.cat == IC_COUNT ? IC_MISC : m.cat), U32(C_ACC), 12 * S); }
+            float tx = ip.x + ic + 12 * S, bs = 30 * S, bx = p.x + w - 12 * S - 2 * (bs + 6 * S) + 6 * S;
+            std::string nm = m.name + (m.amount > 1 ? "  x" + std::to_string(m.amount) : "");
+            TextClip(ImVec2(tx, p.y + 5 * S), fBold, C_TEXT, nm, bx - 10 * S);
+            char b[200]; snprintf(b, sizeof b, "%s  ·  %d rudy  ·  %.0f m  ·  %.0f / %.0f / %.0f  ·  %s", m.cat == IC_COUNT ? "Ruda" : kItemCatNames[m.cat], m.value / 2, m.dist, m.x, m.y, m.z, m.id.c_str());
+            TextClip(ImVec2(tx, p.y + 25 * S), fSmall, C_DIM, b, bx - 10 * S);
+            if (IconButton("##tp", ICN_SIGNIN, "Teleportuj mnie tutaj", ImVec2(bx, p.y + (h - bs) * 0.5f), bs, C_TEXT, false, &C_G_MOVE)) Act_Teleport(m.x, m.y + 100.f, m.z, m.name);
+            if (IconButton("##pk", ICN_BAG, "Podnieś teraz (bez chodzenia)", ImVec2(bx + bs + 6 * S, p.y + (h - bs) * 0.5f), bs, C_TEXT, false, &C_G_OTHER)) Act_PickItem(m.ptr);
+            ImGui::PopID();
+            ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 4 * S)); ImGui::Dummy(ImVec2(w, 0));
+        }
+    clip.End();
 }
 // ---- spell checklists (part of "Deszcz zaklęć" / "Magia na celu" cards)
 float SpellList(float x, float y, float w, bool draw, const char* rowId, const char* const* names, int n, const char* title) {
@@ -1672,6 +1785,15 @@ void CompendiumPage(float w) {
     (void)missNpc;
     ImVec2 bp = ImGui::GetCursorScreenPos();
     if (Button("##cmpi", "Zrób brakujące ikony przedmiotów", bp, false)) Act_PhotoBatch(1);
+    {   // build 15: wipe and regenerate (second click confirms)
+        static double armI = 0, armP = 0;
+        float x2 = bp.x + ButtonW("Zrób brakujące ikony przedmiotów") + 8 * S;
+        const char* l1 = NowSec() - armI < 3 ? "Na pewno? Kliknij jeszcze raz" : "Usuń wszystkie ikony i zrób od nowa";
+        if (Button("##cmpri", l1, ImVec2(x2, bp.y), false)) { if (NowSec() - armI < 3) { Act_PhotoReset(1); armI = 0; g_cmpAt = -10; } else armI = NowSec(); }
+        x2 += ButtonW(l1) + 8 * S;
+        const char* l2 = NowSec() - armP < 3 ? "Na pewno? Kliknij jeszcze raz" : "Usuń wszystkie portrety postaci";
+        if (Button("##cmprp", l2, ImVec2(x2, bp.y), false)) { if (NowSec() - armP < 3) { Act_PhotoReset(0); armP = 0; g_cmpAt = -10; } else armP = NowSec(); }
+    }
     ImGui::SetCursorScreenPos(ImVec2(bp.x, bp.y + BtnH()));
     ImGui::Dummy(ImVec2(0, 0));
     EndPanel();
@@ -2611,14 +2733,18 @@ float RadarPreview(float x, float y, float cw, bool draw) {
     float rg = gx::Val("radarrange") * 100.f;
     fake.clear();
     auto add = [&](float fx2, float fz2, int col, int type, const char* n, const char* inf) { fake.push_back({ fx2 * rg, fz2 * rg, g_espColors[col], type, n, inf }); };
-    if (gx::On("radarnpc")) {
-        add(0.2f, 0.5f, 0, 0, "Wilk", "Wilki · 60/60 HP"); add(-0.4f, 0.3f, 2, 0, "Kopacz", "Kopacze · 40/40 HP"); add(0.6f, -0.2f, 3, 0, "Ścierwojad", "Potwory");
-        add(-0.1f, -0.15f, 1, 3, "Diego", "Drużyna"); if (gx::On("radardead")) add(0.45f, 0.62f, 4, 0, "Martwy kret", "");
-    }
+    if (gx::On("raden")) add(0.2f, 0.5f, 0, 0, "Wilk", "wróg");
+    if (gx::On("radne")) add(-0.4f, 0.3f, 2, 0, "Kopacz", "neutralny");
+    if (gx::On("radmo")) add(0.6f, -0.2f, 3, 0, "Ścierwojad", "potwór");
+    if (gx::On("radpa")) add(-0.1f, -0.15f, 1, 3, "Diego", "drużyna");
+    if (gx::On("radardead")) add(0.45f, 0.62f, 4, 0, "Martwy kret", "");
     if (gx::On("radaritems")) { add(-0.55f, -0.5f, 5, 1, "Miecz", ""); add(0.1f, 0.8f, 5, 1, "Mikstura", ""); }
     if (gx::On("radarchests")) add(-0.7f, 0.1f, 6, 2, "Skrzynia", "");
     PF(fSmall);
-    DrawRadar(DL(), ImVec2(x + cw * 0.5f, y + 12 * S + R), R, fake, 0, 1, 1, 0, true);
+    // build 15: the preview hero turns slowly - with "rotate" the dots turn around a fixed arrow, without it the arrow turns
+    float yaw = (float)std::fmod(NowSec() * 0.5, 6.2831853);
+    float fx = std::sin(yaw), fz = std::cos(yaw);
+    DrawRadar(DL(), ImVec2(x + cw * 0.5f, y + 12 * S + R), R, fake, fx, fz, fz, -fx, true);
     ImGui::PopFont();
     return h;
 }
@@ -2714,7 +2840,7 @@ void Sidebar(const Snapshot& s, ImVec2 p, float w, float h) {
         ImGui::PushID(i + 100);
         ImGui::SetCursorScreenPos(ImVec2(ix0, y));
         if (ImGui::InvisibleButton("##sec", ImVec2(ix1 - ix0, itemH))) {
-            if (cfgPage || testsPage || curSec != i) { curSec = i; curSub = 0; search[0] = 0; }
+            if (cfgPage || testsPage || curSec != i) { SwapSearch(i, 0); curSec = i; curSub = 0; }
             cfgPage = false; testsPage = false; gsearch[0] = 0;
         }
         bool hov = ImGui::IsItemHovered();
@@ -2729,7 +2855,7 @@ void Sidebar(const Snapshot& s, ImVec2 p, float w, float h) {
                 bool sa = curSub == j && !gsearch[0];
                 ImGui::PushID(i * 100 + j + 1000);
                 ImGui::SetCursorScreenPos(ImVec2(ix0, y));
-                if (ImGui::InvisibleButton("##sub", ImVec2(ix1 - ix0, subH))) { curSub = j; search[0] = 0; gsearch[0] = 0; }
+                if (ImGui::InvisibleButton("##sub", ImVec2(ix1 - ix0, subH))) { if (curSub != j) SwapSearch(curSec, j); curSub = j; gsearch[0] = 0; }
                 bool sh = ImGui::IsItemHovered();
                 if (sh && !sa) DL()->AddRectFilled(ImVec2(ix0 + 32 * S, y), ImVec2(ix1, y + subH), U32(C_HOVER, 0.45f), R_BTN());
                 if (sa) DL()->AddRectFilled(ImVec2(ix0 + 38 * S, y + 8 * S), ImVec2(ix0 + 40.5f * S, y + subH - 8 * S), U32(C_ACC), 1.5f * S);
@@ -3033,9 +3159,19 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
         }
         else if (cat == "Ekwipunek" && sub == "Spawner") ItemSpawner(w);
         else if (cat == "Ekwipunek" && sub == "Zestawy") { Masonry(cards, w); SetsPage(w); }
+        else if (cat == "Ekwipunek" && sub == "Zbieranie") {
+            std::vector<const char*> ids = { "lootc0", "lootc1", "lootc2", "lootc3", "lootc4", "lootc5", "lootc6", "lootc7", "lootc8", "lootc9", "lootc10", "lootc11", "lootore" };
+            ChecksCard(cards, "Co podnosić", ids);
+            Masonry(cards, w); MapItemsPage(s, w);
+        }
         else if (cat == "Postacie" && sub == "Spawner") { Masonry(cards, w); NpcSpawner(s, w); }
         else if (cat == "Postacie" && sub == "Drużyna") { Masonry(cards, w); PartyPage(s, w); }
         else if (cat == "Postacie" && sub == "Otoczenie") { Masonry(cards, w); EnvPage(s, w); }
+        else if (cat == "Fun" && sub == "Walka") {
+            ChecksCard(cards, "Zombie", { "zombz", "zombsk", "zombot", "zombhunt", "zombmortal", "zombfat", "zombname" }, "Opcje");
+            ChecksCard(cards, "Polimorfia", { "polyhum", "polymon", "polyparty", "polyimm", "polyanim", "polybeast", "polyundead", "polyorc", "polyfx", "polyhostile", "polykeep" }, "Opcje");
+            Masonry(cards, w);
+        }
         else if (cat == "Fun" && sub == "Magia") {
             if (CardSpec* c = FindCard(cards, "Deszcz zaklęć")) {
                 c->customH = RainSpells(0, 0, 0, false);
@@ -3053,6 +3189,7 @@ void UiDraw(bool menuOpen, float dispW, float dispH) {
             else if (sub == "Kolory") f = ColorsPreview;
             else if (sub == "Radar") f = RadarPreview;
             if (f) { pv.customH = f(0, 0, w, false); pv.custom = [f](float x, float y, float cw2) { return f(x, y, cw2, true); }; cards.insert(cards.begin(), pv); }
+            if (sub == "Radar") ChecksCard(cards, "Co pokazywać", { "raden", "radne", "radmo", "radpa", "radardead", "radaritems", "radarchests", "radarnames" });
             if (sub == "Kolory") {
                 CardSpec col{ "Kolory", {}, nullptr, EspColors(0, 0, 0, false), false };
                 col.custom = [](float x, float y, float cw2) { return EspColors(x, y, cw2, true); };

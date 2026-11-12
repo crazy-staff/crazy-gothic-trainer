@@ -150,20 +150,19 @@ void RadarTick(TickCtx& c) {
     int filter = (int)Val("radarfilter");
     static std::unordered_map<void*, std::pair<double, bool>> hostile;   // attitude: script call, rare
     double now = NowSec();
-    if (On("radarnpc")) ForEachNpc([&](void* n) {
+    ForEachNpc([&](void* n) {
         if (n == h) return;
         zVEC3 p = Pos(n); float dx = p.x - hp.x, dz = p.z - hp.z;
         if (std::fabs(dx) > range || std::fabs(dz) > range) return;
         bool dead = NpcDead(n);
         if (dead && !On("radardead")) return;
         bool ally = IsAlly(n), mon = IsMonster(n);
+        if (dead) { RadarDot d{ dx, dz, g_espColors[4], 0 }; d.name = U(NpcName(n)); d.info = "martwy"; s.radar.push_back(std::move(d)); return; }
         auto& hc = hostile[n];
         if (now - hc.first > 1.0) { hc.first = now; hc.second = !dead && !ally && CallExt("Npc_GetAttitude", { Arg::Npc(n), Arg::Npc(h) }) == K.attHostile; }
         bool host = hc.second;
-        if (filter == 1 && !host) return;
-        if (filter == 2 && mon) return;
-        if (filter == 3 && !mon) return;
-        if (filter == 4 && !ally) return;
+        (void)filter;   // build 15: checkmarks per kind instead of one filter
+        if (ally ? !On("radpa") : host ? !On("raden") : mon ? !On("radmo") : !On("radne")) { if (!dead) return; }
         RadarDot d{ dx, dz, dead ? g_espColors[4] : ally ? g_espColors[1] : host ? g_espColors[0] : mon ? g_espColors[3] : g_espColors[2], ally ? 3 : 0 };
         d.name = U(NpcName(n));
         char b[160]; std::string k = Npcs_Kind(n);
@@ -405,14 +404,16 @@ void Esp_Register() {
     T.Add(MkRow("radarpos", "Położenie", "", C, RD, K_VALUE, 0, 0, 3));
     Opts({ { 0, "Prawy górny róg" }, { 1, "Lewy górny róg" }, { 2, "Prawy dolny róg" }, { 3, "Lewy dolny róg" } }); St(ST_NEW, "nowe w build 14");
     tog("radarrot", "Obracaj z postacią", RD, true, ST_NEW, "nowe w build 14: przód zawsze u góry; wyłączone = północ u góry");
-    CardTitle("Co pokazywać");
-    tog("radarnpc", "Postacie", RD, true, ST_NEW, "nowe w build 14");
-    T.Add(MkRow("radarfilter", "Które postacie", "", C, RD, K_VALUE, 0, 0, 4));
-    Opts({ { 0, "Wszystkie" }, { 1, "Tylko wrogów" }, { 2, "Tylko ludzi" }, { 3, "Tylko potwory" }, { 4, "Tylko drużynę" } }); St(ST_NEW, "nowe w build 14");
-    tog("radardead", "Martwi", RD, false, ST_NEW, "nowe w build 14");
-    tog("radaritems", "Przedmioty", RD, false, ST_NEW, "nowe w build 14");
-    tog("radarchests", "Skrzynie", RD, false, ST_NEW, "nowe w build 14");
-    tog("radarnames", "Imiona przy najbliższych", RD, false, ST_NEW, "nowe w build 14: 6 najbliższych; najedź myszą (z otwartym menu) na kropkę = szczegóły");
+    // build 15: "what to show" is one card of checkmarks (Wizualia › Radar)
+    tog("raden", "Wrogowie", RD, true, ST_NEW, "nowe w build 15"); Hidden();
+    tog("radne", "Neutralni", RD, true, ST_NEW, "nowe w build 15"); Hidden();
+    tog("radmo", "Potwory", RD, true, ST_NEW, "nowe w build 15"); Hidden();
+    tog("radpa", "Drużyna", RD, true, ST_NEW, "nowe w build 15"); Hidden();
+    tog("radardead", "Martwi", RD, false, ST_OK, "build 14: działa"); Hidden();
+    tog("radaritems", "Przedmioty", RD, false, ST_OK, "build 14: działa"); Hidden();
+    tog("radarchests", "Skrzynie", RD, false, ST_OK, "build 14: działa"); Hidden();
+    tog("radarnames", "Imiona najbliższych", RD, false, ST_OK, "build 14: działa"); Hidden();
+    T.Add(MkRow("radarfilter", "Które postacie", "", C, RD, K_VALUE, 0, 0, 4)); Hidden();
 
     const char* I = "ESP przedmiotów";
     CardTitle("Główny wyłącznik");

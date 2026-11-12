@@ -297,11 +297,13 @@ void Trainer::Init() {
         "meteorimm", "rain", "rainimm", "qsallies", "espskel", "sprint", "espbox", "espchestinv", "arena", "marvin", "espitm", "espnpc",
         "ncmouse", "allykeep", "peace", "killall", "tpto", "tpull", "noclip", "speedallies", "arenareward", "hud", "hudalpha", "hudsize",
         "hudfps", "hudpos", "hudspeed", "hudtime", "hudworld", "hudstats", "hudtarget",
-        "pvauto", "esptype", "rescuedialog", "rescuehero", "rescuetarget" };
-    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9-13)"; }
+        "pvauto", "esptype", "rescuedialog", "rescuehero", "rescuetarget", "radar", "radarrot", "radardead", "radaritems", "radarchests",
+        "radarnames", "glmouse", "glignore", "allynotalk" };
+    for (auto id : okIds) if (Row* r = Get(id)) { r->status = ST_OK; r->hist = "potwierdzone przez testera (build 9-14)"; }
     struct Bad { const char* id; const char* why; };
-    static const Bad bad[] = { { "allyfightbreak", "build 13: krwiopijca dalej leciał do przeciwnika; build 14: potwory też, cel = ty, 8 s nie widzi innych" },
-        { "allynotalk", "build 11: po pierwszej rozmowie towarzysz wracał do rutyny; build 12: okno dialogu się blokowało; build 13: drużyna nie jest ruszana w czasie rozmowy + Ratunek › Zamknij rozmowę" } };
+    static const Bad bad[] = { { "winkeyfix", "build 14: dalej nie działa - gra blokuje Win+Shift+S; build 15: zamiast tego Zrzut ekranu gry (F11)" },
+        { "glcoll", "build 14: działało odwrotnie (zła flaga raytrace: 8 = ramki obiektów); build 15: poprawione + pomija obiekty bez kolizji" },
+        { "allyfightbreak", "build 13: krwiopijca dalej leciał do przeciwnika; build 14: potwory też; build 15: bez ustawiania ciebie jako celu (potwór gryzł po teleporcie)" } };
     for (auto& b : bad) if (Row* r = Get(b.id)) { r->status = ST_BUG; r->hist = b.why; }
     tst::Load();   // tester history (also turns a crash from the previous session into a draft report)
 }

@@ -81,6 +81,7 @@ std::function<void(Row&)> NeedT(std::function<void(void*)> f);
 #define ICN_CLOCK "\xef\x80\x97"
 #define ICN_TERMINAL "\xef\x84\xa0"
 #define ICN_PAW "\xef\x86\xb0"
+#define ICN_CAMERA "\xef\x80\xb0"
 #define ICN_STAR "\xef\x80\x85"
 #define ICN_FLASK "\xef\x83\x83"
 #define ICN_LIST "\xef\x80\xba"

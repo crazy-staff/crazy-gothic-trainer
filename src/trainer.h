@@ -1,12 +1,13 @@
 #pragma once
 // Trainer core: feature rows, action queue, snapshot shared with the UI, persistence.
+#include <memory>
 #include <functional>
 #include <mutex>
 #include <string>
 #include <vector>
 #include "core/g1.h"
 
-#define TRAINER_BUILD 14
+#define TRAINER_BUILD 15
 
 enum Kind {
     K_TOGGLE,   // [ ON ]/[ OFF ]
@@ -61,6 +62,9 @@ struct RadarDot {                 // build 14: radar - position relative to the 
     float x, z; unsigned color; int type;   // 0 npc 1 item 2 chest 3 party
     std::string name, info;
 };
+struct MapItem {                  // build 15: every item lying in the world (Ekwipunek › Zbieranie)
+    uintptr_t ptr; int sym, cat, value, amount; std::string name, id; float x, y, z, dist;
+};
 struct SavedInfo {                // saved target details for the target panel
     uintptr_t ptr; std::string name, inst, guild, group, place; float x, y, z, dist; int hp, hpmax, level; bool dead, monster, frozen;
     bool onScreen; float headX, headY, headR;   // normalized screen pos/size of the head (portrait capture)
@@ -77,6 +81,7 @@ struct Snapshot {
     std::vector<SavedInfo> saved;
     std::string tInst, tPlace; float tx = 0, ty = 0, tz = 0; uintptr_t tPtr = 0;
     std::vector<NearNpc> nearby, party, spawned, env;
+    std::shared_ptr<const std::vector<MapItem>> mapItems; bool botOn = false; int botLeft = 0, botGot = 0;   // build 15
     std::vector<RadarDot> radar; float rfx = 0, rfz = 1, rrx = 1, rrz = 0;   // build 14: radar dots + hero forward/right   // env: build 14 Otoczenie page (incl. party, dead)
     std::string subjectName; uintptr_t subjectPtr = 0;
     bool quicksilver = false;
@@ -104,7 +109,8 @@ struct Trainer {
     Snapshot snap;
     std::string toast; double toastUntil = 0;
     bool menuOpen = false;
-    bool envWanted = false;   // build 14: the Otoczenie page is open (its list is refreshed only then)
+    bool envWanted = false;
+    bool mapWanted = false;   // build 15: the map item list is open   // build 14: the Otoczenie page is open (its list is refreshed only then)
 
     int spawnMode = 0, spawnCount = 1, itemAmount = 1;
     int spawnClone = 0;                  // 0 = bring the existing story NPC here, 1 = always a new copy
@@ -164,11 +170,15 @@ void Act_RemoveSavedTarget(int idx);
 void Act_Unswap();
 void Act_MakeAllies(const std::vector<uintptr_t>& npcs);
 void Act_PartyCmd(uintptr_t npc, int cmd);
+void Act_BotStart(const std::vector<uintptr_t>& items);   // build 15: teleport to each item and pick it up
+void Act_BotStop();
+void Act_PickItem(uintptr_t item);
 void Act_EnvCmd(uintptr_t npc, int cmd);    // build 14 Otoczenie: 0 target 1 tp to 2 pull 3 party on/off 4 peace 5 hostile 6 freeze 7 kill 8 revive 9 remove   // 0 follow 1 wait 2 to post 3 summon 4 tp to 5 kick
 void Act_Photo(uintptr_t npc, bool force = false);   // portrait request (0 = current subject)
 void Act_PhotoItem(int sym);                          // item icon request
 void Act_PhotoBatch(int what);                        // 0 all npcs in world, 1 all items
 void Act_PhotoCancel();
+void Act_PhotoReset(int what);                        // build 15: delete all item icons (1, then regenerate) / portraits (0)
 void Act_LookPreview();
 void Act_RemoveSpawned(uintptr_t p);   // 0 = all
 void Act_SpawnByName(const std::string& id, int count, int mode);

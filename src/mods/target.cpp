@@ -222,6 +222,8 @@ void Target_Register() {
         }
         T.Toast("Zabrano " + std::to_string(total) + " przedmiotów (" + std::to_string(got.size()) + " rodzajów)"); })));
     NoVal(); Icon(ICN_BAG); Hidden(); St(ST_NEW, "build 3: nie zgłoszone - sprawdź");
+    T.Add(MkRow("tphoto", "Zrób portret", "nowy obrazek celu (lista, kompendium)", C, S, K_ACTION, 0, 0, 0, NeedT([](void* t) { Photo_Refresh(t); T.Toast("Portret: " + U(NpcName(t))); })));
+    NoVal(); Icon(ICN_CAMERA); Hidden(); St(ST_NEW, "nowe w build 15");
     T.Add(MkRow("tremove", "Usuń ze świata", "", C, S, K_ACTION, 0, 0, 0, NeedT([](void* t) {
         ReplaceTargetRef(t, nullptr); RemoveVob(t); T.Toast("Puf."); }))); NoVal(); Icon(ICN_TRASH); Hidden();
 

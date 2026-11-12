@@ -207,6 +207,19 @@ void Act_PhotoKey(const std::string& key) {
         g_jobs.push_front({ item ? 2 : 1, nullptr, sym, key, true }); g_total++;
     });
 }
+// build 15: delete every cached picture of one kind (1 items, 0 characters); items are generated again
+void Act_PhotoReset(int what) {
+    T.Queue("row:photoreset", [what] {
+        int n = 0;
+        for (auto& k : PortraitKeys()) {
+            bool item = k.rfind("I_", 0) == 0;
+            if ((what == 1) == item) { PortraitDelete(k); n++; }
+        }
+        g_jobs.clear();
+        T.Toast("Usunięto " + std::to_string(n) + (what == 1 ? " ikon - generuję od nowa" : " portretów"));
+        if (what == 1) Act_PhotoBatch(1);
+    });
+}
 void Act_PhotoCancel() { T.Queue("row:photocancel", [] { g_jobs.clear(); g_batch = false; T.Toast("Przerwano generowanie obrazków"); }); }
 // build 11: also write the camera right away (like the portrait studio does every frame - that path is proven);
 // the DoAI hook alone did not turn the camera in no-clip

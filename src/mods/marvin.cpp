@@ -1,5 +1,6 @@
 // Marvin module: debug flags, console with macros, script calls.
 #include "mods.h"
+#include "../portrait.h"
 #include <sstream>
 
 using namespace g1;
@@ -61,6 +62,9 @@ void Marvin_Register() {
         CardTitle("Zrzuty ekranu");
         T.Add(MkRow("winkeyfix", "Zrzuty ekranu (Win+Shift+S)", "po naciśnięciu klawisza Windows gra na 8 s oddaje mysz i klawiaturę systemowi", "Narzędzia", D, K_TOGGLE));
         T.rows.back().on = true; St(ST_NEW, "nowe w build 14 (UI-02)"); Icon(ICN_EYE);
+        T.Add(MkRow("shot", "Zrzut ekranu gry", "zapisuje klatkę gry (bez menu trenera), kopiuje do schowka i dołącza do następnego zgłoszenia; skrót F11", "Narzędzia", D, K_ACTION, 0, 0, 0,
+            [](Row&) { ShotRequest(); T.Toast("Zrzut ekranu zapisany i w schowku"); }));
+        NoVal(); Icon(ICN_EYE); T.rows.back().hotkey = VK_F11; St(ST_NEW, "nowe w build 15: zastępuje Win+Shift+S, które gra blokuje");
         CardTitle("Ratunek");
         T.Add(MkRow("rescuedialog", "Zamknij zawieszoną rozmowę", "gdy okno dialogu nie reaguje", "Narzędzia", D, K_ACTION, 0, 0, 0, [](Row&) {
             void* h = Player(); if (!h) return;

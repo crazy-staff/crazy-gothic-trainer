@@ -102,6 +102,8 @@ void World_Register() {
     St(ST_OK, "działa");
 
     CardTitle("Menu");
+    T.Add(MkRow("keepsearch", "Pamiętaj wyszukiwanie", "każda zakładka zachowuje wpisany tekst po przejściu do innej", "Konfiguracja", "Konfiguracja", K_TOGGLE));
+    T.rows.back().on = true; St(ST_NEW, "nowe w build 15");
     T.Add(MkRow("pausemenu", "Pauza przy otwartym menu", "świat stoi, gdy menu trainera jest otwarte", "Konfiguracja", "Konfiguracja", K_TOGGLE));
     T.rows.back().on = true; St(ST_OK, "działa"); Icon(ICN_CLOCK);
     CardTitle("Okno aktywnych modów");

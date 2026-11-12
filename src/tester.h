@@ -4,6 +4,7 @@
 //  - known:   known issues shipped with the release (G1CrazyTrainer_znane.txt, generated from GitHub)
 //  - export:  one report file per session/package + GitHub issue links prefilled from the form
 #pragma once
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -64,6 +65,7 @@ std::string BuildContext(const std::string& target);
 // attachments: screenshot from the clipboard (Ctrl+V) or files from disk - both run on a worker thread
 std::string AttachDir();
 void PasteImageAsync();
+void ShotDone(std::vector<uint32_t> px, int w, int h);   // build 15: game screenshot -> PNG attachment + clipboard
 void PickFilesAsync();
 bool AttachBusy();
 std::vector<std::string> TakeAttachments(std::string* message);   // finished since the last call

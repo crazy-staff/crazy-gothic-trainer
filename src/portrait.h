@@ -16,3 +16,4 @@ bool PortraitHas(const std::string& key);    // in memory or on disk
 void PortraitClear();                        // drop textures (files stay)
 std::vector<std::string> PortraitKeys();     // every cached file (file name = key with odd chars as '_')
 void PortraitDelete(const std::string& key); // file + texture
+void ShotRequest();                          // build 15: screenshot of the next game frame

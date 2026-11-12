@@ -50,6 +50,7 @@ void SetFreeze(bool on) {
         g_frozen.clear();
     }
 }
+std::vector<void*> g_zombies;   // build 15: made by the apocalypse (for "remove all")
 bool Victim(void* n) { return !NpcDead(n) && !IsAlly(n) && n != MainHero() && n != Player(); }
 // "kogo": 0 wszyscy, 1 wrogowie, 2 ludzie, 3 potwory
 bool PassFilter(void* n, int f) {
@@ -246,45 +247,92 @@ void Chaos_Register() {
 
     const char* I = "Walka";   // build 7: each transformation has its own card under Walka
     CardTitle("Zombie");
-    T.Add(MkRow("zombies", "Apokalipsa zombie", "ile zombie wokół ciebie; słabsze i śmiertelne", C, I, K_ACTION, 8, 1, 200, [](Row& r) {
+    // build 15: which undead, how strong, how far, what they do; "remove all" for the ones the apocalypse made
+    T.Add(MkRow("zombies", "Apokalipsa zombie", "ile nieumarłych wokół ciebie", C, I, K_ACTION, 8, 1, 200, [](Row& r) {
         std::vector<const NpcEntry*> pool;
-        for (auto& e : g_cat.npcs) if (e.group == NG_UNDEAD && e.id.find("ZOMBIE") != std::string::npos && !T.Crashed("npc:" + e.id)) pool.push_back(&e);
-        if (pool.empty()) for (auto& e : g_cat.npcs) if (e.group == NG_UNDEAD && !T.Crashed("npc:" + e.id)) pool.push_back(&e);
-        if (pool.empty()) { T.Toast("Brak nieumarłych w skryptach"); return; }
+        for (auto& e : g_cat.npcs) {
+            if (e.group != NG_UNDEAD || T.Crashed("npc:" + e.id)) continue;
+            bool z = e.id.find("ZOMBIE") != std::string::npos, sk = e.id.find("SKELETON") != std::string::npos || e.id.find("SKELETT") != std::string::npos;
+            if ((z && On("zombz")) || (sk && On("zombsk")) || (!z && !sk && On("zombot"))) pool.push_back(&e);
+        }
+        if (pool.empty()) { T.Toast("Zaznacz, jacy nieumarli mają powstać"); return; }
         int n = (int)r.val;
         static int nameOff = -1, protOff = -1;
         if (nameOff < 0) { nameOff = FieldOff("C_NPC.NAME", 0x104); protOff = FieldOff("C_NPC.PROTECTION", 0x1A4); }
+        float d0 = Val("zombdist") * 100.f;
+        int hpBase = (int)Val("zombhp"), prot = (int)Val("zombprot");
+        void* h = Player();
         for (int i = 0; i < n; i++) {
             const NpcEntry* e = pool[rng() % pool.size()];
             void* z = nullptr;
-            float rr = 800.f + (float)(i / 40) * 300.f;
-            Guard("npc:" + e->id, [&] { z = SpawnNpc(e->sym, SpawnPointNear(rr, rr + 700.f, (float)i / std::min(n, 40) * 6.2831f + (float)(i / 40) * 0.3f)); });
+            float rr = d0 + (float)(i / 40) * 300.f;
+            Guard("npc:" + e->id, [&] { z = SpawnNpc(e->sym, SpawnPointNear(rr, rr + 600.f, (float)i / std::min(n, 40) * 6.2831f + (float)(i / 40) * 0.3f)); });
             if (!z) continue;
-            MakeMortal(z);
-            for (int k = 0; k < 8; k++) fld<int>(z, protOff + 4 * k) = 10 + (int)(rng() % 15);
-            int hp = 80 + (int)(rng() % 120);
+            g_zombies.push_back(z);
+            if (On("zombmortal")) MakeMortal(z);
+            for (int k = 0; k < 8; k++) fld<int>(z, protOff + 4 * k) = std::max(0, prot + (int)(rng() % 11) - 5);
+            int hp = std::max(1, hpBase + (int)(rng() % (hpBase / 2 + 1)) - hpBase / 4);
             SetAttr(z, 1, hp); SetAttr(z, 0, hp);
-            ZAssign(&fld<zSTRING>(z, nameOff), "Zombie apokalipsy");
-            CallExt("Mdl_SetModelFatness", { Arg::Npc(z), Arg::Flt((float)(rng() % 300) / 100.f - 0.5f) });
+            if (On("zombname")) ZAssign(&fld<zSTRING>(z, nameOff), "Zombie apokalipsy");
+            if (On("zombfat")) CallExt("Mdl_SetModelFatness", { Arg::Npc(z), Arg::Flt((float)(rng() % 300) / 100.f - 0.5f) });
+            if (On("zombhunt") && h) Aggro(z, h);
         }
         T.Toast("Umarli powstają..."); }));
-    St(ST_OK, "build 3: działa"); Icon(ICN_USERS);
+    St(ST_OK, "build 3: działa; build 15: więcej opcji"); Icon(ICN_USERS);
+    T.Add(MkRow("zombdist", "Odległość pojawienia się", "m od ciebie", C, I, K_VALUE, 10, 3, 80)); St(ST_NEW, "nowe w build 15");
+    T.Add(MkRow("zombhp", "Życie", "HP (±25%)", C, I, K_VALUE, 150, 10, 3000)); St(ST_NEW, "nowe w build 15");
+    T.Add(MkRow("zombprot", "Ochrona", "przed każdym rodzajem obrażeń", C, I, K_VALUE, 20, 0, 300)); St(ST_NEW, "nowe w build 15");
+    T.Add(MkRow("zombclear", "Usuń zombie z apokalipsy", "tylko te, które stworzyła ta opcja", C, I, K_ACTION, 0, 0, 0, [](Row&) {
+        int c = 0; for (void* z : g_zombies) if (NpcExists(z)) { RemoveVob(z); c++; }
+        g_zombies.clear(); T.Toast("Usunięto " + std::to_string(c) + " zombie"); }));
+    NoVal(); Icon(ICN_TRASH); St(ST_NEW, "nowe w build 15");
+    auto chk = [&](const char* id, const char* name, bool def, const char* note = "") { T.Add(MkRow(id, name, note, C, I, K_TOGGLE)); T.rows.back().on = def; Hidden(); St(ST_NEW, "nowe w build 15"); };
+    chk("zombz", "Zombie", true); chk("zombsk", "Szkielety", false); chk("zombot", "Inni nieumarli", false);
+    chk("zombhunt", "Od razu atakują ciebie", true); chk("zombmortal", "Bez odporności ze skryptów", true);
+    chk("zombfat", "Losowa tusza", true); chk("zombname", "Nazwa „Zombie apokalipsy”", true);
+
     CardTitle("Polimorfia");
-    T.Add(MkRow("polymorph", "Polimorf", "ludzie w promieniu (m) zmieniają się w zwierzęta - UWAGA: usuwa NPC (questy!)", C, I, K_ACTION, 10, 1, 100, [](Row& r) {
+    T.Add(MkRow("polymorph", "Polimorf", "promień (m); przemienia postacie w stworzenia - UWAGA: usuwa NPC (questy!)", C, I, K_ACTION, 10, 1, 100, [](Row& r) {
         std::vector<const NpcEntry*> pool;
-        for (auto& e : g_cat.npcs) if (e.group == NG_ANIMALS && e.level > 0 && !T.Crashed("npc:" + e.id)) pool.push_back(&e);
-        if (pool.empty()) return;
+        for (auto& e : g_cat.npcs) {
+            if (T.Crashed("npc:" + e.id) || e.level <= 0) continue;
+            if ((e.group == NG_ANIMALS && On("polyanim")) || (e.group == NG_BEASTS && On("polybeast")) || (e.group == NG_UNDEAD && On("polyundead")) || (e.group == NG_ORCS && On("polyorc")))
+                pool.push_back(&e);
+        }
+        if (pool.empty()) { T.Toast("Zaznacz, w co przemieniać"); return; }
         std::vector<void*> v;
-        NpcsInRadius(r.val * 100.f, [&](void* n) { if (Victim(n) && !IsMonster(n)) v.push_back(n); });
+        int maxN = (int)Val("polymax");
+        NpcsInRadius(r.val * 100.f, [&](void* n) {
+            if ((int)v.size() >= maxN || NpcDead(n) || n == MainHero() || n == Player()) return;
+            if (IsAlly(n) && !On("polyparty")) return;
+            if (IsMonster(n) ? !On("polymon") : !On("polyhum")) return;
+            if (On("polyimm") && IsImmortal(n)) return;
+            v.push_back(n);
+        });
+        static int nameOff = FieldOff("C_NPC.NAME", 0x104);
+        void* h = Player();
         for (void* n : v) {
             zVEC3 p = Pos(n);
+            std::string oldName = NpcName(n);
             const NpcEntry* e = pool[rng() % pool.size()];
             g_savedTargets.erase(std::remove(g_savedTargets.begin(), g_savedTargets.end(), n), g_savedTargets.end());
+            g_allies.erase(std::remove(g_allies.begin(), g_allies.end(), n), g_allies.end());
             RemoveVob(n);
-            Guard("npc:" + e->id, [&] { void* a = SpawnNpc(e->sym, p); if (a) Effect("SPELLFX_TRANSFORM", a, a, 0, 0, 0, false); });
+            Guard("npc:" + e->id, [&] {
+                void* a = SpawnNpc(e->sym, p);
+                if (!a) return;
+                if (On("polyfx")) Effect("SPELLFX_TRANSFORM", a, a, 0, 0, 0, false);
+                if (On("polykeep")) ZAssign(&fld<zSTRING>(a, nameOff), oldName.c_str());
+                if (On("polyhostile") && h) Aggro(a, h);
+            });
         }
         T.Toast("Polimorf: " + std::to_string(v.size()) + " przemian"); }));
-    St(ST_OK, "działa"); Icon(ICN_PAW);
+    St(ST_OK, "działa; build 15: więcej opcji"); Icon(ICN_PAW);
+    T.Add(MkRow("polymax", "Najwięcej przemian naraz", "", C, I, K_VALUE, 30, 1, 200)); St(ST_NEW, "nowe w build 15");
+    auto pchk = [&](const char* id, const char* name, bool def) { T.Add(MkRow(id, name, "", C, I, K_TOGGLE)); T.rows.back().on = def; Hidden(); St(ST_NEW, "nowe w build 15"); };
+    pchk("polyhum", "Ludzie", true); pchk("polymon", "Potwory", false); pchk("polyparty", "Też drużyna", false); pchk("polyimm", "Pomijaj ważnych (nieśmiertelnych)", true);
+    pchk("polyanim", "W zwierzęta", true); pchk("polybeast", "W bestie", false); pchk("polyundead", "W nieumarłych", false); pchk("polyorc", "W orków", false);
+    pchk("polyfx", "Efekt przemiany", true); pchk("polyhostile", "Przemienieni atakują ciebie", false); pchk("polykeep", "Zachowaj imię", false);
 
     const char* F = "Chaos";
     CardTitle("Fizyka");

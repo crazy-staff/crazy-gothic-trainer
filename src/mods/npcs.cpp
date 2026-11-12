@@ -325,9 +325,9 @@ void Party_BreakFight(void* n) {
     g_calmUntil[n] = T.gameClock + 8.0;
     Schedule(0.05, [n] {
         if (!NpcAlive(n) || !NpcReady(n)) return;
-        void* h = Player();
+        // build 15: no Npc_SetTarget(you) any more - for a monster that made YOU the one to bite after a teleport
         CallExt("Npc_ClearAIQueue", { Arg::Npc(n) });
-        if (h) CallExt("Npc_SetTarget", { Arg::Npc(n), Arg::Npc(h) });
+        CallExt("Npc_SetAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
         CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(K.attFriendly) });
         if (IsMonster(n)) { if (K.stSummoned >= 0) CallExt("AI_StartState", { Arg::Npc(n), Arg::Int(K.stSummoned), Arg::Int(1), Arg::Str("") }); }
         else if (K.stFollow >= 0) CallExt("AI_StartState", { Arg::Npc(n), Arg::Int(K.stFollow), Arg::Int(1), Arg::Str("") });
@@ -345,9 +345,10 @@ bool Party_BlockDamage(void* victim, void* att) {
     void* h = Player(); void* mh = MainHero();
     bool vA = IsAlly(victim), aA = IsAlly(att), vHero = victim == h || victim == mh, aHero = att == h || att == mh;
     if (aHero) return false;                                      // your own hits always land
-    if (vA && aA) { Calm(att); return true; }                     // party members never fight each other
-    if (aA && !vHero && !PartyEnemy(victim)) { Calm(att); return true; }   // your wolf does not bite neutral people
-    if (vA && !aA && !PartyEnemy(att)) { Calm(att); return true; }        // neutral people leave your party alone
+    if (aA && vHero) { Calm(att); return true; }                  // build 15: the party never hurts you
+    if (vA && aA) { if (On("partyinfight")) return false; Calm(att); return true; }   // party members never fight each other
+    if (aA && !vHero && !PartyEnemy(victim) && !(IsMonster(att) ? On("partymonatk") : On("partyhumatk"))) { Calm(att); return true; }
+    if (vA && !aA && !PartyEnemy(att) && !On("partyothersatk")) { Calm(att); return true; }   // neutral people leave your party alone
     if ((vA || vHero) && !aA) g_aggr[att] = T.gameClock;          // whoever attacks you or the party is fair game
     return false;
 }
@@ -360,11 +361,11 @@ bool Party_IgnoreSense(void* self, void* vob) {
     if (sA) {
         auto it = g_calmUntil.find(self);
         if (it != g_calmUntil.end() && T.gameClock < it->second) return true;   // fight break: sees only you
-        if (vA) return true;                                                     // party members do not notice each other
-        if (IsMonster(self) && !PartyEnemy(vob)) return true;                    // party monster ignores neutral people
+        if (vA) return !On("partyinfight");                                      // party members do not notice each other
+        if (!PartyEnemy(vob) && !(IsMonster(self) ? On("partymonatk") : On("partyhumatk"))) return IsMonster(self);   // party monster ignores neutral people
         return false;
     }
-    if (vA && IsMonster(vob) && self != h && !PartyEnemy(self)) return true;    // neutral people ignore your monster
+    if (vA && IsMonster(vob) && self != h && !PartyEnemy(self) && !On("partyothersatk")) return true;    // neutral people ignore your monster
     return false;
 }
 void Party_AllyHitPlayer(void* n) {
@@ -396,6 +397,7 @@ void Act_EnvCmd(uintptr_t p, int cmd) {
         case 4: Peace(n); CallExt("Npc_SetAttitude", { Arg::Npc(n), Arg::Int(K.attNeutral) }); CallExt("Npc_SetTempAttitude", { Arg::Npc(n), Arg::Int(K.attNeutral) });
                 T.Toast(U(NpcName(n)) + ": spokój"); break;
         case 5: if (void* h = Player()) { Aggro(n, h); T.Toast(U(NpcName(n)) + " atakuje ciebie"); } break;
+        case 10: Photo_Refresh(n); T.Toast("Portret: " + U(NpcName(n))); break;
         }
         tst::Event("env", "akcja " + std::to_string(cmd) + " na " + InstName(n));
     });
@@ -527,7 +529,11 @@ void Npcs_Tick(TickCtx& c) {
             if (NpcDead(it->first)) { Log("druzyna: %s zginal", it->second.c_str()); tst::Event("party", "zginął: " + it->second); it = known.erase(it); continue; }
             ++it;
         }
-        for (void* n : g_allies) if (NpcAlive(n) && !known.count(n)) known[n] = InstName(n);
+        for (void* n : g_allies) if (NpcAlive(n) && !known.count(n)) {
+            known[n] = InstName(n);
+            g_aggr.erase(n);
+            Party_BreakFight(n);   // build 15: joined while fighting you -> the party wins: old fight dropped, 8 s calm
+        }
     }
     if (On("allykeep") && !c.paused) Guard("row:allykeep", [] { KeepParty(); });
     {   // build 14: Otoczenie - everybody around (party and dead included), only while that page is open
@@ -610,6 +616,11 @@ void Npcs_Register() {
     T.Add(MkRow("allykeepdist", "Przenieś z odległości", "m", C, D, K_VALUE, 30, 10, 150)); St(ST_NEW, "nowe w build 7");
     CardTitle("Otoczenie");
     T.Add(MkRow("envradius", "Promień", "m - kogo pokazuje lista Otoczenie", C, "Otoczenie", K_VALUE, 30, 5, 150)); St(ST_NEW, "nowe w build 14");
+    CardTitle("Walki");
+    T.Add(MkRow("partyinfight", "Drużyna może walczyć między sobą", "wyłączone: członkowie drużyny się nie zauważają i nie ranią", C, D, K_TOGGLE)); St(ST_NEW, "nowe w build 15");
+    T.Add(MkRow("partymonatk", "Potwory z drużyny atakują neutralnych", "wyłączone: twój wilk gryzie tylko wrogów", C, D, K_TOGGLE)); St(ST_NEW, "nowe w build 15");
+    T.Add(MkRow("partyhumatk", "Ludzie z drużyny atakują neutralnych", "wyłączone: walczą tylko z wrogami", C, D, K_TOGGLE)); St(ST_NEW, "nowe w build 15");
+    T.Add(MkRow("partyothersatk", "Neutralni atakują potwory z drużyny", "wyłączone: nikt neutralny nie rusza twojego potwora", C, D, K_TOGGLE)); St(ST_NEW, "nowe w build 15");
     CardTitle("Zachowanie drużyny");
     T.Add(MkRow("allyradius", "Promień listy wyboru", "m", C, D, K_VALUE, 30, 5, 150)); St(ST_NEW, "nowe w build 4");
 }

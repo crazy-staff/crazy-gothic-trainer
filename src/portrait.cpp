@@ -1,4 +1,6 @@
 #include "portrait.h"
+#include "tester.h"
+#include <atomic>
 #include "trainer.h"
 #include <d3d11.h>
 #include <dxgi.h>
@@ -18,6 +20,7 @@ struct Pic { ID3D11ShaderResourceView* srv = nullptr; };
 std::unordered_map<std::string, Pic> g_pics;
 std::unordered_set<std::string> g_missing;
 std::recursive_mutex g_mx;
+std::vector<std::string> g_del;   // textures may be in this frame's draw list -> released at the next Present
 ID3D11Device* g_dev = nullptr;
 const int kPicSz = 160;
 std::vector<uint32_t> g_a, g_b, g_a2;
@@ -129,6 +132,7 @@ void Build(const std::vector<uint32_t>& a, const std::vector<uint32_t>& b, const
 
 bool PortraitHas(const std::string& key) {
     std::lock_guard<std::recursive_mutex> l(g_mx);
+    if (std::find(g_del.begin(), g_del.end(), key) != g_del.end()) return false;   // build 15: being deleted
     if (g_pics.count(key)) return true;
     return GetFileAttributesA(FileOf(key).c_str()) != INVALID_FILE_ATTRIBUTES;
 }
@@ -157,7 +161,6 @@ std::vector<std::string> PortraitKeys() {
     std::sort(v.begin(), v.end());
     return v;
 }
-std::vector<std::string> g_del;   // textures may be in this frame's draw list -> released at the next Present
 void PortraitDelete(const std::string& key) {
     std::lock_guard<std::recursive_mutex> l(g_mx);
     DeleteFileA(FileOf(key).c_str());
@@ -168,8 +171,37 @@ void PortraitClear() {
     for (auto& p : g_pics) if (p.second.srv) p.second.srv->Release();
     g_pics.clear(); g_missing.clear();
 }
+// build 15: a screenshot of the game frame (without the trainer's menu) -> report attachment + clipboard
+static std::atomic<bool> g_shotReq{ false };
+void ShotRequest() { g_shotReq = true; }
+static void ShotGrab(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc) {
+    ID3D11Texture2D* bb = nullptr;
+    if (FAILED(sc->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&bb)) || !bb) return;
+    D3D11_TEXTURE2D_DESC bd; bb->GetDesc(&bd);
+    bool bgra = bd.Format == DXGI_FORMAT_B8G8R8A8_UNORM || bd.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+    bool rgba = bd.Format == DXGI_FORMAT_R8G8B8A8_UNORM || bd.Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    if ((!bgra && !rgba) || bd.SampleDesc.Count > 1) { bb->Release(); tst::ShotDone({}, 0, 0); return; }
+    D3D11_TEXTURE2D_DESC td = bd; td.Usage = D3D11_USAGE_STAGING; td.CPUAccessFlags = D3D11_CPU_ACCESS_READ; td.BindFlags = 0; td.MiscFlags = 0; td.MipLevels = 1; td.ArraySize = 1;
+    ID3D11Texture2D* stg = nullptr;
+    if (FAILED(dev->CreateTexture2D(&td, nullptr, &stg))) { bb->Release(); return; }
+    ctx->CopyResource(stg, bb); bb->Release();
+    D3D11_MAPPED_SUBRESOURCE m;
+    if (FAILED(ctx->Map(stg, 0, D3D11_MAP_READ, 0, &m))) { stg->Release(); return; }
+    std::vector<uint32_t> px((size_t)bd.Width * bd.Height);
+    for (UINT y = 0; y < bd.Height; y++) {
+        const uint32_t* row = (const uint32_t*)((const uint8_t*)m.pData + y * m.RowPitch);
+        for (UINT x = 0; x < bd.Width; x++) {
+            uint32_t c = row[x];
+            if (rgba) c = (c & 0xFF00FF00) | ((c & 0xFF) << 16) | ((c >> 16) & 0xFF);
+            px[y * bd.Width + x] = c | 0xFF000000u;
+        }
+    }
+    ctx->Unmap(stg, 0); stg->Release();
+    tst::ShotDone(std::move(px), (int)bd.Width, (int)bd.Height);
+}
 void PortraitPresent(ID3D11Device* dev, ID3D11DeviceContext* ctx, IDXGISwapChain* sc) {
     g_dev = dev;
+    if (g_shotReq.exchange(false)) ShotGrab(dev, ctx, sc);
     if (!g_del.empty()) {
         std::lock_guard<std::recursive_mutex> l(g_mx);
         for (auto& key : g_del) {

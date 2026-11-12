@@ -391,6 +391,27 @@ std::string AttachDir() {
     d += "\\zalaczniki"; CreateDirectoryA(d.c_str(), nullptr);
     return d;
 }
+void ShotDone(std::vector<uint32_t> px, int w, int h) {
+    if (px.empty() || w <= 0 || h <= 0) { AttDone("", "Nie udało się zrobić zrzutu (format ekranu)"); return; }
+    std::thread([px = std::move(px), w, h]() mutable {
+        HRESULT co = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        std::string name = UniqueName(".png"), msg;
+        if (SavePng(AttachDir() + "\\" + name, px.data(), w, h)) msg = "Zrzut ekranu zapisany (dołączę go do następnego zgłoszenia) i skopiowany do schowka";
+        else { msg = "Nie udało się zapisać zrzutu"; name.clear(); }
+        // clipboard: 32-bit bottom-up DIB
+        size_t sz = sizeof(BITMAPINFOHEADER) + (size_t)w * h * 4;
+        if (HGLOBAL g = GlobalAlloc(GMEM_MOVEABLE, sz)) {
+            auto* bi = (BITMAPINFOHEADER*)GlobalLock(g);
+            *bi = {}; bi->biSize = sizeof(BITMAPINFOHEADER); bi->biWidth = w; bi->biHeight = h; bi->biPlanes = 1; bi->biBitCount = 32; bi->biCompression = BI_RGB;
+            uint32_t* dst = (uint32_t*)(bi + 1);
+            for (int y = 0; y < h; y++) memcpy(dst + (size_t)(h - 1 - y) * w, px.data() + (size_t)y * w, (size_t)w * 4);
+            GlobalUnlock(g);
+            if (OpenClipboard(nullptr)) { EmptyClipboard(); if (!SetClipboardData(CF_DIB, g)) GlobalFree(g); CloseClipboard(); } else GlobalFree(g);
+        }
+        AttDone(name, msg);
+        if (SUCCEEDED(co)) CoUninitialize();
+    }).detach();
+}
 void PasteImageAsync() { if (g_attBusy.exchange(true)) return; std::thread(PasteWorker).detach(); }
 void PickFilesAsync() { if (g_attBusy.exchange(true)) return; std::thread(PickWorker).detach(); }
 bool AttachBusy() { return g_attBusy; }

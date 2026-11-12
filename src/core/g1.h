@@ -189,7 +189,8 @@ void SetGameInput(bool enabled);
 void SetGameInput2(bool keyboard, bool mouse);
 
 // ---- raytrace ------------------------------------------------------------------
-enum { TR_NEAREST = 1, TR_VOB_IGNORE_NO_CD_DYN = 2, TR_VOB_IGNORE = 8, TR_STAT_POLY = 0x20, TR_POLY_NORMAL = 0x80,
+// build 15: zTRACERAY_VOB_IGNORE is 1<<2 and 1<<3 is VOB_BBOX - the old value 8 tested vobs by their boxes
+enum { TR_NEAREST = 1, TR_VOB_IGNORE_NO_CD_DYN = 2, TR_VOB_IGNORE = 4, TR_VOB_BBOX = 8, TR_STAT_POLY = 0x20, TR_POLY_NORMAL = 0x80,
        TR_POLY_IGNORE_TRANSP = 0x100, TR_POLY_TEST_WATER = 0x200, TR_VOB_IGNORE_CHAR = 0x800 };
 struct TraceHit { bool hit; void* vob; void* poly; zVEC3 pos; bool water; zVEC3 normal{ 0, 1, 0 }; };   // normal: needs TR_POLY_NORMAL
 bool TraceRay(const zVEC3& start, const zVEC3& ray, int flags, TraceHit& out);

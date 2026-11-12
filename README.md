@@ -1,5 +1,7 @@
 # Gothic 1 Crazy Trainer
 
+> 🗺️ **[Mapa drogowa: błędy, plany, pomysły — głosuj 👍](ROADMAP.md)** · strona: https://dawidseipold.github.io/gothic1-crazy-trainer/
+
 Trainer / mod menu do **Gothic 1** w wersji Steam (`GothicMod.exe` 1.08k_mod), uruchamianego z **Union** i rendererem **GD3D11**.
 Statystyki, ekwipunek, spawner przedmiotów i postaci, teleport, ESP, arena, tryby „fun” (deszcz zaklęć, meteoryty, zombie, polimorfia…) i sporo więcej — wszystko z jednego menu w grze.
 

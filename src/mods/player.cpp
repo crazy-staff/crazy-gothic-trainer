@@ -46,8 +46,25 @@ bool NcOn() { return On("noclip") || On("glide"); }
 // build 14: no-clip and glide have their own settings (gl* / nc*), picked by the active mode
 const char* NcP(const char* suffix) { static std::string b; b = std::string(On("glide") ? "gl" : "nc") + suffix; return b.c_str(); }
 bool NcIgnore() { return (On("noclip") && On("ncignore")) || (On("glide") && On("glignore")); }
-// rays that also see bridges / grates (static vobs with collision), not only the level mesh
-const int TR_FLOOR = TR_NEAREST | TR_VOB_IGNORE_NO_CD_DYN | TR_STAT_POLY;
+// build 15: rays that see the level mesh and every vob that has collision (bridges, grates, trees, rocks) by
+// its polygons; vobs without collision (grass, decorations), items and characters are passed through
+const int TR_FLOOR = TR_NEAREST | TR_STAT_POLY | TR_VOB_IGNORE_CHAR;
+bool SolidRay(zVEC3 a, zVEC3 d, int flags, TraceHit& out) {
+    float len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+    if (len < 1e-3f) return false;
+    zVEC3 u{ d.x / len, d.y / len, d.z / len };
+    for (int k = 0; k < 6; k++) {
+        if (!TraceRay(a, d, flags, out)) return false;
+        if (!out.vob || (flags & TR_VOB_IGNORE)) return true;
+        uint32_t vf = fld<uint32_t>(out.vob, VOB_FLAGS);
+        if ((vf & (VOBF_COLLSTAT | VOBF_COLLDYN)) && !IsNpc(out.vob) && !IsItem(out.vob)) return true;
+        float done = Dist(a, out.pos) + 2.f;   // pass through and look further
+        if (done >= len) return false;
+        a = { out.pos.x + u.x * 2.f, out.pos.y + u.y * 2.f, out.pos.z + u.z * 2.f };
+        len -= done; d = { u.x * len, u.y * len, u.z * len };
+    }
+    return false;
+}
 float g_cPitchMouse = -0.28f;
 void NoclipRestore() {
     if (!g_ncNpc) return;
@@ -63,7 +80,7 @@ void NoclipRestore() {
         // prison were ignored, so the hero landed a floor lower). From above only when nothing is below (under the map).
         const int down = TR_FLOOR;
         const int fromTop = TR_NEAREST | TR_VOB_IGNORE | TR_STAT_POLY | TR_POLY_IGNORE_TRANSP;
-        bool b = TraceRay({ p.x, p.y + 20, p.z }, { 0, -200000, 0 }, down, h1);
+        bool b = SolidRay({ p.x, p.y + 20, p.z }, { 0, -200000, 0 }, down, h1);
         bool a = !b && TraceRay({ p.x, p.y + 200000, p.z }, { 0, -199990, 0 }, fromTop, h2);
         zVEC3 dst = p; bool any = false;
         if (b) { dst = h1.pos; any = true; }
@@ -81,7 +98,7 @@ void NoclipRestore() {
 // allowed angle stops the hero (sliding along it); an allowed steep face (up to a vertical wall at 90) is climbed
 // straight up. Then a ray from knee height down finds the floor of the new spot. "Kolizja z obiektami" decides
 // whether vobs (trees, rocks, bridges, grates, fences) count, or only the level mesh.
-int GlideFlags() { return TR_NEAREST | TR_STAT_POLY | TR_POLY_NORMAL | (On("glcoll") ? (TR_VOB_IGNORE_NO_CD_DYN | TR_VOB_IGNORE_CHAR) : TR_VOB_IGNORE); }
+int GlideFlags() { return TR_NEAREST | TR_STAT_POLY | TR_POLY_NORMAL | TR_VOB_IGNORE_CHAR | (On("glcoll") ? 0 : TR_VOB_IGNORE); }
 float SlopeDeg(const zVEC3& n) { float y = std::max(-1.f, std::min(1.f, n.y)); return std::acos(y) * 57.29578f; }
 void GlideMove(void* h, zVEC3 p, float dx, float dz) {
     const float* bb = &fld<float>(h, VOB_BBOX);
@@ -102,7 +119,7 @@ void GlideMove(void* h, zVEC3 p, float dx, float dz) {
             bool again = false;
             for (float hgt : { footY + KNEE, footY + std::min(feet * 1.6f, 150.f) }) {
                 TraceHit w;
-                if (!TraceRay({ cur.x, hgt, cur.z }, { ux * (sl + LOOK), 0, uz * (sl + LOOK) }, F, w)) continue;
+                if (!SolidRay({ cur.x, hgt, cur.z }, { ux * (sl + LOOK), 0, uz * (sl + LOOK) }, F, w)) continue;
                 float ang = SlopeDeg(w.normal);
                 if (ang <= 60.f) continue;                       // a ramp - the floor ray below handles it
                 if (ang <= maxAng + 0.5f) { climb = true; break; } // allowed steep face: go up it
@@ -119,13 +136,13 @@ void GlideMove(void* h, zVEC3 p, float dx, float dz) {
         if (blocked) break;
         if (climb) {   // straight up, unless the head hits something
             TraceHit up;
-            if (TraceRay({ cur.x, footY + feet * 2.f, cur.z }, { 0, sl + 10.f, 0 }, F, up)) break;
+            if (SolidRay({ cur.x, footY + feet * 2.f, cur.z }, { 0, sl + 10.f, 0 }, F, up)) break;
             footY += sl;
             continue;
         }
         float nx = cur.x + ux * sl, nz = cur.z + uz * sl;
         TraceHit g;
-        if (TraceRay({ nx, footY + KNEE, nz }, { 0, -100000.f, 0 }, F, g)) {
+        if (SolidRay({ nx, footY + KNEE, nz }, { 0, -100000.f, 0 }, F, g)) {
             float rise = g.pos.y - footY;
             if (rise > 1.f && SlopeDeg(g.normal) > maxAng + 0.5f) break;   // steeper floor than allowed: stop
             footY = g.pos.y;
@@ -234,6 +251,7 @@ using fnCanSee = int(__fastcall*)(void*, void*, void*, int);
 fnCanSee oCanSee = nullptr;
 int __fastcall hkCanSee(void* self, void* edx, void* vob, int freeLos) {
     if (vob && On("ghost")) { void* h = Player(); if (vob == h && self != h) return 0; }
+    if (vob && NcOn() && NcIgnore()) { void* h = Player(); if (vob == h && self != h) return 0; }   // build 15
     if (vob && !g_allies.empty() && Party_IgnoreSense(self, vob)) return 0;   // build 14
     return oCanSee(self, edx, vob, freeLos);
 }
@@ -333,6 +351,18 @@ void Player_Tick(TickCtx& c) {
     }
     static bool ncWas = false;
     if (NcOn() && !ncWas && NcIgnore()) NpcsInRadius(4000.f, [](void* n) { Peace(n); });   // old aggro is dropped too
+    {   // build 15: whoever still fights you while ignoring is on (spawned hostile, old aggro) is calmed every second
+        static double igAt = 0;
+        if (NcOn() && NcIgnore() && !c.paused && T.gameClock - igAt > 1.0) {
+            igAt = T.gameClock;
+            NpcsInRadius(5000.f, [](void* n) {
+                if (IsAlly(n) || NpcDead(n)) return;
+                bool fight = (K.stAttack >= 0 && CallExt("Npc_IsInState", { Arg::Npc(n), Arg::Int(K.stAttack) })) ||
+                             (K.stMmAttack >= 0 && CallExt("Npc_IsInState", { Arg::Npc(n), Arg::Int(K.stMmAttack) }));
+                if (fight) Peace(n);
+            });
+        }
+    }
     ncWas = NcOn();
     if (NcOn()) { NoclipFrame(c.paused ? 0.f : c.dt); NoclipCamera(h); }
     else { g_camRel = false; if (g_ncNpc) NoclipRestore(); }
