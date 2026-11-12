@@ -21,7 +21,7 @@ def fetch_ideas():
     tok = os.environ.get("GITHUB_TOKEN", "")
     if not tok: return []
     o, n = REPO.split("/")
-    q = """query($o:String!,$n:String!){repository(owner:$o,name:$n){discussions(first:100){nodes{title url closed category{slug name}
+    q = """query($o:String!,$n:String!){repository(owner:$o,name:$n){discussions(first:100){nodes{title url body closed upvoteCount author{login} category{slug name}
       comments(first:100){nodes{body url isMinimized reactionGroups{content reactors{totalCount}}}}}}}}"""
     req = urllib.request.Request("https://api.github.com/graphql", json.dumps({"query": q, "variables": {"o": o, "n": n}}).encode(),
                                  {"Authorization": f"Bearer {tok}"})
@@ -30,6 +30,10 @@ def fetch_ideas():
     out = []
     for t in d:
         if t["closed"] or t["category"]["slug"] != "ideas": continue
+        if not t["title"].startswith("Pomysły:"):   # someone's own thread = one idea, waiting to be sorted into a theme
+            out.append({"idea": True, "ref": "nowy", "number": 0, "title": t["title"][:120], "html_url": t["url"], "body": t["body"] or "",
+                        "state": "open", "labels": [{"name": "pomysł"}, {"name": "do przejrzenia"}], "reactions": {"+1": t["upvoteCount"]}})
+            continue
         theme = t["title"].split(":", 1)[-1].strip()
         for c in t["comments"]["nodes"]:
             if c["isMinimized"]: continue

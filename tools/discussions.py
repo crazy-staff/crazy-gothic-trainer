@@ -29,7 +29,8 @@ def repo_info():
 def idea_body(i):
     o = f"<!-- idea:{i['key']} -->\n### {i['title']}\n\n{i['desc']}\n"
     if i.get("order"): o += f"\nKolejność: {i['order']} _(priorytet autora)_\n"
-    if i.get("issues"): o += "\n_Wcześniej: " + ", ".join(f"#{n}" for n in i["issues"]) + "_\n"
+    prev = i.get("issues", []) + i.get("discussions", [])
+    if prev: o += "\n_Wcześniej: " + ", ".join(f"#{n}" for n in prev) + (f" — zgłosił(a) @{i['author']}" if i.get("author") else "") + "_\n"
     return o + "\n👍 pod tym komentarzem = głos na ten pomysł. Odpowiadaj w wątku tego komentarza."
 
 def main():
@@ -57,6 +58,14 @@ def main():
                 url = gql("""mutation($d:ID!,$b:String!){addDiscussionComment(input:{discussionId:$d,body:$b}){comment{url}}}""",
                           d=d["id"], b=idea_body(i))["addDiscussionComment"]["comment"]["url"]
                 print("  +", i["title"])
+            for n in i.get("discussions", []):   # loose idea someone posted on their own -> merged into this theme
+                dd = gql("""query($o:String!,$n:String!,$x:Int!){repository(owner:$o,name:$n){discussion(number:$x){id closed}}}""",
+                         o=OWNER, n=NAME, x=n)["repository"]["discussion"]
+                if dd and not dd["closed"]:
+                    gql("""mutation($d:ID!,$b:String!){addDiscussionComment(input:{discussionId:$d,body:$b}){comment{id}}}""", d=dd["id"],
+                        b=f"Dzięki! Dopisałem ten pomysł do tematu, gdzie zbieramy podobne: {url}\n\nTam można na niego głosować 👍 i dalej o nim rozmawiać. Zamykam ten wątek, żeby głosy się nie rozdzielały.")
+                    gql("""mutation($d:ID!){closeDiscussion(input:{discussionId:$d,reason:DUPLICATE}){discussion{id}}}""", d=dd["id"])
+                    print("    zamknięto dyskusję #", n)
             for n in i.get("issues", []):
                 iss = rest("GET", f"issues/{n}")
                 if iss["state"] == "open":
