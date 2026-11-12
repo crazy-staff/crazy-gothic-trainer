@@ -22,7 +22,10 @@ BASE = f"https://github.com/{REPO}"
 
 def http(url, body=None, method=None, headers=HDR):
     r = urllib.request.Request(url, json.dumps(body).encode() if body is not None else None, headers, method=method)
-    return json.load(urllib.request.urlopen(r))
+    try: raw = urllib.request.urlopen(r).read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        print("HTTP", e.code, url, e.read().decode("utf-8", "replace")[:300]); raise
+    return json.loads(raw) if raw.strip() else {}
 
 def gql(q, **v):
     d = http("https://api.github.com/graphql", {"query": q, "variables": v})
@@ -105,7 +108,10 @@ def ask(item, labels, items):
               "messages": [{"role": "system", "content": "You are a careful GitHub triage assistant. Output JSON only."},
                            {"role": "user", "content": p}]},
              headers={"Authorization": f"Bearer {TOK}", "Content-Type": "application/json", "Accept": "application/json"})
-    return json.loads(r["choices"][0]["message"]["content"])
+    txt = (r["choices"][0]["message"].get("content") or "").strip()
+    m = re.search(r"\{.*\}", txt, re.S)   # tolerate ```json fences or text around the object
+    if not m: raise RuntimeError(f"no JSON in model reply: {txt[:300]!r}")
+    return json.loads(m.group(0))
 
 def add_labels(item, names):
     names = [n for n in names if n not in item["labels"]]
