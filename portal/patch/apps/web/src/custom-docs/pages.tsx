@@ -5,7 +5,6 @@
 import type { JSONContent } from '@tiptap/core'
 import { getRouteApi } from '@tanstack/react-router'
 import * as Spacious from '@fumadocs/base-ui/layouts/spacious/page'
-import * as Classic from '@fumadocs/base-ui/layouts/docs/page'
 import { Card, Cards } from '@fumadocs/base-ui/components/card'
 import { ArrowRightIcon } from '@heroicons/react/20/solid'
 import { CategoryIcon } from '@/components/help-center/category-icon'
@@ -19,13 +18,11 @@ import { isPortalSupportSurfaceEnabled } from '@/lib/shared/support-surfaces'
 import { DocsContent } from './content'
 import { tocOf } from './structure'
 import type { DocsNavCategory } from './types'
-import { useDocsVariant } from './variant'
 import { SOON } from './docs-layout'
 
-/** The page components of the layout in use (spacious for a and b, classic for c). */
+/** Page components of fumadocs.dev's spacious layout. */
 function usePage() {
-  const { variant } = useDocsVariant()
-  return variant === 'c' ? Classic : Spacious
+  return Spacious
 }
 
 const layoutApi = getRouteApi('/_portal/hc')
@@ -140,7 +137,8 @@ export function DocsArticlePage() {
   const json = article.contentJson && isRichTextContent(article.contentJson) ? (article.contentJson as JSONContent) : null
   const toc = tocOf(json)
   return (
-    <DocsPage toc={toc}>
+    // keyed by article: the outline watches the headings of the page it mounted with
+    <DocsPage key={article.id} toc={toc}>
       <DocsTitle>{article.title}</DocsTitle>
       {article.description && <DocsDescription>{article.description}</DocsDescription>}
       <div className="docs-body flex-1">

@@ -7,7 +7,6 @@
  */
 @import "@fumadocs/base-ui/css/generated/shared.css";
 @import "@fumadocs/base-ui/css/generated/spacious.css";
-@import "@fumadocs/base-ui/css/generated/docs.css";
 @import "@fumadocs/base-ui/css/lib/shiki.css";
 @source "../../node_modules/@fumadocs/base-ui/dist";
 
@@ -261,23 +260,10 @@ body:has(.custom-docs) { background: var(--color-fd-card); }
 .custom-docs { color: var(--color-fd-foreground); }
 .custom-docs *, .custom-docs ::before, .custom-docs ::after { border-color: var(--color-fd-border); }
 
-/* Portal header height (portal-header.tsx): one 3.5rem row on large screens, plus the nav row below. */
-:root { --portal-header-height: calc(6.25rem + 1px); }
-@media (min-width: 64rem) { :root { --portal-header-height: calc(3.5rem + 1px); } }
-
-/* Layout A: the portal header on top, in the colours of the docs frame. */
-body:has(.custom-docs[data-variant='a']) .portal-header,
-body:has(.custom-docs[data-variant='c']) .portal-header {
-  background: var(--color-fd-card);
-  border-color: transparent;
-  backdrop-filter: none;
-}
-.custom-docs[data-variant='a'], .custom-docs[data-variant='c'] { --fd-banner-height: var(--portal-header-height); }
-/* Layout B: the docs fill the window; the portal links move into the docs. */
-body:has(.custom-docs[data-variant='b']) .portal-header { display: none; }
-.custom-docs[data-variant='b'] { --fd-banner-height: 0px; }
-/* Layout C: Fumadocs' classic docs layout (no frame). */
-.custom-docs[data-variant='c'] #nd-docs-layout { --fd-docs-height: 100dvh; }
+/* Docs fill the window like fumadocs.dev: the portal header is hidden, its links sit in the
+   docs' top bar (docs-layout.tsx), and the portal frame (theme.css) steps aside. */
+body:has(.custom-docs) .portal-header { display: none; }
+.custom-docs { --fd-banner-height: 0px; }
 
 /* ------------------------------------------------------------------ article typography */
 

@@ -1,6 +1,6 @@
 /**
  * The search dialog of fumadocs.dev (apps/docs/components/layouts/search.tsx, MIT), adapted:
- * a "Filter" menu in the footer (one entry per docs category, with its description) and a
+ * several filter menus in the footer (category, results, game, renderer) and a
  * "Jump to <page>" action when the query starts a page title.
  */
 import { useMemo, useState } from 'react'
@@ -27,6 +27,7 @@ export interface DocsSearchFilter {
   name: string
   description?: string
   value: string | undefined
+  disabled?: boolean
 }
 
 export interface DocsSearchPage {
@@ -34,12 +35,91 @@ export interface DocsSearchPage {
   url: string
 }
 
-export function createDocsSearchDialog(filters: DocsSearchFilter[], pages: DocsSearchPage[]) {
-  const items: DocsSearchFilter[] = [{ name: 'All', value: undefined }, ...filters]
+type GroupId = 'category' | 'kind' | 'game' | 'renderer'
+interface FilterGroup {
+  id: GroupId
+  label: string
+  options: DocsSearchFilter[]
+}
+
+const KIND: DocsSearchFilter[] = [
+  { name: 'Everything', description: 'Pages, headings and text', value: undefined },
+  { name: 'Pages', description: 'Only page titles', value: 'pages' },
+  { name: 'Headings', description: 'Page titles and section headings', value: 'headings' },
+]
+const GAME: DocsSearchFilter[] = [
+  { name: 'Any', value: undefined },
+  { name: 'Gothic 1', description: 'Gothic 1 Crazy Trainer', value: 'game:gothic-1' },
+  { name: 'Gothic 2', description: 'Coming later', value: 'game:gothic-2', disabled: true },
+]
+const RENDERER: DocsSearchFilter[] = [
+  { name: 'Any', value: undefined },
+  { name: 'GD3D11', description: 'DirectX 11 renderer', value: 'renderer:gd3d11' },
+  { name: 'Original', description: 'Without GD3D11 · coming later', value: 'renderer:original', disabled: true },
+]
+const NONE: Record<GroupId, string | undefined> = { category: undefined, kind: undefined, game: undefined, renderer: undefined }
+
+function FilterMenu({
+  group,
+  value,
+  onChange,
+}: {
+  group: FilterGroup
+  value: string | undefined
+  onChange: (v: string | undefined) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const current = group.options.find((o) => o.value === value) ?? group.options[0]
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger className={buttonVariants({ size: 'sm', variant: 'ghost', className: '-my-1.5' })}>
+        <span className="me-2 text-fd-muted-foreground/80">{group.label}</span>
+        {current.name}
+        <ChevronDown className="size-3.5 text-fd-muted-foreground" />
+      </PopoverTrigger>
+      <PopoverContent className="flex max-h-80 flex-col gap-1 overflow-y-auto p-1" align="start">
+        {group.options.map((item, i) => {
+          const selected = item.value === value
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={item.disabled}
+              onClick={() => {
+                onChange(item.value)
+                setOpen(false)
+              }}
+              className={
+                'rounded-lg px-2 py-1.5 text-start ' +
+                (selected
+                  ? 'bg-fd-primary/10 text-fd-primary'
+                  : item.disabled
+                    ? 'cursor-not-allowed opacity-50'
+                    : 'hover:bg-fd-accent hover:text-fd-accent-foreground')
+              }
+            >
+              <p className="mb-0.5 font-medium">{item.name}</p>
+              {item.description && <p className="text-xs opacity-70">{item.description}</p>}
+            </button>
+          )
+        })}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+export function createDocsSearchDialog(categories: DocsSearchFilter[], pages: DocsSearchPage[]) {
+  const groups: FilterGroup[] = [
+    { id: 'category', label: 'Filter', options: [{ name: 'All', value: undefined }, ...categories] },
+    { id: 'kind', label: 'Results', options: KIND },
+    { id: 'game', label: 'Game', options: GAME },
+    { id: 'renderer', label: 'Renderer', options: RENDERER },
+  ]
   return function DocsSearchDialog(props: SharedProps) {
-    const [open, setOpen] = useState(false)
-    const [tag, setTag] = useState<string | undefined>()
-    const search = useFetchSearch({ api: '/api/docs-search', tag })
+    const [filters, setFilters] = useState(NONE)
+    const tag = [filters.category, filters.game, filters.renderer].filter(Boolean).join(',') || undefined
+    const api = '/api/docs-search' + (filters.kind ? `?kind=${filters.kind}` : '')
+    const search = useFetchSearch({ api, tag })
     const router = useRouter()
 
     const jump = useMemo<SearchItemType | undefined>(() => {
@@ -72,38 +152,24 @@ export function createDocsSearchDialog(filters: DocsSearchFilter[], pages: DocsS
             <SearchDialogClose />
           </SearchDialogHeader>
           <SearchDialogList items={jump ? [jump, ...(search.data?.items ?? [])] : search.data?.items} />
-          <SearchDialogFooter className="flex flex-row flex-wrap items-center gap-2">
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger className={buttonVariants({ size: 'sm', variant: 'ghost', className: '-m-1.5 me-auto' })}>
-                <span className="me-2 text-fd-muted-foreground/80">Filter</span>
-                {items.find((item) => item.value === tag)?.name}
-                <ChevronDown className="size-3.5 text-fd-muted-foreground" />
-              </PopoverTrigger>
-              <PopoverContent className="flex max-h-80 flex-col gap-1 overflow-y-auto p-1" align="start">
-                {items.map((item, i) => {
-                  const selected = item.value === tag
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => {
-                        setTag(item.value)
-                        setOpen(false)
-                      }}
-                      className={
-                        'rounded-lg px-2 py-1.5 text-start ' +
-                        (selected
-                          ? 'bg-fd-primary/10 text-fd-primary'
-                          : 'hover:bg-fd-accent hover:text-fd-accent-foreground')
-                      }
-                    >
-                      <p className="mb-0.5 font-medium">{item.name}</p>
-                      {item.description && <p className="text-xs opacity-70">{item.description}</p>}
-                    </button>
-                  )
-                })}
-              </PopoverContent>
-            </Popover>
+          <SearchDialogFooter className="flex flex-row flex-wrap items-center gap-x-1 gap-y-2">
+            {groups.map((g) => (
+              <FilterMenu
+                key={g.id}
+                group={g}
+                value={filters[g.id]}
+                onChange={(v) => setFilters((f) => ({ ...f, [g.id]: v }))}
+              />
+            ))}
+            {Object.values(filters).some(Boolean) && (
+              <button
+                type="button"
+                onClick={() => setFilters(NONE)}
+                className="ms-auto text-xs text-fd-muted-foreground hover:text-fd-accent-foreground"
+              >
+                Clear filters
+              </button>
+            )}
           </SearchDialogFooter>
         </SearchDialogContent>
       </SearchDialog>

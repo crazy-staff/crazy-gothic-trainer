@@ -29,7 +29,8 @@ for (const c of categories) {
   }
 }
 for (const a of articles) for (const [, s] of a.content.matchAll(/doc:([a-z0-9-]+)/g)) if (!seen.has(s)) throw new Error(`${a.slug}: link to unknown page doc:${s}`)
-const out = JSON.stringify({ categories, articles })
+const changelogCategories = JSON.parse(fs.readFileSync(path.join(root, '..', 'changelog-categories.json'), 'utf8'))
+const out = JSON.stringify({ categories, articles, changelogCategories })
 if (process.argv[2]) fs.writeFileSync(process.argv[2], out)
 else process.stdout.write(out)
 console.error(`docs payload: ${categories.length} categories, ${articles.length} pages`)

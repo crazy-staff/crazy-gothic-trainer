@@ -1,0 +1,8 @@
+[
+  { "name": "Trainer", "color": "#a88cff", "description": "New trainer builds: features and changes in the game" },
+  { "name": "Bug fixes", "color": "#f87171", "description": "Fixes in the trainer" },
+  { "name": "Docs", "color": "#6bb3ff", "description": "New and updated documentation pages" },
+  { "name": "Portal", "color": "#73eb8c", "description": "This site: feedback, roadmap, support" },
+  { "name": "Discord", "color": "#5865f2", "description": "The Discord server and its bot" },
+  { "name": "Tester program", "color": "#fbcc4d", "description": "Tester accounts, ranks, reports from the game" }
+]

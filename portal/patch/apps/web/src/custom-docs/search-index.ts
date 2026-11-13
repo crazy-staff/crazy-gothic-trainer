@@ -29,7 +29,8 @@ async function buildIndexes() {
       title: a.title,
       description: a.description ?? undefined,
       breadcrumbs: [c.name],
-      tag: c.slug,
+      // one tag per filter of the search dialog: category, game, renderer
+      tag: [c.slug, 'game:gothic-1', 'renderer:gd3d11'],
       url: hcArticlePath({ locale: DEFAULT_LOCALE, urlId: a.urlId, slug: a.slug }),
       structuredData: structuredDataOf(content.get(a.id)),
     }))

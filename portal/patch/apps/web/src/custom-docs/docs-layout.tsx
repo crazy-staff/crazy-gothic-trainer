@@ -13,14 +13,14 @@ import type * as PageTree from 'fumadocs-core/page-tree'
 import { SearchProvider } from '@fumadocs/base-ui/contexts/search'
 import { DocsLayout as SpaciousLayout } from '@fumadocs/base-ui/layouts/spacious'
 import { HeaderActions } from '@fumadocs/base-ui/layouts/spacious/slots/actions'
-import { DocsLayout as ClassicLayout } from '@fumadocs/base-ui/layouts/docs'
 import { BookOpenIcon, CpuChipIcon, HomeIcon, ShieldCheckIcon } from '@heroicons/react/20/solid'
 import { CategoryIcon } from '@/components/help-center/category-icon'
 import { usePortalNavItems } from '@/components/public/use-portal-nav-items'
-import { useUserRole, useWorkspaceSettings } from '@/lib/client/hooks/use-root-context'
+import { useSessionContext, useUserRole, useWorkspaceSettings } from '@/lib/client/hooks/use-root-context'
+import { useAuthPopoverSafe } from '@/components/auth/auth-popover-context'
+import { Avatar } from '@/components/ui/avatar'
 import { hcArticlePath, localizedHcPath } from '@/lib/shared/help-center-url'
 import { createDocsSearchDialog } from './search-dialog'
-import { DocsVariantProvider, VariantPicker, useDocsVariant } from './variant'
 import type { DocsNavCategory } from './types'
 
 /** Placeholder pages for switcher options that have no docs yet (route: hc/soon/$what). */
@@ -118,7 +118,30 @@ function NavTitle({ withOrg }: { withOrg: boolean }) {
   )
 }
 
-/** Variant b: the portal's own links in the page bar, next to the Fumadocs actions. */
+/** Log in, or the signed-in user (links to their settings), as in the portal header. */
+function Account() {
+  const session = useSessionContext() as { user?: { name?: string | null; image?: string | null; principalType?: string } } | null
+  const auth = useAuthPopoverSafe()
+  const user = session?.user && session.user.principalType !== 'anonymous' ? session.user : null
+  if (user)
+    return (
+      <a href="/settings" className="ms-1 rounded-full" title={user.name ?? undefined}>
+        <Avatar className="size-7" src={user.image ?? undefined} name={user.name ?? undefined} />
+      </a>
+    )
+  if (!auth?.openAuthPopover) return null
+  return (
+    <button
+      type="button"
+      onClick={() => auth.openAuthPopover({ mode: 'login' })}
+      className="ms-1 rounded-lg bg-fd-primary px-2.5 py-1 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-90"
+    >
+      Log in
+    </button>
+  )
+}
+
+/** The portal's own links in the page bar (the portal header is hidden on docs pages). */
 function PortalBarActions({ className, ...props }: ComponentProps<'div'>) {
   const items = usePortalNavItems()
   const role = useUserRole() as string | null | undefined
@@ -155,13 +178,13 @@ function PortalBarActions({ className, ...props }: ComponentProps<'div'>) {
           Admin
         </a>
       )}
+      <Account />
       <HeaderActions />
     </div>
   )
 }
 
 function Shell({ nav, locale, children }: { nav: DocsNavCategory[]; locale: string; children: ReactNode }) {
-  const { variant } = useDocsVariant()
   const tree = useMemo(() => docsTree(nav, locale), [nav, locale])
   const SearchDialog = useMemo(
     () =>
@@ -176,23 +199,16 @@ function Shell({ nav, locale, children }: { nav: DocsNavCategory[]; locale: stri
   const home = localizedHcPath(locale, '/hc')
   return (
     <SearchProvider SearchDialog={SearchDialog}>
-      <div className="custom-docs" data-variant={variant}>
-        {variant === 'c' ? (
-          <ClassicLayout tree={tree} themeSwitch={{ enabled: false }} nav={{ title: <NavTitle withOrg={false} />, url: home }}>
-            {children}
-          </ClassicLayout>
-        ) : (
-          <SpaciousLayout
-            tree={tree}
-            themeSwitch={{ enabled: false }}
-            nav={{ title: <NavTitle withOrg={variant === 'b'} />, url: home }}
-            slots={variant === 'b' ? { actions: PortalBarActions } : undefined}
-          >
-            {children}
-          </SpaciousLayout>
-        )}
+      <div className="custom-docs">
+        <SpaciousLayout
+          tree={tree}
+          themeSwitch={{ enabled: false }}
+          nav={{ title: <NavTitle withOrg />, url: home }}
+          slots={{ actions: PortalBarActions }}
+        >
+          {children}
+        </SpaciousLayout>
       </div>
-      <VariantPicker />
     </SearchProvider>
   )
 }
@@ -208,11 +224,9 @@ export function CustomDocsLayout({
 }) {
   return (
     <TanstackProvider>
-      <DocsVariantProvider>
-        <Shell nav={nav} locale={locale}>
-          {children}
-        </Shell>
-      </DocsVariantProvider>
+      <Shell nav={nav} locale={locale}>
+        {children}
+      </Shell>
     </TanstackProvider>
   )
 }

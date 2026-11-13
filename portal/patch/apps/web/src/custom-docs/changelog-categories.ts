@@ -4,7 +4,14 @@
  */
 import type { ChangelogCategoryId } from '@quackback/ids'
 
-const COLORS: Record<string, string> = { docs: '#6bb3ff', trainer: '#a88cff', portal: '#73eb8c' }
+const COLORS: Record<string, string> = {
+  trainer: '#a88cff',
+  docs: '#6bb3ff',
+  portal: '#73eb8c',
+  discord: '#5865f2',
+  'tester program': '#fbcc4d',
+  'bug fixes': '#f87171',
+}
 
 export async function changelogCategoryIdsByName(names?: string[]): Promise<ChangelogCategoryId[] | undefined> {
   if (!names || names.length === 0) return undefined

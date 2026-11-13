@@ -75,7 +75,7 @@ EDITS = {
     ],
     # styles: Fumadocs theme mapped onto the portal theme
     "globals.css": [
-        ('@import "tw-animate-css";\n', '@import "tw-animate-css";\n@import "./custom-docs/fumadocs.css";\n'),
+        ('@import "tw-animate-css";\n', '@import "tw-animate-css";\n@import "./custom-docs/fumadocs.css";\n@import "./custom-docs/theme.css";\n'),
     ],
     # API: article order (position) for the docs sidebar
     "routes/api/v1/help-center/articles/index.ts": [

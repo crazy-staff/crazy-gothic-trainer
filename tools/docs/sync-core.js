@@ -4,6 +4,9 @@
 // Links "doc:<slug>" in content become /hc/<category>/<slug> (Quackback redirects that to the canonical URL).
 async function gothicDocsSync({ api, payload, state = {}, author, changelog = true, log = console.log }) {
   const bySlug = (list) => Object.fromEntries(list.map((x) => [x.slug, x]))
+  // changelog categories (Trainer, Docs, Discord, ...): created or recoloured, never removed
+  if (payload.changelogCategories?.length)
+    await api('POST', 'changelog/categories', { categories: payload.changelogCategories.map(({ name, color }) => ({ name, color })) })
   const cats = bySlug((await api('GET', 'help-center/categories')).data || [])
   const catIds = {}
   for (const [i, c] of payload.categories.entries()) {
