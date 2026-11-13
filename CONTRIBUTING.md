@@ -11,13 +11,13 @@ The in-game menu is still in Polish (an English interface is planned); menu name
 
 | You have… | Post it in | How |
 |---|---|---|
-| A bug (something does not work) | [Issues → Bug report](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=blad.yml) | best: send it from the in-game **Tester hub** — it fills in everything |
-| A crash | [Issues → Crash](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=crash.yml) | attach the report file (see [TESTING.md](TESTING.md)) |
-| A change to an existing option | [Issues → Change to an existing option](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new?template=propozycja.yml) | |
-| A new feature idea | [Discussions → Ideas](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=ideas) | one idea per thread |
-| A question | [Discussions → Q&A](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=q-a) | |
-| Screenshots, videos, presets | [Discussions → Show and tell](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=show-and-tell) | |
-| Anything else | [Discussions → General](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/new?category=general) | |
+| A bug (something does not work) | [Issues → Bug report](https://github.com/dawidseipold/gothic-crazy-trainer/issues/new?template=blad.yml) | best: send it from the in-game **Tester hub** — it fills in everything |
+| A crash | [Issues → Crash](https://github.com/dawidseipold/gothic-crazy-trainer/issues/new?template=crash.yml) | attach the report file (see [TESTING.md](TESTING.md)) |
+| A change to an existing option | [Issues → Change to an existing option](https://github.com/dawidseipold/gothic-crazy-trainer/issues/new?template=propozycja.yml) | |
+| A new feature idea | [Discussions → Ideas](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/new?category=ideas) | one idea per thread |
+| A question | [Discussions → Q&A](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/new?category=q-a) | |
+| Screenshots, videos, presets | [Discussions → Show and tell](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/new?category=show-and-tell) | |
+| Anything else | [Discussions → General](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/new?category=general) | |
 
 Before posting, search first. If it already exists, **vote** (👍 / up arrow) and add your details there instead of opening a new one.
 

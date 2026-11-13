@@ -8,7 +8,7 @@ This page is a test bed. Each section shows one element and how it is written in
 
 ## Text
 
-Plain paragraphs, **bold**, *italic*, ~~strikethrough~~ and `inline code`. Links to [another docs page](doc:installation), to a [section of a page](doc:installation#requirements) and to [an external site](https://github.com/dawidseipold/gothic1-crazy-trainer).
+Plain paragraphs, **bold**, *italic*, ~~strikethrough~~ and `inline code`. Links to [another docs page](doc:installation), to a [section of a page](doc:installation#requirements) and to [an external site](https://github.com/dawidseipold/gothic-crazy-trainer).
 
 ### A third-level heading
 
@@ -101,7 +101,7 @@ A drawing of a card from the in-game menu, so readers know what to look for:
 
 ```steps
 [
-  {"title": "Download the build", "body": "Get the newest `G1CrazyTrainer.zip` from the [releases page](https://github.com/dawidseipold/gothic1-crazy-trainer/releases)."},
+  {"title": "Download the build", "body": "Get the newest `G1CrazyTrainer.zip` from the [releases page](https://github.com/dawidseipold/gothic-crazy-trainer/releases)."},
   {"title": "Copy the DLL", "body": "Put `G1CrazyTrainer.dll` into `Gothic\\system\\Autorun`."},
   {"title": "Start the game", "body": "Press `key:F1` in game to open the menu."}
 ]

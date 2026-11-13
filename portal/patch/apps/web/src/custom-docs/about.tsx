@@ -11,7 +11,7 @@ const SOURCE = [
   {
     title: 'Gothic 1 Crazy Trainer',
     description: 'The trainer itself, its docs pages and releases.',
-    href: 'https://github.com/dawidseipold/gothic1-crazy-trainer',
+    href: 'https://github.com/dawidseipold/gothic-crazy-trainer',
   },
 ]
 const TECH = [

@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <unordered_map>
 #include <unordered_set>
-#include "../tester.h"
+#include "tester.h"
 
 using namespace g1;
 using namespace gx;

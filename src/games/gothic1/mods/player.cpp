@@ -1,6 +1,6 @@
 // Player module: survival, combat, stats, talents, movement (noclip/glide), hero speed.
 #include "mods.h"
-#include "../tester.h"
+#include "tester.h"
 #include "MinHook.h"
 #include <algorithm>
 #include <cmath>

@@ -44,4 +44,4 @@ order: 1
 
 - Vote for ideas or suggest your own on **[Feedback](/)** and follow the **[Roadmap](/roadmap)**.
 - New builds and docs changes are listed in the **[Changelog](/changelog)**.
-- Questions go to **[Support](/support)**. Bugs: the in-game Tester hub or [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues).
+- Questions go to **[Support](/support)**. Bugs: the in-game Tester hub or [GitHub Issues](https://github.com/dawidseipold/gothic-crazy-trainer/issues).

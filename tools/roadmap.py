@@ -3,7 +3,7 @@
 Votes = 👍 reactions on an issue. Run by .github/workflows/roadmap.yml; locally: roadmap.py --from issues.json"""
 import json, os, sys, html, re, urllib.request, datetime
 
-REPO = os.environ.get("GITHUB_REPOSITORY", "dawidseipold/gothic1-crazy-trainer")
+REPO = os.environ.get("GITHUB_REPOSITORY", "dawidseipold/gothic-crazy-trainer")
 
 def fetch():
     out, page = [], 1

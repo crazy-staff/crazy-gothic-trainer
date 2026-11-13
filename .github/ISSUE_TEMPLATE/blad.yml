@@ -7,9 +7,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)).
+        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic-crazy-trainer/blob/main/CONTRIBUTING.md)).
         Thanks for the report! When sent from the game, the fields are already filled in — check them and click **Submit new issue**.
-        Please look at the [open issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues) first — if it is already there, add 👍 and a comment.
+        Please look at the [open issues](https://github.com/dawidseipold/gothic-crazy-trainer/issues) first — if it is already there, add 👍 and a comment.
   - type: input
     id: opcja
     attributes:

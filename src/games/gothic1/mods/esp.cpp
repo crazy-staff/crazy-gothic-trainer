@@ -2,7 +2,7 @@
 // (attitude, names, equipment) are cached and refreshed a few times per second;
 // only projection runs every frame.
 #include "mods.h"
-#include "../gfx.h"
+#include "gfx.h"
 #include <psapi.h>
 #include <algorithm>
 #include <cmath>

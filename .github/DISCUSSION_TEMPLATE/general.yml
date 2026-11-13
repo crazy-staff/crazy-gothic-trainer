@@ -3,8 +3,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)).
-        Anything about the trainer that is not a bug, a question or an idea. Bugs → [Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose), ideas → [Ideas](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas), questions → [Q&A](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/q-a).
+        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic-crazy-trainer/blob/main/CONTRIBUTING.md)).
+        Anything about the trainer that is not a bug, a question or an idea. Bugs → [Issues](https://github.com/dawidseipold/gothic-crazy-trainer/issues/new/choose), ideas → [Ideas](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/categories/ideas), questions → [Q&A](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/categories/q-a).
   - type: textarea
     id: text
     attributes:

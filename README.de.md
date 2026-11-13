@@ -1,9 +1,9 @@
-# Gothic 1 Crazy Trainer
+# Gothic Crazy Trainer
 
 🇬🇧 [English](README.md) · 🇵🇱 [Polski](README.pl.md) · 🇩🇪 Deutsch · 🇷🇺 [Русский](README.ru.md)
 
-> 🗺️ **[Roadmap: Fehler, Pläne, Ideen — abstimmen 👍](ROADMAP.md)** · Seite: https://dawidseipold.github.io/gothic1-crazy-trainer/
-> 💡 **[Ideen und Diskussionen](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas)** — jede Idee ist ein eigener Thread, abstimmen mit dem Pfeil nach oben.
+> 🗺️ **[Roadmap: Fehler, Pläne, Ideen — abstimmen 👍](ROADMAP.md)** · Seite: https://dawidseipold.github.io/gothic-crazy-trainer/
+> 💡 **[Ideen und Diskussionen](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/categories/ideas)** — jede Idee ist ein eigener Thread, abstimmen mit dem Pfeil nach oben.
 
 Ein Trainer / Mod-Menü für die Steam-Version von **Gothic 1** (`GothicMod.exe` 1.08k_mod), mit **Union** und dem Renderer **GD3D11**.
 Werte, Inventar, Item- und NPC-Spawner, Teleport, ESP, Radar, Gruppe, Arena, „Fun“-Modi (Zauberregen, Meteore, Zombies, Verwandlung…) und vieles mehr — alles in einem Menü im Spiel.
@@ -11,9 +11,20 @@ Werte, Inventar, Item- und NPC-Spawner, Teleport, ESP, Radar, Gruppe, Arena, „
 > Nur für den Einzelspielermodus. Der Trainer ist in der Testphase: Sichere vorher deine Spielstände.
 > **Das Menü im Spiel ist vorerst auf Polnisch.** Eine englische Oberfläche ist geplant.
 
+## Unterstützte Spiele
+
+Der Trainer wird für mehrere Spiele entwickelt. Jedes Spiel hat im Code ein eigenes Modul, weil sich die Engines in Adressen und Verhalten unterscheiden; sobald ein Modul auf einem anderen Spiel oder Renderer getestet ist, wandern die gemeinsamen Teile in den gemeinsamen Code.
+
+| Spiel | Renderer | Status |
+|---|---|---|
+| Gothic 1 (Steam, `GothicMod.exe` 1.08k_mod) | GD3D11 | ✅ im Test |
+| Gothic 1 | Original-Renderer | ⏳ geplant |
+| Gothic 2: Die Nacht des Raben | GD3D11 | ⏳ geplant |
+| Story-Mods (z. B. Die Chroniken von Myrtana) | GD3D11 | 💭 später |
+
 ## Download
 
-Die neueste Version gibt es immer unter **[Releases](https://github.com/dawidseipold/gothic1-crazy-trainer/releases/latest)** — lade `G1CrazyTrainer_buildN.zip` herunter.
+Die neueste Version gibt es immer unter **[Releases](https://github.com/dawidseipold/gothic-crazy-trainer/releases/latest)** — lade `G1CrazyTrainer_buildN.zip` herunter.
 
 ## Voraussetzungen
 

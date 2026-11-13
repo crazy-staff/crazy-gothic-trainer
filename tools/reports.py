@@ -10,7 +10,7 @@ Also accepts raw G1CrazyTrainer_zgloszenia.txt files and pasted text with @@TICK
 import argparse, json, os, re, subprocess, sys, zipfile
 from collections import defaultdict
 
-REPO = "dawidseipold/gothic1-crazy-trainer"
+REPO = "dawidseipold/gothic-crazy-trainer"
 
 def unesc(v):
     out, i = [], 0

@@ -36,7 +36,7 @@ bool g_loaded = false;
 std::string g_nick;
 std::string g_crashKey;            // set by NoteCrash before Load
 
-const char* kRepo = "dawidseipold/gothic1-crazy-trainer";
+const char* kRepo = "dawidseipold/gothic-crazy-trainer";
 
 std::string Stamp(bool compact) {
     SYSTEMTIME s; GetLocalTime(&s);

@@ -1,7 +1,7 @@
 // Items module: spawning single items, preset kits and user-made item sets.
 #include "mods.h"
 #include <algorithm>
-#include "../tester.h"
+#include "tester.h"
 #include <unordered_set>
 #include <unordered_map>
 

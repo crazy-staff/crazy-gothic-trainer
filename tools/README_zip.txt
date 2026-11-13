@@ -10,7 +10,7 @@ Installation:
  3. Insert = menu, Esc = close. (The menu is in Polish for now - English is planned.)
 
 Testing? Settings (Konfiguracja) -> Tester mode (Tryb testera) -> Open Tester hub. Enter your nickname.
-Guide:   https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/TESTING.md
-Reports: https://github.com/dawidseipold/gothic1-crazy-trainer/issues
-Ideas:   https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas
+Guide:   https://github.com/dawidseipold/gothic-crazy-trainer/blob/main/TESTING.md
+Reports: https://github.com/dawidseipold/gothic-crazy-trainer/issues
+Ideas:   https://github.com/dawidseipold/gothic-crazy-trainer/discussions/categories/ideas
 

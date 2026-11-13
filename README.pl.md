@@ -1,18 +1,29 @@
-# Gothic 1 Crazy Trainer
+# Gothic Crazy Trainer
 
 🇬🇧 [English](README.md) · 🇵🇱 Polski · 🇩🇪 [Deutsch](README.de.md) · 🇷🇺 [Русский](README.ru.md)
 
-> 🗺️ **[Mapa drogowa: błędy, plany, pomysły — głosuj 👍](ROADMAP.md)** · strona: https://dawidseipold.github.io/gothic1-crazy-trainer/
-> 💡 **[Pomysły i dyskusje](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas)** — każdy pomysł to osobny wątek, głosuj strzałką w górę.
+> 🗺️ **[Mapa drogowa: błędy, plany, pomysły — głosuj 👍](ROADMAP.md)** · strona: https://dawidseipold.github.io/gothic-crazy-trainer/
+> 💡 **[Pomysły i dyskusje](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/categories/ideas)** — każdy pomysł to osobny wątek, głosuj strzałką w górę.
 
 Trainer / mod menu do **Gothic 1** w wersji Steam (`GothicMod.exe` 1.08k_mod), uruchamianego z **Union** i rendererem **GD3D11**.
 Statystyki, ekwipunek, spawner przedmiotów i postaci, teleport, ESP, radar, drużyna, arena, tryby „fun” (deszcz zaklęć, meteoryty, zombie, polimorfia…) i sporo więcej — wszystko z jednego menu w grze.
 
 > Tylko do gry jednoosobowej. Trainer jest w fazie testów: zanim zaczniesz, zrób kopię zapisów gry.
 
+## Obsługiwane gry
+
+Trainer powstaje z myślą o kilku grach. Każda gra ma w kodzie własny moduł, bo silniki różnią się adresami i zachowaniem; gdy moduł zostanie przetestowany na innej grze lub rendererze, wspólne części trafiają do kodu wspólnego.
+
+| Gra | Renderer | Status |
+|---|---|---|
+| Gothic 1 (Steam, `GothicMod.exe` 1.08k_mod) | GD3D11 | ✅ w testach |
+| Gothic 1 | oryginalny renderer | ⏳ planowane |
+| Gothic 2: Noc Kruka | GD3D11 | ⏳ planowane |
+| Mody fabularne (np. Kroniki Myrtany) | GD3D11 | 💭 później |
+
 ## Pobieranie
 
-Najnowsza wersja jest zawsze w **[Releases](https://github.com/dawidseipold/gothic1-crazy-trainer/releases/latest)** — pobierz `G1CrazyTrainer_buildN.zip`.
+Najnowsza wersja jest zawsze w **[Releases](https://github.com/dawidseipold/gothic-crazy-trainer/releases/latest)** — pobierz `G1CrazyTrainer_buildN.zip`.
 
 ## Wymagania
 

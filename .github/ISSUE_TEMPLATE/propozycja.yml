@@ -6,7 +6,7 @@ labels: ["type: enhancement"]
 body:
   - type: markdown
     attributes:
-      value: "**Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)). This form is for changes to existing options. New features are collected in [Discussions](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) — vote for a similar idea there or start a new thread."
+      value: "**Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic-crazy-trainer/blob/main/CONTRIBUTING.md)). This form is for changes to existing options. New features are collected in [Discussions](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/categories/ideas) — vote for a similar idea there or start a new thread."
   - type: input
     id: opcja
     attributes:

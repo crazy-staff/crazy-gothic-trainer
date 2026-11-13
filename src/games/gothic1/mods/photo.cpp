@@ -4,7 +4,7 @@
 // without the subject) and Present cuts the subject out. The camera is restored exactly afterwards.
 // While anything is being photographed the UI covers the screen, so the camera jump is never seen.
 #include "mods.h"
-#include "../portrait.h"
+#include "portrait.h"
 #include "MinHook.h"
 #include <algorithm>
 #include <cmath>

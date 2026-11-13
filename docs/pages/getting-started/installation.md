@@ -18,7 +18,7 @@ order: 2
 
 ### 1. Download
 
-Get `G1CrazyTrainer_buildN.zip` from the [latest release](https://github.com/dawidseipold/gothic1-crazy-trainer/releases/latest) and unpack it.
+Get `G1CrazyTrainer_buildN.zip` from the [latest release](https://github.com/dawidseipold/gothic-crazy-trainer/releases/latest) and unpack it.
 
 ### 2. Copy the files
 

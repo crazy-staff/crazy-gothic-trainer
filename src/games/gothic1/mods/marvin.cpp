@@ -1,6 +1,6 @@
 // Marvin module: debug flags, console with macros, script calls.
 #include "mods.h"
-#include "../portrait.h"
+#include "portrait.h"
 #include <sstream>
 
 using namespace g1;

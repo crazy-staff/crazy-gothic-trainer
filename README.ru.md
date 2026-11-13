@@ -1,9 +1,9 @@
-# Gothic 1 Crazy Trainer
+# Gothic Crazy Trainer
 
 🇬🇧 [English](README.md) · 🇵🇱 [Polski](README.pl.md) · 🇩🇪 [Deutsch](README.de.md) · 🇷🇺 Русский
 
-> 🗺️ **[Дорожная карта: баги, планы, идеи — голосуйте 👍](ROADMAP.md)** · сайт: https://dawidseipold.github.io/gothic1-crazy-trainer/
-> 💡 **[Идеи и обсуждения](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas)** — каждая идея в отдельной теме, голосуйте стрелкой вверх.
+> 🗺️ **[Дорожная карта: баги, планы, идеи — голосуйте 👍](ROADMAP.md)** · сайт: https://dawidseipold.github.io/gothic-crazy-trainer/
+> 💡 **[Идеи и обсуждения](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/categories/ideas)** — каждая идея в отдельной теме, голосуйте стрелкой вверх.
 
 Трейнер / мод-меню для Steam-версии **Gothic 1** (`GothicMod.exe` 1.08k_mod), запускаемой с **Union** и рендерером **GD3D11**.
 Характеристики, инвентарь, спавн предметов и NPC, телепорт, ESP, радар, отряд, арена, «весёлые» режимы (дождь заклинаний, метеориты, зомби, превращения…) и многое другое — всё в одном меню в игре.
@@ -11,9 +11,20 @@
 > Только для одиночной игры. Трейнер в стадии тестирования: перед началом сделайте копию сохранений.
 > **Меню в игре пока на польском языке.** Английский интерфейс запланирован.
 
+## Поддерживаемые игры
+
+Трейнер создаётся для нескольких игр. У каждой игры в коде свой модуль, потому что движки отличаются адресами и поведением; когда модуль проверен на другой игре или рендерере, общие части переносятся в общий код.
+
+| Игра | Рендерер | Статус |
+|---|---|---|
+| Gothic 1 (Steam, `GothicMod.exe` 1.08k_mod) | GD3D11 | ✅ тестируется |
+| Gothic 1 | оригинальный рендерер | ⏳ в планах |
+| Gothic 2: Ночь Ворона | GD3D11 | ⏳ в планах |
+| Сюжетные моды (напр. Хроники Миртаны) | GD3D11 | 💭 позже |
+
 ## Скачать
 
-Последняя версия всегда в **[Releases](https://github.com/dawidseipold/gothic1-crazy-trainer/releases/latest)** — скачайте `G1CrazyTrainer_buildN.zip`.
+Последняя версия всегда в **[Releases](https://github.com/dawidseipold/gothic-crazy-trainer/releases/latest)** — скачайте `G1CrazyTrainer_buildN.zip`.
 
 ## Требования
 

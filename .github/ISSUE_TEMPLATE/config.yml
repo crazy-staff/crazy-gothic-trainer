@@ -1,11 +1,11 @@
 blank_issues_enabled: true
 contact_links:
   - name: New feature idea → Discussions (Ideas)
-    url: https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas
+    url: https://github.com/dawidseipold/gothic-crazy-trainer/discussions/categories/ideas
     about: Every idea is its own thread. Check if a similar one exists (then vote), otherwise start a new thread.
   - name: Question → Discussions (Q&A)
-    url: https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/q-a
+    url: https://github.com/dawidseipold/gothic-crazy-trainer/discussions/categories/q-a
     about: How to install or use something.
   - name: How to test and report (guide)
-    url: https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/TESTING.md
+    url: https://github.com/dawidseipold/gothic-crazy-trainer/blob/main/TESTING.md
     about: The in-game Tester hub and what to attach to reports.

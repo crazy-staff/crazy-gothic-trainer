@@ -4,9 +4,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)).
-        **One idea per thread.** Please check the [list of ideas](https://github.com/dawidseipold/gothic1-crazy-trainer/discussions/categories/ideas) first — if a similar one exists, vote for it (up arrow) and add your details in a comment there.
-        After posting, a bot adds a category and checks for duplicates. The author decides what gets **approved** — approved ideas become issues on the [project board](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md).
+        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic-crazy-trainer/blob/main/CONTRIBUTING.md)).
+        **One idea per thread.** Please check the [list of ideas](https://github.com/dawidseipold/gothic-crazy-trainer/discussions/categories/ideas) first — if a similar one exists, vote for it (up arrow) and add your details in a comment there.
+        After posting, a bot adds a category and checks for duplicates. The author decides what gets **approved** — approved ideas become issues on the [project board](https://github.com/dawidseipold/gothic-crazy-trainer/blob/main/CONTRIBUTING.md).
   - type: textarea
     id: idea
     attributes:

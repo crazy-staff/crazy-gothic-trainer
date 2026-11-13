@@ -12,7 +12,7 @@ Everything on GitHub is in English.
 Run by .github/workflows/discussions.yml (GraphQL needs the Actions GITHUB_TOKEN)."""
 import json, os, glob, urllib.request, urllib.parse, urllib.error
 
-REPO = os.environ.get("GITHUB_REPOSITORY", "dawidseipold/gothic1-crazy-trainer")
+REPO = os.environ.get("GITHUB_REPOSITORY", "dawidseipold/gothic-crazy-trainer")
 OWNER, NAME = REPO.split("/")
 HDR = {"Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}", "Accept": "application/vnd.github+json"}
 

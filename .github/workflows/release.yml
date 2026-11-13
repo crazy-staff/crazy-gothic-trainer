@@ -1,4 +1,4 @@
-# Adding docs/release/bN.md on main (N = TRAINER_BUILD in src/trainer.h) -> builds the DLL on Linux (MinGW)
+# Adding docs/release/bN.md on main (N = TRAINER_BUILD in src/games/gothic1/trainer.h) -> builds the DLL on Linux (MinGW)
 # and publishes release "bN" with the zip. Skipped when that release already exists. Can also be run by hand.
 # Dependency commits are pinned to what the trainer is developed against.
 name: Release
@@ -23,7 +23,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          N=$(grep -oP '#define TRAINER_BUILD \K[0-9]+' src/trainer.h)
+          N=$(grep -oP '#define TRAINER_BUILD \K[0-9]+' src/games/gothic1/trainer.h)
           echo "TAG=b$N" >> $GITHUB_ENV
           if gh release view "b$N" >/dev/null 2>&1; then echo "skip=1" >> $GITHUB_OUTPUT; echo "release b$N already exists"; fi
           [ -f docs/release/b$N.md ] || echo "note: no docs/release/b$N.md - using default.md"

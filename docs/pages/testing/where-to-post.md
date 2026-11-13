@@ -10,7 +10,7 @@ order: 2
 |---|---|
 | A new feature idea | [Feedback](/) — one idea per post. Search first and vote if it already exists. |
 | A question | [Support](/support), or search these docs first. |
-| A bug or a crash | the in-game **Tester hub** (best — it attaches everything) or [GitHub Issues](https://github.com/dawidseipold/gothic1-crazy-trainer/issues/new/choose) |
+| A bug or a crash | the in-game **Tester hub** (best — it attaches everything) or [GitHub Issues](https://github.com/dawidseipold/gothic-crazy-trainer/issues/new/choose) |
 
 ## What happens with an idea
 

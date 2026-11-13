@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic1-crazy-trainer/blob/main/CONTRIBUTING.md)).
+        **Please write in English** — the only language of this repository ([rules](https://github.com/dawidseipold/gothic-crazy-trainer/blob/main/CONTRIBUTING.md)).
         **The report file matters most.** In the game: Tester hub → Send → *Export unsent*, then drag the file from the `G1CrazyTrainer_raporty` folder into the "Report" field below.
         Without the game: attach `G1CrazyTrainer.log` and `G1CrazyTrainer_crashes.txt` from `Gothic\system\Autorun`.
   - type: input
