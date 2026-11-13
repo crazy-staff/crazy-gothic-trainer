@@ -3,7 +3,7 @@
  * center's own page components; the routes and their loaders stay Quackback's.
  */
 import type { JSONContent } from '@tiptap/core'
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, useRouterState } from '@tanstack/react-router'
 import * as Spacious from '@fumadocs/base-ui/layouts/spacious/page'
 import { Card, Cards } from '@fumadocs/base-ui/components/card'
 import { ArrowRightIcon } from '@heroicons/react/20/solid'
@@ -20,6 +20,7 @@ import { tocOf } from './structure'
 import type { DocsNavCategory } from './types'
 import { SOON } from './docs-layout'
 import { PageTransition } from './page-transition'
+import { useSectionIndex } from './shell-parts'
 
 /** Page components of fumadocs.dev's spacious layout. */
 function usePage() {
@@ -74,8 +75,10 @@ export function DocsHomePage() {
       ? config.homepageDescription
       : 'Everything about the project, page by page.'
   const start = nav[0]?.articles[0]
+  const section = useSectionIndex('/hc')
   return (
     <DocsPage full tableOfContent={{ enabled: false }} breadcrumb={{ enabled: false }} footer={{ enabled: false }}>
+      <PageTransition id="docs-home" position={section * 1000 + 1}>
       <div className="docs-home-hero not-prose">
         <p className="text-sm font-medium text-fd-primary">Docs</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
@@ -92,6 +95,7 @@ export function DocsHomePage() {
       </div>
       <h2 className="mt-10 mb-4 text-lg font-semibold">Browse by topic</h2>
       <CategoryCards nav={nav} locale={locale} />
+      </PageTransition>
     </DocsPage>
   )
 }
@@ -139,10 +143,11 @@ export function DocsArticlePage() {
   const toc = tocOf(json)
   const { nav } = useDocsNav()
   const order = nav.flatMap((c) => c.articles).findIndex((a) => a.id === article.id)
+  const section = useSectionIndex(useRouterState({ select: (st) => st.location.pathname }))
   return (
     // keyed by article: the outline watches the headings of the page it mounted with
     <DocsPage key={article.id} toc={toc}>
-      <PageTransition id={article.id} position={[0, order]} className="flex flex-col gap-4">
+      <PageTransition id={article.id} position={section * 1000 + 10 + order} className="flex flex-col gap-4">
       <DocsTitle>{article.title}</DocsTitle>
       {article.description && <DocsDescription>{article.description}</DocsDescription>}
       <div className="docs-body flex-1">

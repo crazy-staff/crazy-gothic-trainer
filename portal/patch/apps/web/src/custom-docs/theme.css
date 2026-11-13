@@ -124,60 +124,77 @@ html:not(.dark) {
 
 /* ------------------------------------------------------------------ portal frame */
 
-body:has([data-portal]) { background: var(--app-frame); }
-
-/* Every page sits in the Fumadocs frame (app-shell.tsx, docs-layout.tsx): the portal's own
-   header and page container step aside. */
+/* Every portal page sits in the Fumadocs frame (app-shell.tsx); the portal's own header and
+   page container step aside. */
+body:has([data-portal]) { background: var(--color-fd-card); }
 body:has(#fd-spacious-layout) .portal-header { display: none; }
-body:has(#fd-spacious-layout) [data-portal] {
-  min-height: 100dvh;
-  background: var(--color-fd-card);
-}
-
-/* The page's own panel in the sidebar (sidebar-slot.tsx). */
-#nd-sidebar p:has(> #app-sidebar-slot),
-#nd-sidebar-mobile p:has(> #app-sidebar-slot) {
-  display: block;
-  margin: 1.25rem 0 0;
-  padding: 0;
-  font-size: inherit;
-  font-weight: inherit;
-  color: var(--color-fd-foreground);
-}
-#app-sidebar-slot { display: block; }
-#nd-sidebar p:has(> #app-sidebar-slot:empty) { margin: 0; }
-.app-sidebar-panel { display: flex; flex-direction: column; gap: 0.25rem; }
-/* Quackback's cards and columns become plain sidebar sections there. */
-.app-sidebar-panel :where(.bg-card, [data-slot='card']) {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  padding-inline: 0 !important;
-}
-.app-sidebar-panel :where(nav, aside) { width: 100% !important; position: static !important; }
-.app-sidebar-panel :where(.sticky) { position: static !important; }
-.app-sidebar-panel :where(h2, h3, h4) {
-  margin: 1rem 0 0.375rem;
-  padding-inline: 0.625rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--color-fd-muted-foreground);
-}
-.app-sidebar-panel :where(a, button):not([data-slot='badge']) { border-radius: 0.5rem; }
+body:has(#fd-spacious-layout) [data-portal] { min-height: 100dvh; background: var(--color-fd-card); }
 
 /* The page inside the panel: Quackback's pages bring their own width and padding. */
-.app-shell #nd-page.app-page { max-width: none; padding: 0; gap: 0; }
-.app-shell .app-page-content { width: 100%; }
+.custom-docs #nd-page.app-page { max-width: none; padding: 0; gap: 0; }
+.custom-docs .app-page-content { width: 100%; }
 
+/* The page's own panel in the sidebar (SidebarSlot): it starts under the sections. */
+#app-sidebar-slot { margin-top: 1.25rem; }
+.app-sidebar-panel { display: flex; flex-direction: column; }
+
+/* ------------------------------------------------------------------ admin chrome */
+
+/* The admin rail and its side panes (settings, inbox, ...) read like the app sidebar:
+   14 px rows, 8 px corners, a soft fill on hover, the accent for the current row. */
+[data-admin-rail] { width: 268px; }
+[data-side-pane] .nav-row,
+[data-admin-rail] .nav-row {
+  min-height: 36px;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 0.5rem;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  background: transparent;
+  box-shadow: none;
+  transition: background-color 150ms cubic-bezier(0.22, 1, 0.36, 1), color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-side-pane] .nav-row > svg,
+[data-admin-rail] .nav-row > svg { width: 16px; height: 16px; color: currentColor; }
+[data-side-pane] .nav-row:hover,
+[data-admin-rail] .nav-row:hover { background: color-mix(in oklab, var(--accent) 60%, transparent); color: var(--accent-foreground); }
+[data-side-pane] .nav-row.bg-muted,
+[data-side-pane] .nav-row.bg-primary\/10,
+[data-side-pane] .nav-row[data-active],
+[data-side-pane] .nav-row[aria-selected='true'],
+[data-side-pane] .nav-row[aria-current='page'] {
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  color: var(--primary);
+  font-weight: 500;
+  box-shadow: none;
+}
+[data-side-pane] .nav-section {
+  margin-top: 0.75rem;
+  padding-inline: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+/* Admin pages sit in the middle of wide screens instead of hugging the left edge. */
+[data-settings-page-body] { margin-inline: auto; }
+
+/* ------------------------------------------------------------------ shapes */
+
+/* No pill controls: Fumadocs uses 8 px corners. Avatars, dots and switches stay round. */
+:where([data-portal], [data-admin-canvas], [data-admin-shell]) :is(button, a, label, input, [role='tab']).rounded-full:not(:has([data-slot='avatar'], img)):not([data-slot='switch']):not([role='switch']) {
+  border-radius: 0.5rem;
+}
+[data-slot='radio-group-item'] { box-shadow: none; }
 
 /* ------------------------------------------------------------------ design tokens (see /design-system) */
 
 /* Radius: Fumadocs' 8 px controls, 12 px cards, 16 px panels (no pill buttons). The body is
    included because a configured branding radius is restated there. */
 html, html body, html [data-portal], html [data-admin-canvas] {
-  --radius: 0.75rem;
+  --radius: 0.5rem;
   --radius-item: 0.5rem;
   --radius-field: 0.5rem;
   --radius-panel: 0.75rem;
@@ -244,3 +261,37 @@ html.dark {
   --color-fd-error: #f87171;
   --color-fd-idea: #c4b5fd;
 }
+
+/* Feedback filters in the sidebar: statuses and tags as rows, like boards. */
+#nd-sidebar .portal-filter-section .flex-wrap { flex-direction: column; flex-wrap: nowrap; gap: 0; padding: 0; }
+#nd-sidebar .portal-filter-section .flex-wrap > button {
+  height: auto;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-fd-muted-foreground);
+}
+#nd-sidebar .portal-filter-section .flex-wrap > button:hover { color: var(--color-fd-accent-foreground); }
+#nd-sidebar .portal-filter-section .flex-wrap > button[aria-pressed='true'] {
+  background: color-mix(in oklab, var(--color-fd-primary) 10%, transparent);
+  color: var(--color-fd-primary);
+  font-weight: 500;
+}
+#nd-sidebar .portal-filter-section .flex-wrap > button > span:first-child { width: 0.5rem; height: 0.5rem; }
+#nd-sidebar .portal-filter-section .flex-wrap > button > .tabular-nums { margin-inline-start: auto; font-size: 0.75rem; opacity: 1; color: var(--color-fd-muted-foreground); }
+
+/* Lists rise in as they load (and as more load while scrolling). */
+@keyframes app-rise { from { opacity: 0; transform: translateY(14px); } }
+.custom-docs [data-post-id] { animation: app-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.custom-docs [data-post-id]:nth-child(2) { animation-delay: 40ms; }
+.custom-docs [data-post-id]:nth-child(3) { animation-delay: 80ms; }
+.custom-docs [data-post-id]:nth-child(4) { animation-delay: 120ms; }
+.custom-docs [data-post-id]:nth-child(5) { animation-delay: 160ms; }
+.custom-docs [data-post-id]:nth-child(n + 6) { animation-delay: 200ms; }
+@media (prefers-reduced-motion: reduce) { .custom-docs [data-post-id] { animation: none; } }

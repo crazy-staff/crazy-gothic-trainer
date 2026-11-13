@@ -21,15 +21,29 @@ EDITS = {
     "routes/_portal/hc.tsx": [
         ("import { setPublicDocumentCacheHeaders } from '@/lib/server/functions/public-cache'\n",
          "import { setPublicDocumentCacheHeaders } from '@/lib/server/functions/public-cache'\n"
-         "import { getDocsNavFn } from '@/custom-docs/docs-fns'\n"
-         "import { CustomDocsLayout } from '@/custom-docs/docs-layout'\n"),
+         "import { getDocsNavFn } from '@/custom-docs/docs-fns'\n"),
+        # no wrappers: the docs page must be a direct child of the Fumadocs layout grid
+        ("""      <div className="flex flex-1 min-h-0 flex-col" dir={isRtlLocale(locale) ? 'rtl' : 'ltr'}>
+        {additionalLocales.length > 0 && (
+          <div className="flex justify-end px-4 py-2 sm:px-6">
+            <HelpCenterLocaleSwitcher
+              currentLocale={locale}
+              defaultLocale={defaultLocale}
+              additionalLocales={additionalLocales}
+              canonicalPath={canonicalPath}
+            />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <Outlet />
+        </div>
+      </div>""", """      <Outlet />"""),
+        ("import { HelpCenterLocaleSwitcher } from '@/components/help-center/help-center-locale-switcher'\n", ""),
+        ("import { DEFAULT_LOCALE, isRtlLocale, seedAreaMessages } from '@/lib/shared/i18n'", "import { DEFAULT_LOCALE, seedAreaMessages } from '@/lib/shared/i18n'"),
+        ("  const { locale, canonicalPath } = parseHcLocalePath(pathname, [", "  void parseHcLocalePath(pathname, ["),
         ("    return { helpCenterConfig, messages }\n",
          "    const docsNav = await getDocsNavFn({ data: {} }).catch(() => [])\n"
          "    return { helpCenterConfig, messages, docsNav }\n"),
-        ("  const { helpCenterConfig, messages } = Route.useLoaderData()\n",
-         "  const { helpCenterConfig, messages, docsNav } = Route.useLoaderData()\n"),
-        ("          <Outlet />\n",
-         "          <CustomDocsLayout nav={docsNav} locale={locale}>\n            <Outlet />\n          </CustomDocsLayout>\n"),
     ],
     # every portal page in the Fumadocs frame (app-shell.tsx); pages send panels to its sidebar
     "routes/_portal.tsx": [
@@ -41,14 +55,63 @@ EDITS = {
     "components/public/feedback/feedback-container.tsx": [
         ("import { FeedbackSidebar } from '@/components/public/feedback/feedback-sidebar'\n",
          "import { FeedbackSidebar } from '@/components/public/feedback/feedback-sidebar'\nimport { SidebarSlot } from '@/custom-docs/sidebar-slot'\n"),
+        ("  const poweredBy = showPoweredBy ? <PortalPoweredBy workspaceSlug={workspaceSlug} /> : null\n",
+         "  const poweredBy = null\n  void showPoweredBy\n  void PortalPoweredBy\n"),
         ("        <FeedbackSidebar footer={poweredBy}>{filterPanel('sidebar')}</FeedbackSidebar>\n",
-         "        <SidebarSlot\n          fallback={<FeedbackSidebar footer={poweredBy}>{filterPanel('sidebar')}</FeedbackSidebar>}\n        >\n          {filterPanel('sidebar')}\n          {poweredBy}\n        </SidebarSlot>\n"),
+         "        <SidebarSlot fallback={<FeedbackSidebar>{filterPanel('sidebar')}</FeedbackSidebar>}>\n          {filterPanel('sidebar')}\n        </SidebarSlot>\n"),
     ],
     "routes/_portal/settings.tsx": [
         ("import { SettingsNav } from '@/components/settings/settings-nav'\n",
          "import { SettingsNav } from '@/components/settings/settings-nav'\nimport { SidebarSlot } from '@/custom-docs/sidebar-slot'\n"),
+        ("import { SettingsNav } from '@/components/settings/settings-nav'\nimport { SidebarSlot } from '@/custom-docs/sidebar-slot'\n",
+         "import { SettingsNav } from '@/components/settings/settings-nav'\nimport { SidebarSlot } from '@/custom-docs/sidebar-slot'\nimport { SettingsOutlet, SettingsRows } from '@/custom-docs/settings-rows'\n"),
         ("        <SettingsNav showApiKeys={isTeamMember(userRole)} />\n",
-         "        <SidebarSlot fallback={<SettingsNav showApiKeys={isTeamMember(userRole)} />}>\n          <SettingsNav showApiKeys={isTeamMember(userRole)} />\n        </SidebarSlot>\n"),
+         "        <SidebarSlot fallback={<SettingsNav showApiKeys={isTeamMember(userRole)} />}>\n          <SettingsRows showApiKeys={isTeamMember(userRole)} />\n        </SidebarSlot>\n"),
+        ("          <Outlet />\n", "          <SettingsOutlet>\n            <Outlet />\n          </SettingsOutlet>\n"),
+        (" animate-in fade-in duration-200\">", "\">"),
+    ],
+    # votes: a downvote is replaced by an upvote; ideas and votes need an account
+    "lib/server/functions/public-posts.ts": [
+        ("  const result = await voteOnPost(data.postId as PostId, ctx.principal.id)\n  log.debug(",
+         "  if (ctx.principal.type !== 'anonymous')\n    await (await import('@/custom-docs/downvote-fns')).clearDownvote(data.postId, ctx.principal.id)\n  const result = await voteOnPost(data.postId as PostId, ctx.principal.id)\n  log.debug("),
+    ],
+    "lib/server/domains/settings/settings.service.ts": [
+        ("        allowAnonymous: portalConfig.features.allowAnonymous,", "        allowAnonymous: false,"),
+    ],
+    "components/public/post-card.tsx": [
+        ("import { cn } from '@/lib/shared/utils'\n", "import { cn } from '@/lib/shared/utils'\nimport { DownvoteButton } from '@/custom-docs/downvote-button'\n"),
+        ("      {/* Vote column */}\n      {voteButton}",
+         "      {/* Vote column */}\n      <div className=\"flex shrink-0 flex-col items-center gap-1\">\n        {voteButton}\n        <DownvoteButton postId={id} />\n      </div>"),
+        ("'group/vote flex flex-col items-center justify-center shrink-0 rounded-md border", "'group/vote flex flex-col items-center justify-center shrink-0 rounded-lg border"),
+    ],
+    "components/public/feedback/feedback-toolbar.tsx": [
+        ("'flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-sm transition-colors cursor-pointer',\n                  isActive\n                    ? 'bg-muted text-foreground font-medium'\n                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'",
+         "'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors duration-150 cursor-pointer',\n                  isActive\n                    ? 'bg-primary/10 text-primary font-medium'\n                    : 'text-muted-foreground hover:text-accent-foreground hover:bg-accent/60'"),
+        ("rounded-full border border-border bg-transparent ps-3 pe-1 text-sm focus-within:ring-2 focus-within:ring-ring/50",
+         "rounded-lg border border-border bg-secondary/50 ps-3 pe-1 text-sm transition-colors hover:bg-accent/60 focus-within:ring-2 focus-within:ring-ring/50"),
+    ],
+    # tabs: Fumadocs-style segmented control
+    "components/ui/tabs.tsx": [
+        ("      pill: 'h-9 w-fit justify-center rounded-item border border-border/50 p-[3px]',",
+         "      pill: 'h-9 w-fit justify-center gap-0.5 rounded-lg border border-border bg-secondary/50 p-[3px]',"),
+        ("          'h-[calc(100%-1px)] flex-1 rounded-item border border-transparent px-2 py-1',\n          'text-foreground dark:text-muted-foreground',\n          'data-active:bg-background',\n          'dark:data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30',",
+         "          'h-full flex-1 rounded-md border border-transparent px-2.5 py-1 transition-colors duration-150',\n          'text-muted-foreground hover:text-accent-foreground',\n          'data-active:bg-primary/10 data-active:text-primary',"),
+    ],
+    "components/onboarding/home-launch-plan.tsx": [
+        ("      ? openLaterSteps(path).length\n      : 0", "      ? 0 * openLaterSteps(path).length\n      : 0"),
+    ],
+    "components/admin/admin-sidebar.tsx": [
+        ("<SearchTrigger tour className={railControlClass()} />",
+         "<SearchTrigger tour className=\"mb-2 flex h-10 w-full items-center gap-3 rounded-xl border border-border bg-secondary/50 ps-2.5 pe-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground [&>svg]:size-4 [&>kbd]:rounded-md [&>kbd]:border [&>kbd]:border-border [&>kbd]:bg-background [&>kbd]:px-1.5\" />"),
+    ],
+    # launch plan: off (a one-person project needs no onboarding checklist)
+    "lib/shared/launch-checklist.ts": [
+        ("  return status?.inLaunchWindow === true && isLaunchPlanActive(status)\n}",
+         "  void status\n  void isLaunchPlanActive\n  return false\n}"),
+    ],
+    "components/onboarding/launch-plan-dock.tsx": [
+        ("export function LaunchPlanDock() {\n", "export function LaunchPlanDock() {\n  if (Date.now() > 0) return null\n"),
+        ("export function LaunchPlanInHelp({ children }: { children: ReactNode }) {\n", "export function LaunchPlanInHelp({ children }: { children: ReactNode }) {\n  if (Date.now() > 0) return null\n"),
     ],
     # pages: docs home, category and article pages instead of the help-center ones
     "routes/_portal/hc/index.tsx": [
@@ -114,6 +177,8 @@ EDITS = {
     ],
     # settings card text for the module
     "lib/server/domains/settings/settings.types.ts": [
+        ("  return (\n    (parsed as { features?: { allowAnonymous?: boolean } } | null | undefined)?.features\n      ?.allowAnonymous === true\n  )",
+         "  // Custom: anonymous posting and voting are off for good (review bombing).\n  void parsed\n  return false"),
         ("    label: 'Help Center',\n    description: 'Publish searchable help articles so customers can find answers themselves.',",
          "    label: 'Docs',\n    description: 'Documentation with a sidebar, search (Ctrl+K), page outline and translations.',"),
     ],

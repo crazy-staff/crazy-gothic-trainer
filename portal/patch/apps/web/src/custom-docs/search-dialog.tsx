@@ -35,13 +35,19 @@ export interface DocsSearchPage {
   url: string
 }
 
-type GroupId = 'category' | 'kind' | 'game' | 'renderer'
+type GroupId = 'section' | 'category' | 'kind' | 'game' | 'renderer'
 interface FilterGroup {
   id: GroupId
   label: string
   options: DocsSearchFilter[]
 }
 
+const SECTION: DocsSearchFilter[] = [
+  { name: 'Everywhere', value: undefined },
+  { name: 'Docs', description: 'Documentation pages', value: 'section:docs' },
+  { name: 'Feedback', description: 'Ideas and bug reports', value: 'section:feedback' },
+  { name: 'Changelog', description: 'What changed and when', value: 'section:changelog' },
+]
 const KIND: DocsSearchFilter[] = [
   { name: 'Everything', description: 'Pages, headings and text', value: undefined },
   { name: 'Pages', description: 'Only page titles', value: 'pages' },
@@ -57,7 +63,7 @@ const RENDERER: DocsSearchFilter[] = [
   { name: 'GD3D11', description: 'DirectX 11 renderer', value: 'renderer:gd3d11' },
   { name: 'Original', description: 'Without GD3D11 · coming later', value: 'renderer:original', disabled: true },
 ]
-const NONE: Record<GroupId, string | undefined> = { category: undefined, kind: undefined, game: undefined, renderer: undefined }
+const NONE: Record<GroupId, string | undefined> = { section: undefined, category: undefined, kind: undefined, game: undefined, renderer: undefined }
 
 function FilterMenu({
   group,
@@ -108,16 +114,17 @@ function FilterMenu({
   )
 }
 
-export function createDocsSearchDialog(categories: DocsSearchFilter[], pages: DocsSearchPage[]) {
+export function createSearchDialog(categories: DocsSearchFilter[], pages: DocsSearchPage[]) {
   const groups: FilterGroup[] = [
-    { id: 'category', label: 'Filter', options: [{ name: 'All', value: undefined }, ...categories] },
+    { id: 'section', label: 'In', options: SECTION },
+    { id: 'category', label: 'Docs topic', options: [{ name: 'All', value: undefined }, ...categories] },
     { id: 'kind', label: 'Results', options: KIND },
     { id: 'game', label: 'Game', options: GAME },
     { id: 'renderer', label: 'Renderer', options: RENDERER },
   ]
   return function DocsSearchDialog(props: SharedProps) {
     const [filters, setFilters] = useState(NONE)
-    const tag = [filters.category, filters.game, filters.renderer].filter(Boolean).join(',') || undefined
+    const tag = [filters.section, filters.category, filters.game, filters.renderer].filter(Boolean).join(',') || undefined
     const api = '/api/docs-search' + (filters.kind ? `?kind=${filters.kind}` : '')
     const search = useFetchSearch({ api, tag })
     const router = useRouter()
@@ -153,7 +160,7 @@ export function createDocsSearchDialog(categories: DocsSearchFilter[], pages: Do
           </SearchDialogHeader>
           <SearchDialogList items={jump ? [jump, ...(search.data?.items ?? [])] : search.data?.items} />
           <SearchDialogFooter className="flex flex-row flex-wrap items-center gap-x-1 gap-y-2">
-            {groups.map((g) => (
+            {groups.filter((g) => g.id === 'section' || g.id === 'kind' || filters.section === 'section:docs').map((g) => (
               <FilterMenu
                 key={g.id}
                 group={g}

@@ -3,11 +3,9 @@
  * the sidebar header are the same component everywhere.
  */
 import type { ComponentProps } from 'react'
-import { Link as RouterLink, useRouter, useRouterState } from '@tanstack/react-router'
-import { useIntl } from 'react-intl'
+import { Link as RouterLink, useRouter } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { Menu } from '@base-ui/react/menu'
-import { HeaderActions } from '@fumadocs/base-ui/layouts/spacious/slots/actions'
 import {
   ArrowRightStartOnRectangleIcon,
   Cog6ToothIcon,
@@ -47,8 +45,14 @@ export function navItemLabel(item: PortalNavItem, format: (d: { id: string; defa
 }
 
 /** Which top-level section a path belongs to: the index in the nav order (for page transitions). */
-export function useSectionIndex(pathname: string): number {
+/** The portal sections in sidebar order: the docs last, their tree opens under them. */
+export function useSections() {
   const items = usePortalNavItems()
+  return [...items.filter((i) => !(i.kind === 'builtin' && i.type === 'help')), ...items.filter((i) => i.kind === 'builtin' && i.type === 'help')]
+}
+
+export function useSectionIndex(pathname: string): number {
+  const items = useSections()
   const i = items.findIndex(
     (item) =>
       item.kind === 'builtin' &&
@@ -58,7 +62,7 @@ export function useSectionIndex(pathname: string): number {
           ? pathname === '/' || pathname.startsWith('/b/') || pathname.startsWith('/posts')
           : pathname.startsWith(item.to))
   )
-  return i === -1 ? items.length : i
+  return i === -1 ? items.length + 1 : i
 }
 
 const menuPopup =
@@ -83,7 +87,7 @@ function Account() {
       <button
         type="button"
         onClick={() => auth.openAuthPopover({ mode: 'login' })}
-        className="ms-1 h-7.5 rounded-lg bg-fd-primary px-3 text-sm font-medium text-fd-primary-foreground transition-[opacity,scale] hover:opacity-90 active:scale-[0.97]"
+        className="h-8 rounded-lg bg-fd-primary px-3 text-sm font-medium text-fd-primary-foreground transition-[opacity,scale] hover:opacity-90 active:scale-[0.97]"
       >
         Log in
       </button>
@@ -91,8 +95,8 @@ function Account() {
   }
   return (
     <Menu.Root>
-      <Menu.Trigger className="ms-1 rounded-full outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-fd-ring">
-        <Avatar className="size-7" src={user.image ?? undefined} name={user.name ?? undefined} />
+      <Menu.Trigger className="rounded-full outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-fd-ring">
+        <Avatar className="size-8" src={user.image ?? undefined} name={user.name ?? undefined} />
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner align="end" sideOffset={8} className="z-50">
@@ -105,6 +109,7 @@ function Account() {
               <Cog6ToothIcon />
               Settings
             </Menu.LinkItem>
+            <Menu.Separator className="my-1 h-px bg-fd-border" />
             {team && (
               <Menu.LinkItem render={<a href="/admin" />} className={menuItem}>
                 <ShieldCheckIcon />
@@ -137,53 +142,18 @@ function Account() {
   )
 }
 
-/** The top bar of every page: the portal sections, Admin, notifications and the account. */
-export function PortalBarActions({ className, ...props }: ComponentProps<'div'>) {
-  const intl = useIntl()
-  const items = usePortalNavItems()
-  const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const current = useSectionIndex(pathname)
-  const role = useUserRole() as string | null | undefined
+/** The top bar of every page: notifications and the account (sections live in the sidebar). */
+export function BarActions({ className, ...props }: ComponentProps<'div'>) {
   const session = useSessionContext() as { user?: { principalType?: string } } | null
   const signedIn = !!session?.user && session.user.principalType !== 'anonymous'
-  const team = role === 'admin' || role === 'member' || role === 'owner'
   return (
-    <div className={'flex min-w-0 items-center gap-1 ' + (className ?? '')} {...props}>
-      <nav className="relative flex min-w-0 items-center gap-0.5 overflow-x-auto rounded-lg bg-fd-background max-lg:hidden">
-        {items.map((item, i) => {
-          const label = navItemLabel(item, intl.formatMessage)
-          const cls =
-            'relative rounded-lg px-2.5 py-1 text-sm whitespace-nowrap transition-colors duration-200 ' +
-            (i === current
-              ? 'bg-fd-primary/10 font-medium text-fd-primary'
-              : 'text-fd-muted-foreground hover:bg-fd-accent hover:text-fd-accent-foreground')
-          return item.kind === 'link' ? (
-            <a key={item.id} href={item.href} target={item.newTab ? '_blank' : undefined} rel="noopener noreferrer" className={cls}>
-              {label}
-            </a>
-          ) : (
-            <RouterLink key={item.id} to={item.to as '/'} className={cls}>
-              {label}
-            </RouterLink>
-          )
-        })}
-      </nav>
-      {team && (
-        <a
-          href="/admin"
-          className="inline-flex h-7.5 items-center gap-1.5 rounded-lg border px-2.5 text-sm text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
-        >
-          <ShieldCheckIcon className="size-3.5" />
-          Admin
-        </a>
-      )}
+    <div className={'flex items-center gap-1.5 ' + (className ?? '')} {...props}>
       {signedIn && (
         <div className="app-bell">
           <NotificationBell popoverSide="bottom" />
         </div>
       )}
       <Account />
-      <HeaderActions />
     </div>
   )
 }

@@ -19,12 +19,15 @@ import { Tab, Tabs as DocTabs } from '@fumadocs/base-ui/components/tabs'
 import { Accordion, Accordions } from '@fumadocs/base-ui/components/accordion'
 import { DynamicCodeBlock } from '@fumadocs/base-ui/components/dynamic-codeblock'
 import { motion } from 'framer-motion'
-import { BookOpenIcon, PlusIcon, SparklesIcon } from '@heroicons/react/20/solid'
+import { BookOpenIcon, ChevronDownIcon, ChevronUpIcon, PlusIcon, SparklesIcon } from '@heroicons/react/20/solid'
+import { FilterPill } from '@/components/public/feedback/filter-pill'
+import { SidebarSlot } from './sidebar-slot'
+import { sidebarItem, sidebarLabel } from './sidebar'
 import { Keys, StatusBadge } from './content'
 import { TrainerMock } from './trainer-mock'
 import { EASE } from './page-transition'
 
-const SECTIONS = ['Colours', 'Typography', 'Spacing', 'Radius & elevation', 'Buttons', 'Forms', 'Badges', 'Cards', 'Tabs', 'Docs components', 'Motion']
+const SECTIONS = ['Colours', 'Typography', 'Spacing', 'Radius & elevation', 'Navigation', 'Buttons', 'Forms', 'Filters & voting', 'Badges', 'Cards', 'Tabs', 'Docs components', 'Motion']
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z]+/g, '-')
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -86,17 +89,16 @@ export function DesignSystemPage() {
         The look of the portal, the docs and the admin: Fumadocs' neutral theme with the purple of fumadocs.dev.
         Tokens live in <code className="docs-code">custom-docs/theme.css</code> and <code className="docs-code">fumadocs.css</code>.
       </p>
-      <nav className="mt-6 flex flex-wrap gap-1.5">
-        {SECTIONS.map((s) => (
-          <a
-            key={s}
-            href={`#${slug(s)}`}
-            className="rounded-lg border border-fd-border px-2.5 py-1 text-sm text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
-          >
-            {s}
-          </a>
-        ))}
-      </nav>
+      <SidebarSlot>
+        <nav className="flex flex-col">
+          <p className={sidebarLabel}>Design system</p>
+          {SECTIONS.map((s) => (
+            <a key={s} href={`#${slug(s)}`} className={sidebarItem()}>
+              {s}
+            </a>
+          ))}
+        </nav>
+      </SidebarSlot>
 
       <div className="mt-10">
         <Section title="Colours">
@@ -143,11 +145,10 @@ export function DesignSystemPage() {
         <Section title="Radius & elevation">
           <div className="flex flex-wrap gap-4">
             {[
-              ['Field 8', '0.5rem'],
-              ['Item 8', '0.5rem'],
-              ['Card 12', '0.75rem'],
-              ['Panel 16', '1rem'],
-              ['Pill', '999px'],
+              ['Controls 8', '0.5rem'],
+              ['Cards 12', '0.75rem'],
+              ['Panels, menus 16', '1rem'],
+              ['Avatars, dots', '999px'],
             ].map(([n, r]) => (
               <div key={n} className="flex size-24 items-center justify-center border border-fd-border bg-fd-card text-xs text-fd-muted-foreground" style={{ borderRadius: r }}>
                 {n}
@@ -158,6 +159,25 @@ export function DesignSystemPage() {
             <div className="rounded-xl border border-fd-border bg-fd-card px-5 py-4 text-sm">Flat — border only</div>
             <div className="rounded-xl border border-fd-border bg-fd-card px-5 py-4 text-sm shadow-sm">Raised — shadow-sm</div>
             <div className="rounded-2xl border border-fd-border bg-fd-popover px-5 py-4 text-sm shadow-lg">Floating — popovers, menus</div>
+          </div>
+        </Section>
+
+        <Section title="Navigation">
+          <p className="text-sm text-fd-muted-foreground">
+            One row style for every list you pick from: sidebar sections, docs pages, filters, settings menus and the
+            admin rail. 36 px, 14 px text, 8 px corners; a soft block glides under the pointer, the current row is tinted.
+          </p>
+          <div className="w-64 rounded-2xl border border-fd-border bg-fd-card p-3">
+            <p className={sidebarLabel}>Section</p>
+            <span className={sidebarItem(true)}>
+              <BookOpenIcon /> Current page
+            </span>
+            <span className={sidebarItem()}>
+              <SparklesIcon /> Another page
+            </span>
+            <span className={sidebarItem()}>
+              <PlusIcon /> One more
+            </span>
           </div>
         </Section>
 
@@ -210,6 +230,32 @@ export function DesignSystemPage() {
               </label>
             </div>
           </div>
+        </Section>
+
+        <Section title="Filters & voting">
+          <Row label="Filter chips">
+            <FilterPill pressed={false} onClick={() => {}} color="#6bb3ff" count="12">
+              Open
+            </FilterPill>
+            <FilterPill pressed onClick={() => {}} color="#a88cff" count="4">
+              Planned
+            </FilterPill>
+          </Row>
+          <Row label="Up and down">
+            <div className="flex flex-col items-center gap-1">
+              <span className="flex w-12 flex-col items-center gap-0.5 rounded-lg border border-fd-primary/50 bg-fd-primary/15 py-2 text-fd-primary">
+                <ChevronUpIcon className="size-4" />
+                <span className="text-sm font-semibold">12</span>
+              </span>
+              <span className="flex h-7 w-12 items-center justify-center rounded-lg border border-fd-border bg-fd-muted/40 text-fd-muted-foreground">
+                <ChevronDownIcon className="size-4" />
+              </span>
+            </div>
+            <p className="max-w-sm text-sm text-fd-muted-foreground">
+              Signed-in users vote ideas up or down. A downvote takes one point off the score, so weak ideas sink instead
+              of sitting at zero.
+            </p>
+          </Row>
         </Section>
 
         <Section title="Badges">

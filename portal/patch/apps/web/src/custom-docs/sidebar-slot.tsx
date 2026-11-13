@@ -1,27 +1,28 @@
 /**
- * A page puts its own panel (filters, a section menu) into the shell's sidebar:
+ * A page puts its own panel (filters, a section menu) into the app sidebar:
  *   <SidebarSlot fallback={<ThePageColumn />}>{panel}</SidebarSlot>
  * While the desktop sidebar is on screen the panel is rendered there (a React portal, so it
- * keeps its state and handlers); otherwise (phones, the first server render) the page shows
- * `fallback` in its own layout, as Quackback had it.
+ * keeps its state and handlers); otherwise (phones, the server render) the page shows
+ * `fallback` in its own layout.
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-
-export const SIDEBAR_SLOT_ID = 'app-sidebar-slot'
+import { EASE } from './page-transition'
+import { SIDEBAR_SLOT_ID } from './sidebar'
 
 export function SidebarSlot({ children, fallback = null }: { children: ReactNode; fallback?: ReactNode }) {
   const [target, setTarget] = useState<HTMLElement | null>(null)
   useEffect(() => {
     const find = () => {
-      const el = document.getElementById(SIDEBAR_SLOT_ID)
-      setTarget(el && el.parentElement && el.parentElement.offsetParent !== null ? el : null)
+      const el = document.querySelector<HTMLElement>(`#nd-sidebar #${SIDEBAR_SLOT_ID}`)
+      const shown = el && document.getElementById('nd-sidebar')?.dataset.collapsed !== 'true'
+      setTarget((cur) => (shown ? el : null) ?? (cur && shown ? cur : null))
     }
     find()
-    // the sidebar mounts, collapses and switches to the drawer with the window size
+    const sidebar = document.getElementById('nd-sidebar')
     const observer = new MutationObserver(find)
-    observer.observe(document.body, { childList: true, subtree: true })
+    if (sidebar) observer.observe(sidebar, { attributes: true, attributeFilter: ['data-collapsed'] })
     window.addEventListener('resize', find)
     return () => {
       observer.disconnect()
@@ -32,9 +33,9 @@ export function SidebarSlot({ children, fallback = null }: { children: ReactNode
   return createPortal(
     <motion.div
       className="app-sidebar-panel"
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.4, ease: EASE }}
     >
       {children}
     </motion.div>,

@@ -1,112 +1,100 @@
 /**
- * The frame of every portal page outside the docs: the same Fumadocs "spacious" layout as the
- * docs (sidebar + panel with the top bar), so the whole site reads as one app.
- *   sidebar: workspace, search (docs), the portal sections, then the page's own panel
- *            (filters, a settings menu, ...) that pages send with <SidebarSlot>
- *   panel:   the page, sliding in from the side of its link (page-transition.tsx)
- * The docs (/hc) bring their own sidebar tree and are passed through untouched.
+ * The frame of every portal page, docs included: Fumadocs' "spacious" layout with our sidebar
+ * (sidebar.tsx) and a top bar that only holds notifications and the account.
+ * Mounted once (routes/_portal.tsx), so moving between sections never rebuilds the sidebar;
+ * on docs pages the docs tree slides in under the sections.
  */
 import type { ReactNode } from 'react'
 import { useMemo } from 'react'
-import { useRouterState } from '@tanstack/react-router'
-import { useIntl } from 'react-intl'
+import { useMatches, useRouterState } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import { TanstackProvider } from 'fumadocs-core/framework/tanstack'
 import type * as PageTree from 'fumadocs-core/page-tree'
 import { SearchProvider } from '@fumadocs/base-ui/contexts/search'
 import { DocsLayout as SpaciousLayout } from '@fumadocs/base-ui/layouts/spacious'
 import { DocsPage } from '@fumadocs/base-ui/layouts/spacious/page'
-import {
-  BookOpenIcon,
-  ChatBubbleLeftRightIcon,
-  LifebuoyIcon,
-  LinkIcon,
-  MapIcon,
-  MegaphoneIcon,
-  SignalIcon,
-} from '@heroicons/react/20/solid'
-import { usePortalNavItems } from '@/components/public/use-portal-nav-items'
-import { createDocsSearchDialog } from './search-dialog'
-import { NavTitle, PortalBarActions, navItemLabel, useSectionIndex } from './shell-parts'
+import { useWorkspaceSettings } from '@/lib/client/hooks/use-root-context'
+import { hcArticlePath } from '@/lib/shared/help-center-url'
+import { getDocsNavFn } from './docs-fns'
+import { docsTree } from './docs-layout'
+import { createSearchDialog } from './search-dialog'
+import { BarActions, NavTitle, useSectionIndex } from './shell-parts'
 import { PageTransition } from './page-transition'
-import { SIDEBAR_SLOT_ID } from './sidebar-slot'
+import { Sidebar, SidebarDrawer, SidebarProvider } from './sidebar'
+import type { DocsNavCategory } from './types'
 
-const ICONS: Record<string, ReactNode> = {
-  feedback: <ChatBubbleLeftRightIcon />,
-  roadmap: <MapIcon />,
-  changelog: <MegaphoneIcon />,
-  help: <BookOpenIcon />,
-  support: <LifebuoyIcon />,
-  status: <SignalIcon />,
-}
+const EMPTY_TREE: PageTree.Root = { $id: 'none', name: 'Portal', children: [] }
+const SIDEBAR_SLOTS = { provider: SidebarProvider, main: Sidebar, drawer: SidebarDrawer }
 
 export function isDocsPath(pathname: string) {
-  return pathname === '/hc' || pathname.startsWith('/hc/') || pathname === '/docs'
+  return pathname === '/hc' || pathname.startsWith('/hc/')
 }
 
-/** The docs' search, usable from every page (without the docs' category list). */
-const PortalSearchDialog = createDocsSearchDialog([], [])
-
-function Frame({ children }: { children: ReactNode }) {
-  const intl = useIntl()
-  const items = usePortalNavItems()
-  const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const section = useSectionIndex(pathname)
-  const tree = useMemo<PageTree.Root>(
-    () => ({
-      $id: 'portal',
-      name: 'Portal',
-      children: [
-        ...items.map(
-          (item): PageTree.Node => ({
-            type: 'page',
-            $id: `nav-${item.id}`,
-            name: navItemLabel(item, intl.formatMessage),
-            url: item.kind === 'builtin' ? item.to : item.href,
-            external: item.kind === 'link',
-            icon: item.kind === 'builtin' ? ICONS[item.type] : <LinkIcon />,
-          })
-        ),
-        // the page's own panel lands here (SidebarSlot)
-        { type: 'separator', $id: 'page-panel', name: <span id={SIDEBAR_SLOT_ID} className="app-sidebar-slot" /> },
-      ],
-    }),
-    [items, intl]
-  )
-  const depth = pathname.split('/').filter(Boolean).length
-  return (
-    <SearchProvider SearchDialog={PortalSearchDialog}>
-      <div className="custom-docs app-shell">
-        <SpaciousLayout
-          tree={tree}
-          tabs={false}
-          themeSwitch={{ enabled: false }}
-          nav={{ title: <NavTitle />, url: '/' }}
-          slots={{ actions: PortalBarActions }}
-        >
-          <DocsPage
-            full
-            tableOfContent={{ enabled: false }}
-            tableOfContentPopover={{ enabled: false }}
-            breadcrumb={{ enabled: false }}
-            footer={{ enabled: false }}
-            className="app-page"
-          >
-            <PageTransition id={pathname} position={[section, depth]} className="app-page-content">
-              {children}
-            </PageTransition>
-          </DocsPage>
-        </SpaciousLayout>
-      </div>
-    </SearchProvider>
-  )
+/** The docs navigation: from the docs route's loader on docs pages, fetched once elsewhere. */
+export function useDocsNav(): DocsNavCategory[] {
+  const settings = useWorkspaceSettings()
+  const fromLoader = useMatches({
+    select: (matches) =>
+      (matches.find((m) => m.routeId === '/_portal/hc')?.loaderData as { docsNav?: DocsNavCategory[] } | undefined)?.docsNav,
+  })
+  const { data } = useQuery({
+    queryKey: ['docs-nav'],
+    queryFn: () => getDocsNavFn({ data: {} }),
+    initialData: fromLoader,
+    staleTime: 5 * 60_000,
+    enabled: !!settings?.featureFlags?.helpCenter,
+  })
+  return fromLoader ?? data ?? []
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  if (isDocsPath(pathname)) return <>{children}</>
+  const onDocs = isDocsPath(pathname)
+  const nav = useDocsNav()
+  const locale = 'en'
+  const tree = useMemo(() => (onDocs ? docsTree(nav, locale) : EMPTY_TREE), [onDocs, nav])
+  const SearchDialog = useMemo(
+    () =>
+      createSearchDialog(
+        nav.map((c) => ({ name: c.name, description: c.description ?? undefined, value: c.slug })),
+        nav.flatMap((c) =>
+          c.articles.map((a) => ({ name: a.title, url: hcArticlePath({ locale, urlId: a.urlId, slug: a.slug }) }))
+        )
+      ),
+    [nav]
+  )
+  const section = useSectionIndex(pathname)
+  const depth = pathname.split('/').filter(Boolean).length
   return (
     <TanstackProvider>
-      <Frame>{children}</Frame>
+      <SearchProvider SearchDialog={SearchDialog}>
+        <div className="custom-docs">
+          <SpaciousLayout
+            tree={tree}
+            tabs={false}
+            themeSwitch={{ enabled: false }}
+            nav={{ title: <NavTitle />, url: '/' }}
+            slots={{ actions: BarActions, sidebar: SIDEBAR_SLOTS }}
+          >
+            {onDocs ? (
+              children
+            ) : (
+              <DocsPage
+                full
+                tableOfContent={{ enabled: false }}
+                tableOfContentPopover={{ enabled: false }}
+                breadcrumb={{ enabled: false }}
+                footer={{ enabled: false }}
+                className="app-page"
+              >
+                <PageTransition id={pathname.startsWith('/settings') ? '/settings' : pathname} position={section * 1000 + depth} className="app-page-content">
+                  {children}
+                </PageTransition>
+              </DocsPage>
+            )}
+          </SpaciousLayout>
+        </div>
+      </SearchProvider>
     </TanstackProvider>
   )
 }
