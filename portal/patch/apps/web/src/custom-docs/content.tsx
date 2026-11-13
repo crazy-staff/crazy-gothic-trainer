@@ -20,15 +20,15 @@ import type { JSONContent } from '@tiptap/core'
 import type { ReactNode } from 'react'
 import { Fragment, useMemo } from 'react'
 import Link from 'fumadocs-core/link'
-import { Heading } from 'fumadocs-ui/components/heading'
-import { Callout } from 'fumadocs-ui/components/callout'
-import { Card, Cards } from 'fumadocs-ui/components/card'
-import { Step, Steps } from 'fumadocs-ui/components/steps'
-import { Tab, Tabs } from 'fumadocs-ui/components/tabs'
-import { Accordion, Accordions } from 'fumadocs-ui/components/accordion'
-import { File, Files, Folder } from 'fumadocs-ui/components/files'
-import { TypeTable } from 'fumadocs-ui/components/type-table'
-import { DynamicCodeBlock } from 'fumadocs-ui/components/dynamic-codeblock'
+import { Heading } from '@fumadocs/base-ui/components/heading'
+import { Callout } from '@fumadocs/base-ui/components/callout'
+import { Card, Cards } from '@fumadocs/base-ui/components/card'
+import { Step, Steps } from '@fumadocs/base-ui/components/steps'
+import { Tab, Tabs } from '@fumadocs/base-ui/components/tabs'
+import { Accordion, Accordions } from '@fumadocs/base-ui/components/accordion'
+import { File, Files, Folder } from '@fumadocs/base-ui/components/files'
+import { TypeTable } from '@fumadocs/base-ui/components/type-table'
+import { DynamicCodeBlock } from '@fumadocs/base-ui/components/dynamic-codeblock'
 import { TranslationProvider } from '@fuma-translate/react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -254,7 +254,7 @@ function Block({ lang, raw }: { lang: string; raw: string }) {
       const items = parse<Item[]>(raw)
       if (!items) return <BlockError lang={lang} />
       return (
-        <Accordions type="multiple">
+        <Accordions>
           {items.map((a, i) => (
             <Accordion key={i} title={a.title}>
               <Md>{a.body ?? ''}</Md>

@@ -4,8 +4,9 @@
  */
 import type { JSONContent } from '@tiptap/core'
 import { getRouteApi } from '@tanstack/react-router'
-import { DocsDescription, DocsPage, DocsTitle, PageLastUpdate } from 'fumadocs-ui/layouts/docs/page'
-import { Card, Cards } from 'fumadocs-ui/components/card'
+import * as Spacious from '@fumadocs/base-ui/layouts/spacious/page'
+import * as Classic from '@fumadocs/base-ui/layouts/docs/page'
+import { Card, Cards } from '@fumadocs/base-ui/components/card'
 import { ArrowRightIcon } from '@heroicons/react/20/solid'
 import { CategoryIcon } from '@/components/help-center/category-icon'
 import { HelpCenterArticleFeedback } from '@/components/help-center/help-center-article-feedback'
@@ -18,6 +19,14 @@ import { isPortalSupportSurfaceEnabled } from '@/lib/shared/support-surfaces'
 import { DocsContent } from './content'
 import { tocOf } from './structure'
 import type { DocsNavCategory } from './types'
+import { useDocsVariant } from './variant'
+import { SOON } from './docs-layout'
+
+/** The page components of the layout in use (spacious for a and b, classic for c). */
+function usePage() {
+  const { variant } = useDocsVariant()
+  return variant === 'c' ? Classic : Spacious
+}
 
 const layoutApi = getRouteApi('/_portal/hc')
 const articleApi = getRouteApi('/_portal/hc/$locale/articles/$idSlug/')
@@ -55,6 +64,7 @@ function CategoryCards({ nav, locale }: { nav: DocsNavCategory[]; locale: string
 }
 
 export function DocsHomePage() {
+  const { DocsPage } = usePage()
   const { nav, config } = useDocsNav()
   const locale = config?.locales?.default ?? 'en'
   const title =
@@ -89,6 +99,7 @@ export function DocsHomePage() {
 }
 
 export function DocsCategoryPage() {
+  const { DocsPage, DocsTitle, DocsDescription } = usePage()
   const { nav } = useDocsNav()
   const { locale, idSlug } = collectionApi.useParams()
   const urlId = Number(String(idSlug).split('-')[0])
@@ -113,6 +124,7 @@ export function DocsCategoryPage() {
 }
 
 export function DocsArticlePage() {
+  const { DocsPage, DocsTitle, DocsDescription, PageLastUpdate } = usePage()
   const { article } = articleApi.useLoaderData() as {
     article: {
       id: string
@@ -128,7 +140,7 @@ export function DocsArticlePage() {
   const json = article.contentJson && isRichTextContent(article.contentJson) ? (article.contentJson as JSONContent) : null
   const toc = tocOf(json)
   return (
-    <DocsPage toc={toc} tableOfContent={{ style: 'clerk' }} tableOfContentPopover={{ style: 'clerk' }}>
+    <DocsPage toc={toc}>
       <DocsTitle>{article.title}</DocsTitle>
       {article.description && <DocsDescription>{article.description}</DocsDescription>}
       <div className="docs-body flex-1">
@@ -144,6 +156,21 @@ export function DocsArticlePage() {
         <HelpCenterArticleFeedback articleId={article.id as never} supportHref={supportEnabled ? '/support/new' : null} />
       </div>
       {article.updatedAt && <PageLastUpdate date={new Date(article.updatedAt)} />}
+    </DocsPage>
+  )
+}
+
+/** Placeholder for switcher options without docs yet (Gothic 2, the original renderer). */
+export function DocsSoonPage({ what }: { what: string }) {
+  const { DocsPage, DocsTitle, DocsDescription } = usePage()
+  const info = SOON[what] ?? { title: 'Coming soon', description: 'This part of the docs is not written yet.' }
+  return (
+    <DocsPage tableOfContent={{ enabled: false }} footer={{ enabled: false }}>
+      <DocsTitle>{info.title}</DocsTitle>
+      <DocsDescription>{info.description}</DocsDescription>
+      <div className="docs-media-box not-prose">
+        <span className="text-xs font-medium uppercase tracking-wider">Coming later</span>
+      </div>
     </DocsPage>
   )
 }

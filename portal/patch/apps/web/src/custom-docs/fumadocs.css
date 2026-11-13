@@ -1,54 +1,90 @@
 /*
- * Fumadocs UI inside Quackback.
- * - Fumadocs colours follow the portal theme (Quackback's CSS variables), so branding applies.
- * - The animations, utilities and the `layout` variant are copied from fumadocs-ui's
- *   css/lib/base.css (MIT, version in portal/FUMADOCS_VERSION) WITHOUT its @layer base,
- *   which would restyle every Quackback page.
+ * Docs on Fumadocs (@fumadocs/base-ui, the package behind fumadocs.dev), inside Quackback.
+ * - Colours: Fumadocs' neutral theme with the purple of fumadocs.dev's "Fumadocs Core" section.
+ * - fumadocs-ui css: base.css (animations, utilities, `layout` variant) copied WITHOUT its
+ *   @layer base, which would restyle every Quackback page; the generated class lists and
+ *   shiki.css imported as they are. MIT, (c) Fuma; version in dependencies.txt.
  */
-@source "../../node_modules/fumadocs-ui/dist";
+@import "@fumadocs/base-ui/css/generated/shared.css";
+@import "@fumadocs/base-ui/css/generated/spacious.css";
+@import "@fumadocs/base-ui/css/generated/docs.css";
+@import "@fumadocs/base-ui/css/lib/shiki.css";
+@source "../../node_modules/@fumadocs/base-ui/dist";
 
-@theme inline {
-  --color-fd-background: var(--background);
-  --color-fd-foreground: var(--foreground);
-  --color-fd-muted: var(--muted);
-  --color-fd-muted-foreground: var(--muted-foreground);
-  --color-fd-popover: var(--popover);
-  --color-fd-popover-foreground: var(--popover-foreground);
-  --color-fd-card: var(--card);
-  --color-fd-card-foreground: var(--card-foreground);
-  --color-fd-border: var(--border);
-  --color-fd-primary: var(--primary);
-  --color-fd-primary-foreground: var(--primary-foreground);
-  --color-fd-secondary: var(--secondary);
-  --color-fd-secondary-foreground: var(--secondary-foreground);
-  --color-fd-accent: var(--accent);
-  --color-fd-accent-foreground: var(--accent-foreground);
-  --color-fd-ring: var(--ring);
-  --color-fd-overlay: color-mix(in oklab, black 45%, transparent);
+/* fumadocs-ui css/lib/default-colors.css */
+@theme {
+  --color-fd-background: hsl(0, 0%, 96%);
+  --color-fd-foreground: hsl(0, 0%, 3.9%);
+  --color-fd-muted: hsl(0, 0%, 96.1%);
+  --color-fd-muted-foreground: hsl(0, 0%, 45.1%);
+  --color-fd-popover: hsl(0, 0%, 98%);
+  --color-fd-popover-foreground: hsl(0, 0%, 15.1%);
+  --color-fd-card: hsl(0, 0%, 94.7%);
+  --color-fd-card-foreground: hsl(0, 0%, 3.9%);
+  --color-fd-border: hsla(0, 0%, 80%, 50%);
+  --color-fd-primary: hsl(0, 0%, 9%);
+  --color-fd-primary-foreground: hsl(0, 0%, 98%);
+  --color-fd-secondary: hsl(0, 0%, 93.1%);
+  --color-fd-secondary-foreground: hsl(0, 0%, 9%);
+  --color-fd-accent: hsla(0, 0%, 82%, 50%);
+  --color-fd-accent-foreground: hsl(0, 0%, 9%);
+  --color-fd-ring: hsl(0, 0%, 63.9%);
+  --color-fd-overlay: hsla(0, 0%, 0%, 0.2);
+}
+
+.dark {
+  --color-fd-background: hsl(0, 0%, 7.04%);
+  --color-fd-foreground: hsl(0, 0%, 92%);
+  --color-fd-muted: hsl(0, 0%, 12.9%);
+  --color-fd-muted-foreground: hsla(0, 0%, 70%, 0.8);
+  --color-fd-popover: hsl(0, 0%, 11.6%);
+  --color-fd-popover-foreground: hsl(0, 0%, 86.9%);
+  --color-fd-card: hsl(0, 0%, 9.8%);
+  --color-fd-card-foreground: hsl(0, 0%, 98%);
+  --color-fd-border: hsla(0, 0%, 40%, 20%);
+  --color-fd-primary: hsl(0, 0%, 98%);
+  --color-fd-primary-foreground: hsl(0, 0%, 9%);
+  --color-fd-secondary: hsl(0, 0%, 12.9%);
+  --color-fd-secondary-foreground: hsl(0, 0%, 92%);
+  --color-fd-accent: hsla(0, 0%, 40.9%, 30%);
+  --color-fd-accent-foreground: hsl(0, 0%, 90%);
+  --color-fd-ring: hsl(0, 0%, 54.9%);
+  --color-fd-overlay: hsla(0, 0%, 0%, 0.2);
 }
 
 @theme static {
-  --color-fd-info: #6bb3ff;
-  --color-fd-warning: #fbcc4d;
-  --color-fd-error: #f87171;
-  --color-fd-success: #73eb8c;
-  --color-fd-idea: #c4a8ff;
+  --color-fd-info: oklch(62.3% 0.214 259.815);
+  --color-fd-warning: oklch(76.9% 0.188 70.08);
+  --color-fd-error: oklch(63.7% 0.237 25.331);
+  --color-fd-success: oklch(72.3% 0.219 149.579);
+  --color-fd-idea: oklch(70.5% 0.209 60.849);
   --color-fd-diff-remove: rgba(200, 10, 100, 0.12);
   --color-fd-diff-remove-symbol: rgb(230, 10, 100);
   --color-fd-diff-add: rgba(14, 180, 100, 0.1);
   --color-fd-diff-add-symbol: rgb(10, 200, 100);
 }
 
-:root {
-  --fd-sidebar-drawer-offset: 100%;
-}
-[dir='rtl'] {
-  --fd-sidebar-drawer-offset: -100%;
+/* fumadocs-ui css/neutral.css */
+.dark #nd-sidebar {
+  --color-fd-muted: hsl(0, 0%, 16%);
+  --color-fd-secondary: hsl(0, 0%, 18%);
+  --color-fd-muted-foreground: hsl(0, 0%, 72%);
 }
 
+/* fumadocs.dev: the colour of the "Fumadocs Core" section */
+:root { --color-fd-primary: hsl(250, 80%, 54%); }
+.dark { --color-fd-primary: hsl(250 100% 80%); --color-fd-primary-foreground: hsl(250, 30%, 10%); }
+
+:root { --fd-sidebar-drawer-offset: 100%; }
+[dir='rtl'] { --fd-sidebar-drawer-offset: -100%; }
+
+/* fumadocs-ui css/lib/base.css without @layer base */
 @theme {
   --animate-fd-fade-in: fd-fade-in 300ms ease;
   --animate-fd-fade-out: fd-fade-out 300ms ease;
+
+  /* slide in from below, or from above when `--fd-roll` is -1 */
+  --animate-fd-roll-in: fd-roll-in 320ms cubic-bezier(0.22, 1, 0.36, 1);
 
   --animate-fd-dialog-in: fd-dialog-in 300ms cubic-bezier(0.16, 1, 0.3, 1);
   --animate-fd-dialog-out: fd-dialog-out 300ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -56,23 +92,8 @@
   --animate-fd-popover-in: fd-popover-in 100ms ease;
   --animate-fd-popover-out: fd-popover-out 100ms ease;
 
-  --animate-fd-enterFromLeft: fd-enterFromLeft 250ms ease;
-  --animate-fd-enterFromRight: fd-enterFromRight 250ms ease;
-
   --animate-fd-sidebar-in: fd-sidebar-in 250ms ease;
   --animate-fd-sidebar-out: fd-sidebar-out 250ms ease;
-
-  --animate-fd-exitToLeft: fd-exitToLeft 250ms ease;
-  --animate-fd-exitToRight: fd-exitToRight 250ms ease;
-
-  --animate-fd-collapsible-down: fd-collapsible-down 150ms cubic-bezier(0.45, 0, 0.55, 1);
-  --animate-fd-collapsible-up: fd-collapsible-up 150ms cubic-bezier(0.45, 0, 0.55, 1);
-
-  --animate-fd-accordion-down: fd-accordion-down 200ms ease-out;
-  --animate-fd-accordion-up: fd-accordion-up 200ms ease-out;
-
-  --animate-fd-nav-menu-in: fd-nav-menu-in 200ms ease;
-  --animate-fd-nav-menu-out: fd-nav-menu-out 200ms ease;
 
   @keyframes fd-sidebar-in {
     from {
@@ -129,118 +150,20 @@
     }
   }
 
+  @keyframes fd-roll-in {
+    from {
+      opacity: 0;
+      translate: 0 calc(var(--fd-roll, 1) * 0.6em);
+      filter: blur(2px);
+    }
+  }
+
   @keyframes fd-fade-out {
     from {
       opacity: 1;
     }
     to {
       opacity: 0;
-    }
-  }
-
-  @keyframes fd-enterFromRight {
-    from {
-      opacity: 0;
-      transform: translateX(200px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes fd-enterFromLeft {
-    from {
-      opacity: 0;
-      transform: translateX(-200px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes fd-exitToRight {
-    from {
-      opacity: 1;
-      transform: translateX(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateX(200px);
-    }
-  }
-
-  @keyframes fd-exitToLeft {
-    from {
-      opacity: 1;
-      transform: translateX(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateX(-200px);
-    }
-  }
-
-  @keyframes fd-collapsible-down {
-    from {
-      height: 0;
-      opacity: 0;
-    }
-    to {
-      height: var(--radix-collapsible-content-height);
-    }
-  }
-
-  @keyframes fd-collapsible-up {
-    from {
-      height: var(--radix-collapsible-content-height);
-    }
-    to {
-      height: 0;
-      opacity: 0;
-    }
-  }
-
-  @keyframes fd-accordion-down {
-    from {
-      height: 0;
-      opacity: 0.5;
-    }
-    to {
-      height: var(--radix-accordion-content-height);
-    }
-  }
-
-  @keyframes fd-accordion-up {
-    from {
-      height: var(--radix-accordion-content-height);
-    }
-    to {
-      height: 0;
-      opacity: 0.5;
-    }
-  }
-
-  @keyframes fd-nav-menu-in {
-    from {
-      opacity: 0;
-      height: 0px;
-    }
-    to {
-      opacity: 1;
-      height: var(--radix-navigation-menu-viewport-height);
-    }
-  }
-
-  @keyframes fd-nav-menu-out {
-    from {
-      opacity: 1;
-      height: var(--radix-navigation-menu-viewport-height);
-    }
-    to {
-      opacity: 0;
-      height: 0px;
     }
   }
 }
@@ -307,15 +230,11 @@
   #nd-notebook-layout:has(> &),
   #nd-home-layout:has(> &),
   #nd-flux-layout:has(> &),
-  #fd-glass-layout:has(> &) {
+  #fd-glass-layout:has(> &),
+  /* the spacious page nests its TOC and page in the page panel */
+  #fd-spacious-layout:has(> &, > * > &, > * > * > &) {
     @slot;
   }
-}
-
-@property --radix-collapsible-content-height {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
 }
 
 /* to transition the columns alone */
@@ -335,185 +254,85 @@
   @apply inline-flex items-center gap-1 w-full;
 }
 
-/* fumadocs-ui css/lib/shiki.css (code blocks) */
-.shiki:not(.not-fumadocs-codeblock *) {
-  --padding-left: calc(var(--spacing) * 4);
-  --padding-right: calc(var(--spacing) * 4);
-
-  code span {
-    color: var(--shiki-light);
-    font-style: var(--shiki-light-font-style);
-  }
-
-  .line {
-    position: relative;
-    padding-left: var(--padding-left);
-    padding-right: var(--padding-right);
-  }
-
-  .line:empty {
-    height: 1lh;
-  }
-
-  &.has-focused .line:not(.focused) {
-    filter: blur(2px);
-    transition: filter 200ms;
-  }
-
-  &.has-focused:hover .line:not(.focused) {
-    filter: blur(0);
-  }
-
-  .diff::before {
-    position: absolute;
-    left: calc(var(--spacing) * 1.5);
-  }
-
-  .diff.remove {
-    opacity: 0.7;
-    --fd-counter-color: var(--color-fd-diff-remove-symbol);
-    @apply bg-fd-diff-remove;
-  }
-
-  .diff.remove::before {
-    content: '-';
-    @apply text-fd-diff-remove-symbol;
-  }
-
-  .diff.add {
-    --fd-counter-color: var(--color-fd-diff-add-symbol);
-    @apply bg-fd-diff-add;
-  }
-
-  .diff.add::before {
-    content: '+';
-    @apply text-fd-diff-add-symbol;
-  }
-
-  .highlighted {
-    --fd-counter-color: var(--color-fd-primary);
-    @apply bg-fd-primary/10;
-  }
-
-  .highlighted::after {
-    position: absolute;
-    content: '';
-    @apply inset-y-0 left-0 border-l-2 border-fd-primary/50;
-  }
-
-  .highlighted-word {
-    padding: 1px;
-    @apply border -my-px border-fd-primary/30 bg-fd-primary/10 rounded-md font-medium;
-  }
-
-  &[data-line-numbers] .twoslash-meta-line {
-    padding-left: calc(var(--padding-left) + 7 * var(--spacing));
-  }
-
-  &[data-line-numbers] .line {
-    counter-increment: line;
-    padding-left: calc(var(--padding-left) + 7 * var(--spacing));
-  }
-
-  &[data-line-numbers] .line::after {
-    position: absolute;
-    content: counter(line);
-    color: color-mix(
-      in oklab,
-      var(--fd-counter-color, var(--color-fd-muted-foreground)) 60%,
-      transparent
-    );
-    @apply inset-y-0 left-0 w-7 text-right;
-  }
-}
-
-.dark .shiki:not(.not-fumadocs-codeblock *) {
-  code span {
-    color: var(--shiki-dark);
-    font-style: var(--shiki-dark-font-style);
-  }
-}
-
-/* inline code */
-code.shiki:not(.not-fumadocs-code *) span {
-  color: var(--shiki-light);
-  font-style: var(--shiki-light-font-style);
-}
-
-.dark code.shiki:not(.not-fumadocs-code *) span {
-  color: var(--shiki-dark);
-  font-style: var(--shiki-dark-font-style);
-}
-
 /* ------------------------------------------------------------------ docs shell */
 
-/* Header height (portal-header.tsx): one 3.5rem row on large screens, plus the nav row below. */
-.custom-docs { --portal-header-height: calc(6.25rem + 1px); }
-@media (min-width: 64rem) { .custom-docs { --portal-header-height: calc(3.5rem + 1px); } }
-.custom-docs #nd-docs-layout {
-  --fd-banner-height: var(--portal-header-height);
-  --fd-docs-height: 100dvh;
-  min-height: calc(100dvh - var(--portal-header-height));
+/* The docs own the portal's colours on their pages (fumadocs.dev look). */
+body:has(.custom-docs) { background: var(--color-fd-card); }
+.custom-docs { color: var(--color-fd-foreground); }
+.custom-docs *, .custom-docs ::before, .custom-docs ::after { border-color: var(--color-fd-border); }
+
+/* Portal header height (portal-header.tsx): one 3.5rem row on large screens, plus the nav row below. */
+:root { --portal-header-height: calc(6.25rem + 1px); }
+@media (min-width: 64rem) { :root { --portal-header-height: calc(3.5rem + 1px); } }
+
+/* Layout A: the portal header on top, in the colours of the docs frame. */
+body:has(.custom-docs[data-variant='a']) .portal-header,
+body:has(.custom-docs[data-variant='c']) .portal-header {
+  background: var(--color-fd-card);
+  border-color: transparent;
+  backdrop-filter: none;
 }
-.custom-docs #nd-docs-layout *,
-.custom-docs #nd-docs-layout ::before,
-.custom-docs #nd-docs-layout ::after { border-color: var(--color-fd-border); }
-.custom-docs #nd-docs-layout [data-layout-main] { background: transparent; }
+.custom-docs[data-variant='a'], .custom-docs[data-variant='c'] { --fd-banner-height: var(--portal-header-height); }
+/* Layout B: the docs fill the window; the portal links move into the docs. */
+body:has(.custom-docs[data-variant='b']) .portal-header { display: none; }
+.custom-docs[data-variant='b'] { --fd-banner-height: 0px; }
+/* Layout C: Fumadocs' classic docs layout (no frame). */
+.custom-docs[data-variant='c'] #nd-docs-layout { --fd-docs-height: 100dvh; }
 
 /* ------------------------------------------------------------------ article typography */
 
-.docs-prose { font-size: 15.5px; line-height: 1.75; color: color-mix(in oklab, var(--foreground) 86%, transparent); }
+.docs-prose { font-size: 15.5px; line-height: 1.75; color: color-mix(in oklab, var(--color-fd-foreground) 86%, transparent); }
 .docs-prose > * + * { margin-top: 1.15em; }
-.docs-prose > :where(h2, h3, h4) { color: var(--foreground); font-weight: 600; letter-spacing: -0.01em; scroll-margin-top: calc(var(--portal-header-height, 4rem) + 1.5rem); }
+.docs-prose > :where(h2, h3, h4) { color: var(--color-fd-foreground); font-weight: 600; letter-spacing: -0.01em; scroll-margin-top: 4.5rem; }
 .docs-prose > :where(h2) { font-size: 1.5rem; line-height: 1.3; margin-top: 2.4em; margin-bottom: 0.2em; }
 .docs-prose > :where(h3) { font-size: 1.2rem; line-height: 1.4; margin-top: 1.9em; }
 .docs-prose > :where(h4) { font-size: 1.02rem; margin-top: 1.6em; }
 .docs-prose > :where(h2, h3, h4):first-child { margin-top: 0; }
 .docs-prose > :where(h2, h3, h4) + * { margin-top: 0.6em; }
-.docs-prose :where(strong) { color: var(--foreground); font-weight: 600; }
+.docs-prose :where(strong) { color: var(--color-fd-foreground); font-weight: 600; }
 .docs-prose :where(ul, ol) { padding-inline-start: 1.4em; }
 .docs-prose :where(ul) { list-style: disc; }
 .docs-prose :where(ol) { list-style: decimal; }
 .docs-prose :where(li) { margin-top: 0.3em; padding-inline-start: 0.2em; }
 .docs-prose :where(li)::marker { color: var(--color-fd-muted-foreground); }
-.docs-prose :where(ol > li)::marker { font-weight: 600; color: var(--primary); }
+.docs-prose :where(ol > li)::marker { font-weight: 600; color: var(--color-fd-primary); }
 .docs-prose :where(li > p) { margin: 0; }
-.docs-prose :where(blockquote) { border-inline-start: 3px solid var(--border); padding-inline-start: 1em; color: var(--muted-foreground); }
-.docs-prose :where(hr) { border: 0; border-top: 1px solid var(--border); margin: 2.5em 0; }
+.docs-prose :where(blockquote) { border-inline-start: 3px solid var(--color-fd-border); padding-inline-start: 1em; color: var(--color-fd-muted-foreground); }
+.docs-prose :where(hr) { border: 0; border-top: 1px solid var(--color-fd-border); margin: 2.5em 0; }
 .docs-prose :where(img) { max-width: 100%; }
-.docs-prose :where(figcaption) { margin-top: 0.5em; text-align: center; font-size: 0.875rem; color: var(--muted-foreground); }
-.docs-prose :where(.docs-link) { color: var(--foreground); font-weight: 500; text-decoration: underline; text-decoration-color: color-mix(in oklab, var(--primary) 55%, transparent); text-underline-offset: 3px; text-decoration-thickness: 1px; transition: text-decoration-color .15s; }
-.docs-prose :where(.docs-link):hover { text-decoration-color: var(--primary); }
-.docs-code { border: 1px solid var(--border); background: var(--muted); border-radius: 6px; padding: 0.1em 0.38em; font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.85em; color: var(--foreground); }
+.docs-prose :where(figcaption) { margin-top: 0.5em; text-align: center; font-size: 0.875rem; color: var(--color-fd-muted-foreground); }
+.docs-prose :where(.docs-link) { color: var(--color-fd-foreground); font-weight: 500; text-decoration: underline; text-decoration-color: color-mix(in oklab, var(--color-fd-primary) 55%, transparent); text-underline-offset: 3px; text-decoration-thickness: 1px; transition: text-decoration-color .15s; }
+.docs-prose :where(.docs-link):hover { text-decoration-color: var(--color-fd-primary); }
+.docs-code { border: 1px solid var(--color-fd-border); background: var(--color-fd-muted); border-radius: 6px; padding: 0.1em 0.38em; font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.85em; color: var(--color-fd-foreground); }
 
 /* tables */
-.docs-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 0.75rem; }
+.docs-table-wrap { overflow-x: auto; border: 1px solid var(--color-fd-border); border-radius: 0.75rem; }
 .docs-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; line-height: 1.6; }
-.docs-table :where(th) { background: var(--muted); text-align: start; font-weight: 600; color: var(--foreground); }
+.docs-table :where(th) { background: var(--color-fd-muted); text-align: start; font-weight: 600; color: var(--color-fd-foreground); }
 .docs-table :where(th, td) { padding: 0.6rem 0.9rem; vertical-align: top; }
-.docs-table :where(tr + tr) > * { border-top: 1px solid var(--border); }
-.docs-table :where(th + th, td + td, th + td, td + th) { border-inline-start: 1px solid var(--border); }
+.docs-table :where(tr + tr) > * { border-top: 1px solid var(--color-fd-border); }
+.docs-table :where(th + th, td + td, th + td, td + th) { border-inline-start: 1px solid var(--color-fd-border); }
 .docs-table :where(th p, td p) { margin: 0; }
 
 /* task lists */
 .docs-prose .docs-tasks { list-style: none; padding-inline-start: 0.2em; }
 .docs-tasks > li { display: flex; gap: 0.6em; align-items: flex-start; }
-.docs-task-box { flex: none; margin-top: 0.35em; width: 1.05em; height: 1.05em; border-radius: 0.3em; border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; font-size: 0.7em; color: var(--primary-foreground); }
-.docs-tasks > li[data-checked='true'] .docs-task-box { background: var(--primary); border-color: var(--primary); }
-.docs-tasks > li[data-checked='true'] > div { color: var(--muted-foreground); text-decoration: line-through; }
+.docs-task-box { flex: none; margin-top: 0.35em; width: 1.05em; height: 1.05em; border-radius: 0.3em; border: 1px solid var(--color-fd-border); display: inline-flex; align-items: center; justify-content: center; font-size: 0.7em; color: var(--color-fd-primary-foreground); }
+.docs-tasks > li[data-checked='true'] .docs-task-box { background: var(--color-fd-primary); border-color: var(--color-fd-primary); }
+.docs-tasks > li[data-checked='true'] > div { color: var(--color-fd-muted-foreground); text-decoration: line-through; }
 
 /* markdown inside blocks */
 .docs-md > * + * { margin-top: 0.75em; }
 .docs-md :where(ul) { list-style: disc; padding-inline-start: 1.3em; }
 .docs-md :where(ol) { list-style: decimal; padding-inline-start: 1.3em; }
-.docs-step-title { font-weight: 600; color: var(--foreground); line-height: 2rem; }
+.docs-step-title { font-weight: 600; color: var(--color-fd-foreground); line-height: 2rem; }
 .docs-prose .fd-step + .fd-step { margin-top: 1.5rem; }
 .docs-prose .fd-step > .docs-md { margin-top: 0.25rem; }
 
 /* media placeholders */
-.docs-media-box { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; height: 16rem; border: 1px dashed color-mix(in oklab, var(--primary) 45%, var(--border)); border-radius: 0.875rem; color: color-mix(in oklab, var(--primary) 75%, var(--muted-foreground)); background: repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in oklab, var(--primary) 5%, transparent) 14px 28px); }
+.docs-media-box { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; height: 16rem; border: 1px dashed color-mix(in oklab, var(--color-fd-primary) 45%, var(--color-fd-border)); border-radius: 0.875rem; color: color-mix(in oklab, var(--color-fd-primary) 75%, var(--color-fd-muted-foreground)); background: repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in oklab, var(--color-fd-primary) 5%, transparent) 14px 28px); }
 
 /* docs home */
 .docs-home-hero { position: relative; padding: 2.5rem 0 1rem; }
-.docs-home-hero::before { content: ''; position: absolute; inset: -2rem -2rem auto; height: 16rem; z-index: -1; background: radial-gradient(60% 80% at 20% 0%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 70%); pointer-events: none; }
+.docs-home-hero::before { content: ''; position: absolute; inset: -2rem -2rem auto; height: 16rem; z-index: -1; background: radial-gradient(60% 80% at 20% 0%, color-mix(in oklab, var(--color-fd-primary) 16%, transparent), transparent 70%); pointer-events: none; }
 .docs-feedback { margin-top: 2rem; }

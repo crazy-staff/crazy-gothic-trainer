@@ -71,7 +71,7 @@ EDITS = {
     # two React contexts ("wrap your application inside FrameworkProvider")
     "../vite.config.ts": [
         ("    resolve: {\n      tsconfigPaths: true,\n    },\n",
-         "    resolve: {\n      tsconfigPaths: true,\n      dedupe: ['fumadocs-core', 'fumadocs-ui', '@fuma-translate/react'],\n    },\n"),
+         "    resolve: {\n      tsconfigPaths: true,\n      dedupe: ['fumadocs-core', '@fumadocs/base-ui', '@base-ui/react', '@fuma-translate/react'],\n    },\n"),
     ],
     # styles: Fumadocs theme mapped onto the portal theme
     "globals.css": [
