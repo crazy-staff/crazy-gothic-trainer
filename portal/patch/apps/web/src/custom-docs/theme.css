@@ -42,6 +42,8 @@ html:not(.dark) [data-portal] {
   --portal-button-background: hsl(250, 80%, 54%);
   --portal-button-foreground: hsl(0, 0%, 98%);
   --app-frame: hsl(0, 0%, 94.7%);
+  --accent-ink: hsl(250, 80%, 54%);
+  --destructive: hsl(0, 72%, 51%);
 }
 
 html.dark,
@@ -74,6 +76,7 @@ html.dark [data-portal] {
   --portal-button-background: hsl(250, 100%, 80%);
   --portal-button-foreground: hsl(250, 30%, 10%);
   --app-frame: hsl(0, 0%, 9.8%);
+  --accent-ink: hsl(250, 100%, 80%);
 }
 
 /* Admin: the rail on the frame colour, the page on a sheet (Quackback's own layout). */
@@ -111,7 +114,31 @@ html.dark {
   --sidebar-border: hsla(0, 0%, 40%, 20%);
   --sidebar-ring: hsl(250, 100%, 80%);
 }
+html:not(.dark):has([data-admin-shell]),
+html:not(.dark) [data-admin-canvas] {
+  --background: hsl(0, 0%, 98%);
+  --card: hsl(0, 0%, 100%);
+  --popover: hsl(0, 0%, 100%);
+  --elevated: hsl(0, 0%, 100%);
+  --muted: hsl(0, 0%, 95%);
+  --secondary: hsl(0, 0%, 94%);
+  --accent: hsla(0, 0%, 82%, 45%);
+  --border: hsla(0, 0%, 75%, 55%);
+  --input: hsla(0, 0%, 70%, 60%);
+}
 html:not(.dark) {
+  --sidebar: hsl(0, 0%, 94.7%);
+  --sidebar-foreground: hsl(0, 0%, 20%);
+  --sidebar-primary: hsl(250, 80%, 54%);
+  --sidebar-primary-foreground: hsl(0, 0%, 98%);
+  --sidebar-accent: hsla(250, 80%, 54%, 10%);
+  --sidebar-accent-foreground: hsl(250, 80%, 54%);
+  --sidebar-border: hsla(0, 0%, 75%, 55%);
+  --sidebar-ring: hsl(250, 80%, 54%);
+  --chrome-rail-text: hsl(0, 0%, 30%);
+  --chrome-pane-text: hsl(0, 0%, 20%);
+  --chrome-icon: hsl(0, 0%, 45%);
+  --chrome-label: hsl(0, 0%, 45%);
   --chrome-background: hsl(0, 0%, 94.7%);
   --chrome-hairline: hsla(0, 0%, 80%, 50%);
   --chrome-hover: hsla(0, 0%, 82%, 40%);
@@ -140,11 +167,15 @@ body:has(#fd-spacious-layout) [data-portal] { min-height: 100dvh; background: va
 
 /* ------------------------------------------------------------------ admin chrome */
 
-/* The admin rail and its side panes (settings, inbox, ...) read like the app sidebar:
-   14 px rows, 8 px corners, a soft fill on hover, the accent for the current row. */
-[data-admin-rail] { width: 268px; }
+/* One menu style everywhere: the admin rail and its side panes (settings, analytics, feedback
+   filters...) use the app sidebar's rows - 36 px, 14 px text, 8 px corners, muted text, the
+   accent for the current row - and its gliding hover (glide.ts), so no row paints its own. */
+[data-admin-rail] { width: 268px; border: 0; }
+[data-glide] > [data-glide-block] ~ * { position: relative; z-index: 1; }
+[data-side-pane] { width: 268px !important; background: var(--background); }
 [data-side-pane] .nav-row,
 [data-admin-rail] .nav-row {
+  box-sizing: border-box;
   min-height: 36px;
   gap: 12px;
   padding: 8px 10px;
@@ -152,34 +183,81 @@ body:has(#fd-spacious-layout) [data-portal] { min-height: 100dvh; background: va
   border-radius: 0.5rem;
   font-size: 14px;
   font-weight: 400;
+  line-height: 1.25rem;
   color: var(--muted-foreground);
   background: transparent;
   box-shadow: none;
-  transition: background-color 150ms cubic-bezier(0.22, 1, 0.36, 1), color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: color 150ms cubic-bezier(0.22, 1, 0.36, 1), background-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 [data-side-pane] .nav-row > svg,
 [data-admin-rail] .nav-row > svg { width: 16px; height: 16px; color: currentColor; }
 [data-side-pane] .nav-row:hover,
-[data-admin-rail] .nav-row:hover { background: color-mix(in oklab, var(--accent) 60%, transparent); color: var(--accent-foreground); }
+[data-admin-rail] .nav-row:hover,
+[data-side-pane] :is(a, button):not(.nav-row):hover { background: transparent; color: var(--accent-foreground); }
 [data-side-pane] .nav-row.bg-muted,
 [data-side-pane] .nav-row.bg-primary\/10,
 [data-side-pane] .nav-row[data-active],
 [data-side-pane] .nav-row[aria-selected='true'],
-[data-side-pane] .nav-row[aria-current='page'] {
+[data-side-pane] .nav-row[aria-current='page'],
+[data-side-pane] .nav-row.bg-muted:hover,
+[data-side-pane] .nav-row[data-active]:hover {
   background: color-mix(in oklab, var(--primary) 10%, transparent);
   color: var(--primary);
   font-weight: 500;
   box-shadow: none;
 }
+[data-side-pane] .nav-row:is(.bg-muted, [data-active], [aria-current='page']) > svg { color: var(--primary); }
 [data-side-pane] .nav-section {
-  margin-top: 0.75rem;
-  padding-inline: 10px;
+  margin-top: 1.25rem;
+  margin-bottom: 0.375rem;
+  padding: 0 10px;
   font-size: 12px;
   font-weight: 500;
+  letter-spacing: 0;
   color: var(--muted-foreground);
 }
-/* Admin pages sit in the middle of wide screens instead of hugging the left edge. */
+[data-side-pane] .nav-section:first-child { margin-top: 0.25rem; }
+/* the pane title sits on the rail's title row */
+[data-side-pane] > .shrink-0.px-5 {
+  display: flex;
+  align-items: center;
+  height: 3.75rem;
+  margin-block: 0 0.25rem;
+  padding: 0 1.25rem;
+}
+[data-side-pane] > .shrink-0.px-5 :is(h1, h2) { font-size: 0.9375rem; font-weight: 600; letter-spacing: -0.01em; }
+[data-side-pane] [data-radix-scroll-area-viewport] > div > div.px-2\.5,
+[data-side-pane] .px-2\.5.pb-5 { padding-inline: 0.75rem; }
+
+/* Pages: room above the title, a calm type scale, the content in the middle of wide screens. */
+[data-settings-page] { padding: 2.5rem 2rem 5rem !important; }
 [data-settings-page-body] { margin-inline: auto; }
+[data-settings-page-body] [data-page-header] h1,
+[data-admin-page] [data-page-header] h1 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; letter-spacing: -0.02em; }
+[data-settings-page-body] [data-page-header] p { font-size: 0.875rem; color: var(--muted-foreground); }
+[data-admin-page] { margin-inline: auto; width: 100%; max-width: 72rem; }
+[data-admin-page] > .max-w-5xl { max-width: none; }
+
+/* Cards in the admin: one radius, one border, a header with room. */
+[data-admin-canvas] [data-slot='card'] { border-radius: 0.75rem; box-shadow: none; }
+[data-admin-canvas] [data-slot='card-header'] { padding-top: 1.25rem; }
+
+/* Admin lists: posts as rounded cards (list) or tiles (grid), like the portal. */
+[data-post-list] { display: flex; flex-direction: column; gap: 0.5rem; }
+[data-post-list][data-view='grid'] { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: 0.75rem; }
+[data-post-list] > * { border: 1px solid var(--border); border-radius: 0.75rem; background: var(--card); overflow: hidden; transition: border-color 150ms; }
+[data-post-list] > *:hover { border-color: color-mix(in oklab, var(--primary) 40%, var(--border)); }
+[data-post-list][data-view='grid'] > * > div, [data-post-list][data-view='grid'] > * > div > div { height: 100%; }
+
+/* Radio tiles (visibility, theme mode): the picked tile in the accent, the dot centred. */
+[data-slot='radio-group-item'][data-checked] { border-color: var(--primary); }
+label:has(> [data-slot='radio-group-item'][data-checked]),
+label:has([data-slot='radio-group-item'][data-checked]).rounded-lg,
+label:has([data-slot='radio-group-item'][data-checked]).rounded-xl {
+  border-color: color-mix(in oklab, var(--primary) 70%, transparent) !important;
+  background: color-mix(in oklab, var(--primary) 8%, transparent) !important;
+  box-shadow: none !important;
+}
 
 /* ------------------------------------------------------------------ shapes */
 
@@ -262,30 +340,6 @@ html.dark {
   --color-fd-idea: #c4b5fd;
 }
 
-/* Feedback filters in the sidebar: statuses and tags as rows, like boards. */
-#nd-sidebar .portal-filter-section .flex-wrap { flex-direction: column; flex-wrap: nowrap; gap: 0; padding: 0; }
-#nd-sidebar .portal-filter-section .flex-wrap > button {
-  height: auto;
-  width: 100%;
-  justify-content: flex-start;
-  gap: 0.75rem;
-  padding: 0.5rem 0.625rem;
-  border: 0;
-  border-radius: 0.5rem;
-  background: transparent;
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--color-fd-muted-foreground);
-}
-#nd-sidebar .portal-filter-section .flex-wrap > button:hover { color: var(--color-fd-accent-foreground); }
-#nd-sidebar .portal-filter-section .flex-wrap > button[aria-pressed='true'] {
-  background: color-mix(in oklab, var(--color-fd-primary) 10%, transparent);
-  color: var(--color-fd-primary);
-  font-weight: 500;
-}
-#nd-sidebar .portal-filter-section .flex-wrap > button > span:first-child { width: 0.5rem; height: 0.5rem; }
-#nd-sidebar .portal-filter-section .flex-wrap > button > .tabular-nums { margin-inline-start: auto; font-size: 0.75rem; opacity: 1; color: var(--color-fd-muted-foreground); }
-
 /* Lists rise in as they load (and as more load while scrolling). */
 @keyframes app-rise { from { opacity: 0; transform: translateY(14px); } }
 .custom-docs [data-post-id] { animation: app-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -295,3 +349,37 @@ html.dark {
 .custom-docs [data-post-id]:nth-child(5) { animation-delay: 160ms; }
 .custom-docs [data-post-id]:nth-child(n + 6) { animation-delay: 200ms; }
 @media (prefers-reduced-motion: reduce) { .custom-docs [data-post-id] { animation: none; } }
+
+/* ------------------------------------------------------------------ admin list toolbar */
+[data-admin-toolbar] [data-slot='admin-list-search'] > * { width: 100%; }
+[data-admin-toolbar] [data-slot='admin-list-search'] input {
+  height: 2rem;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.875rem;
+}
+[data-admin-toolbar] [data-slot='admin-list-search'] input:focus-visible { border-color: transparent; box-shadow: none; }
+[data-admin-toolbar] [data-slot='admin-list-search']:focus-within { border-radius: 0.5rem; background: var(--muted); }
+[data-admin-toolbar] :is(button, a):not([role='radio']):not([data-slot='badge'] *) { min-height: 2rem; border-radius: 0.5rem; }
+[data-admin-toolbar] > div > div + div { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+
+/* Every admin list (docs, changelog, users, status...) shares Quackback's divided-list class;
+   it becomes the same stack of rounded cards as the feedback list. */
+[data-admin-canvas] .overflow-hidden.divide-y.border-y.border-t-transparent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: visible;
+  border: 0;
+}
+[data-admin-canvas] .overflow-hidden.divide-y.border-y.border-t-transparent > * {
+  border: 1px solid var(--border) !important;
+  border-radius: 0.75rem;
+  background: var(--card);
+  overflow: hidden;
+  transition: border-color 150ms;
+}
+[data-admin-canvas] .overflow-hidden.divide-y.border-y.border-t-transparent > *:hover {
+  border-color: color-mix(in oklab, var(--primary) 40%, var(--border)) !important;
+}

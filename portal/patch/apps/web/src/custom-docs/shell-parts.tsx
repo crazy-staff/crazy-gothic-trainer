@@ -20,6 +20,10 @@ import { Avatar } from '@/components/ui/avatar'
 import { NotificationBell } from '@/components/notifications'
 import { signOut } from '@/lib/client/auth-client'
 import { removeViewerScopedPortalQueries } from '@/lib/client/queries/portal'
+import { cn } from '@/lib/shared/utils'
+import { useEffect, useState } from 'react'
+import { useTheme } from 'next-themes'
+import { ComputerDesktopIcon, MoonIcon, SunIcon } from '@heroicons/react/20/solid'
 
 /** The workspace logo and name, at the top of the sidebar. */
 export function NavTitle() {
@@ -65,9 +69,9 @@ export function useSectionIndex(pathname: string): number {
   return i === -1 ? items.length + 1 : i
 }
 
-const menuPopup =
+export const menuPopup =
   'flex flex-col min-w-48 p-1 rounded-2xl border bg-fd-popover text-sm text-fd-popover-foreground shadow-lg outline-none origin-(--transform-origin) transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] data-starting-style:opacity-0 data-starting-style:scale-95 data-ending-style:opacity-0 data-ending-style:scale-97 data-ending-style:duration-100'
-const menuItem =
+export const menuItem =
   'flex w-full min-h-9 items-center gap-3 rounded-lg px-2.5 py-1.5 text-start outline-none transition-colors duration-100 data-highlighted:bg-fd-accent data-highlighted:text-fd-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0'
 
 /** Log in, or the signed-in user with a menu (settings, admin, sign out). */
@@ -105,36 +109,38 @@ function Account() {
               <p className="truncate font-medium">{user.name}</p>
               {user.email && <p className="truncate text-xs text-fd-muted-foreground">{user.email}</p>}
             </div>
-            <Menu.LinkItem render={<RouterLink to="/settings" />} className={menuItem}>
-              <Cog6ToothIcon />
-              Settings
-            </Menu.LinkItem>
-            <Menu.Separator className="my-1 h-px bg-fd-border" />
             {team && (
-              <Menu.LinkItem render={<a href="/admin" />} className={menuItem}>
-                <ShieldCheckIcon />
-                Admin
-              </Menu.LinkItem>
+              <Menu.Group className="flex flex-col border-t pt-1 mt-1">
+                <Menu.GroupLabel className="px-2.5 pt-1 pb-0.5 text-[11px] font-medium text-fd-muted-foreground">Team</Menu.GroupLabel>
+                <Menu.LinkItem render={<a href="/admin" />} className={menuItem}>
+                  <ShieldCheckIcon />
+                  Admin
+                </Menu.LinkItem>
+                <Menu.LinkItem render={<RouterLink to={'/design-system' as '/'} />} className={menuItem}>
+                  <SwatchIcon />
+                  Design system
+                </Menu.LinkItem>
+              </Menu.Group>
             )}
-            {team && (
-              <Menu.LinkItem render={<RouterLink to={'/design-system' as '/'} />} className={menuItem}>
-                <SwatchIcon />
-                Design system
+            <Menu.Group className="flex flex-col border-t pt-1 mt-1">
+              <Menu.LinkItem render={<RouterLink to="/settings" />} className={menuItem}>
+                <Cog6ToothIcon />
+                Settings
               </Menu.LinkItem>
-            )}
-            <Menu.Item
-              className={menuItem}
-              onClick={async () => {
-                await signOut()
-                queryClient.invalidateQueries({ queryKey: ['votedPosts'] })
-                removeViewerScopedPortalQueries(queryClient)
-                router.invalidate()
-                router.navigate({ to: '/' })
-              }}
-            >
-              <ArrowRightStartOnRectangleIcon />
-              Sign out
-            </Menu.Item>
+              <Menu.Item
+                className={cn(menuItem, 'text-fd-muted-foreground data-highlighted:bg-red-500/12 data-highlighted:text-red-500 data-highlighted:shadow-[0_0_18px_-4px] data-highlighted:shadow-red-500/40')}
+                onClick={async () => {
+                  await signOut()
+                  queryClient.invalidateQueries({ queryKey: ['votedPosts'] })
+                  removeViewerScopedPortalQueries(queryClient)
+                  router.invalidate()
+                  router.navigate({ to: '/' })
+                }}
+              >
+                <ArrowRightStartOnRectangleIcon />
+                Sign out
+              </Menu.Item>
+            </Menu.Group>
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
@@ -154,6 +160,45 @@ export function BarActions({ className, ...props }: ComponentProps<'div'>) {
         </div>
       )}
       <Account />
+    </div>
+  )
+}
+
+const THEMES = [
+  { value: 'light', label: 'Light', icon: SunIcon },
+  { value: 'dark', label: 'Dark', icon: MoonIcon },
+  { value: 'system', label: 'System', icon: ComputerDesktopIcon },
+] as const
+
+/** Light / dark / system, in the sidebar footer. Hidden when the workspace forces a theme. */
+export function ThemeToggle({ className }: { className?: string }) {
+  const { theme, setTheme, forcedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (forcedTheme) return null
+  return (
+    <div role="radiogroup" aria-label="Theme" className={cn('flex items-center gap-0.5 rounded-lg border p-0.5', className)}>
+      {THEMES.map((t) => {
+        const active = mounted && theme === t.value
+        return (
+          <button
+            key={t.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            aria-label={t.label}
+            title={t.label}
+            data-no-glide=""
+            onClick={() => setTheme(t.value)}
+            className={cn(
+              'flex size-7 items-center justify-center rounded-md transition-colors [&_svg]:size-3.5',
+              active ? 'bg-fd-accent text-fd-foreground' : 'text-fd-muted-foreground hover:text-fd-foreground'
+            )}
+          >
+            <t.icon />
+          </button>
+        )
+      })}
     </div>
   )
 }

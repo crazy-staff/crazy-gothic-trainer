@@ -4,7 +4,7 @@
  * Plain markdown (headings, lists, tables, quotes, code, images, task lists) maps to the
  * usual elements. Extra blocks are written in markdown and become components here:
  *   > **Note:** / **Tip:** / **Warning:** / **Danger:** / **Success:**  -> callout
- *   ```trainer   {json}   -> replica of a trainer menu card (trainer-mock.tsx)
+ *   ```trainer   {json}   -> a trainer menu card; hidden until the trainer's new design is done
  *   ```media     screenshot: caption / video: caption / image: url | caption
  *   ```cards     [{"title","description","href","icon"}]
  *   ```steps     [{"title","body"}]            (body is markdown)
@@ -35,7 +35,6 @@ import remarkGfm from 'remark-gfm'
 import { PhotoIcon, VideoCameraIcon } from '@heroicons/react/20/solid'
 import { CategoryIcon } from '@/components/help-center/category-icon'
 import { RichTextContent } from '@/components/ui/rich-text-content'
-import { TrainerMock, type TrainerMockSpec } from './trainer-mock'
 import { BLOCK_LANGS as BLOCKS, headingIdMap, textOf } from './structure'
 
 // ---------------------------------------------------------------- small pieces
@@ -200,10 +199,10 @@ type Item = { title: string; body?: string; description?: string; href?: string;
 
 function Block({ lang, raw }: { lang: string; raw: string }) {
   switch (lang) {
-    case 'trainer': {
-      const spec = parse<TrainerMockSpec>(raw)
-      return spec ? <TrainerMock spec={spec} /> : <BlockError lang={lang} />
-    }
+    case 'trainer':
+      // The menu cards come back once the trainer is redesigned to match the site; the
+      // specs stay in the pages so nothing has to be written again.
+      return null
     case 'media':
       return <Media text={raw} />
     case 'cards': {

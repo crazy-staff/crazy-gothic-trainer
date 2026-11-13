@@ -103,6 +103,15 @@ EDITS = {
     "components/admin/admin-sidebar.tsx": [
         ("<SearchTrigger tour className={railControlClass()} />",
          "<SearchTrigger tour className=\"mb-2 flex h-10 w-full items-center gap-3 rounded-xl border border-border bg-secondary/50 ps-2.5 pe-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground [&>svg]:size-4 [&>kbd]:rounded-md [&>kbd]:border [&>kbd]:border-border [&>kbd]:bg-background [&>kbd]:px-1.5\" />"),
+        # the rail is laid out like the app sidebar: title row, search, rows on a 12 px inset
+        ('<div className="flex h-full min-h-screen flex-col py-2">', '<div className="flex h-full min-h-screen flex-col pb-3">'),
+        ('className="mb-4 flex items-center gap-2.5 px-4 opacity-90 transition-opacity hover:opacity-100"',
+         'className="my-2 flex h-[3.75rem] items-center gap-2 ps-5.5 pe-3 text-[0.9375rem]"'),
+        ('className="h-7 w-7 rounded object-contain"\n              />\n              <span className="truncate text-sm font-semibold">{orgName}</span>',
+         'className="size-6 rounded-md object-contain"\n              />\n              <span className="truncate font-semibold">{orgName}</span>'),
+        ('<div className="mb-2 px-2">\n              <SearchTrigger', '<div className="px-3">\n              <SearchTrigger'),
+        ('<nav data-tour="products" className="flex flex-col gap-0.5 px-2">', '<nav data-tour="products" className="mt-1 flex flex-col px-3 pt-3">'),
+        ('<div className="flex flex-col gap-0.5 px-2">\n              {/* Mounted only for a notice', '<div className="mx-3 flex flex-col border-t border-fd-border/70 pt-2">\n              {/* Mounted only for a notice'),
     ],
     # launch plan: off (a one-person project needs no onboarding checklist)
     "lib/shared/launch-checklist.ts": [
@@ -157,7 +166,7 @@ EDITS = {
     ],
     # styles: Fumadocs theme mapped onto the portal theme
     "globals.css": [
-        ('@import "tw-animate-css";\n', '@import "tw-animate-css";\n@import "./custom-docs/fumadocs.css";\n@import "./custom-docs/theme.css";\n'),
+        ('@import "tw-animate-css";\n', '@import "tw-animate-css";\n@import "./custom-docs/fumadocs.css";\n'),
     ],
     # API: article order (position) for the docs sidebar
     "routes/api/v1/help-center/articles/index.ts": [
@@ -176,6 +185,86 @@ EDITS = {
          "              linkedPostIds: parseTypeIdArray<PostId>(\n                parsed.data.linkedPostIds,\n                'post',\n                'linked post IDs'\n              ),\n              categoryIds: await (await import('@/custom-docs/changelog-categories')).changelogCategoryIdsByName(parsed.data.categoryNames),\n            },"),
     ],
     # settings card text for the module
+    # roadmap: full width, columns fill the space (the board itself is replaced in patch/)
+    "routes/_portal/roadmap.index.tsx": [
+        ('<div className="mx-auto max-w-6xl w-full px-4 sm:px-6 py-8 min-h-[calc(100dvh-7rem)] sm:h-[calc(100dvh-7rem)] flex flex-col sm:min-h-0">',
+         '<div className="w-full px-4 sm:px-8 py-8 min-h-[calc(100dvh-7rem)] sm:h-[calc(100dvh-5rem)] flex flex-col sm:min-h-0">'),
+    ],
+    "components/public/roadmap-column.tsx": [
+        ('<Card className="flex-1 min-w-[300px] max-w-[350px] flex flex-col h-full">',
+         '<Card className="flex h-full min-w-0 flex-col gap-0 rounded-xl py-0 shadow-none">'),
+        ('<CardHeader className="pb-3 shrink-0">', '<CardHeader className="shrink-0 px-4 py-3">'),
+        ('<div className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />',
+         '<div className="size-2.5 rounded-sm" style={{ backgroundColor: color }} />'),
+        ('<CardTitle className="text-base">', '<CardTitle className="text-sm font-semibold">'),
+        ('<Badge variant="secondary" className="text-xs">', '<Badge variant="secondary" className="rounded-md text-xs tabular-nums">'),
+        ('<ScrollArea className="h-full px-6 pb-6">', '<ScrollArea className="h-full px-3 pb-3">'),
+    ],
+    # admin feedback: posts as rounded cards, list or grid (theme.css [data-post-list])
+    "components/admin/feedback/table/feedback-table-view.tsx": [
+        ("import { FeedbackRow } from './feedback-row'\n",
+         "import { FeedbackRow } from './feedback-row'\nimport { useListView, type ListView } from '@/custom-docs/list-view'\n"),
+        ("  action?: ReactNode\n  children?: ReactNode\n}", "  action?: ReactNode\n  view?: { value: ListView; onChange: (view: ListView) => void }\n  children?: ReactNode\n}"),
+        ("  filters,\n  action,\n  children,\n}: FeedbackListHeaderProps) {", "  filters,\n  action,\n  view,\n  children,\n}: FeedbackListHeaderProps) {"),
+        ("      filters={filters}\n      action={action}\n    >\n      {children}\n    </AdminListHeader>",
+         "      filters={filters}\n      action={action}\n      view={view}\n    >\n      {children}\n    </AdminListHeader>"),
+        ("  const loadMoreRef = useInfiniteScroll({", "  const [view, setView] = useListView('admin-feedback')\n  const loadMoreRef = useInfiniteScroll({"),
+        ("      action={headerAction}\n    >\n      <ActiveFiltersBar", "      action={headerAction}\n      view={{ value: view, onChange: setView }}\n    >\n      <ActiveFiltersBar"),
+        ("""      <div className="p-3">
+        <div className="overflow-hidden divide-y divide-border/50 border-y border-t-transparent border-border/50">
+          {filteredPosts.map(""", """      <div className="pt-1 pb-3">
+        <div data-post-list="" data-view={view}>
+          {filteredPosts.map("""),
+    ],
+    # analytics: smaller charts, the page in the middle of wide screens
+    "components/admin/analytics/analytics-constants.ts": [
+        ("export const CHART_HEIGHT_CLASS = 'h-[clamp(300px,46vh,520px)]'", "export const CHART_HEIGHT_CLASS = 'h-[clamp(180px,26vh,280px)]'"),
+    ],
+    "components/admin/analytics/analytics-page.tsx": [
+        ('<div className="w-full px-4 sm:px-6 pt-4 pb-6 flex flex-col gap-4">', '<div className="mx-auto w-full max-w-6xl px-4 sm:px-8 pt-8 pb-12 flex flex-col gap-4">'),
+    ],
+    # portal settings: the site has its own design system, so no theme presets or preview;
+    # what is left (the sidebar links, the welcome text) in one column
+    "routes/admin/settings.portal.tsx": [
+        ('<SettingsPage page="/admin/settings/portal" width="wide">', '<SettingsPage page="/admin/settings/portal" width="form">'),
+        ('<div className="grid grid-cols-1 xl:grid-cols-[minmax(360px,440px)_minmax(0,1fr)] gap-6 items-start">\n        <div className="space-y-4 min-w-0">\n          <SettingsCard\n            title="Appearance"',
+         '<div className="flex flex-col gap-6">\n        <div className="space-y-6 min-w-0">\n          {false && <SettingsCard\n            title="Appearance"'),
+        ('              setCssText={state.setCssText}\n            />\n          </SettingsCard>\n',
+         '              setCssText={state.setCssText}\n            />\n          </SettingsCard>}\n'),
+        ('description="The portal\'s top tabs. They apply to the help center and status pages too."', 'description="The links in the site sidebar, in this order. Docs always comes last."'),
+        ('              Renamed tabs show your text in every language; untouched labels stay translated.', '              Renamed links show your text in every language; untouched labels stay translated.'),
+        ('        {/* ── Live portal preview ── */}\n        <div className="xl:sticky xl:top-6 min-w-0 self-start">', '        {/* ── Live portal preview ── */}\n        <div className="hidden">'),
+    ],
+    "components/admin/settings/branding/portal-nav-editor.tsx": [
+        ('<div className="divide-y divide-border/50">\n        <DndContext', '<div className="divide-y overflow-hidden rounded-xl border bg-card">\n        <DndContext'),
+        ("'flex items-center gap-2 bg-background py-2',", "'flex min-h-12 items-center gap-3 bg-card px-3 py-2',"),
+        ("""          'h-7 flex-1 border-transparent px-1.5 text-[13px]',""", """          'h-8 flex-1 border-transparent bg-transparent px-2 text-sm shadow-none',"""),
+        ('<div className="mt-3 flex items-center gap-2">\n        <Button variant="outline" size="sm" onClick={addLink}>', '<div className="mt-4 flex items-center gap-2">\n        <Button variant="outline" size="sm" onClick={addLink}>'),
+    ],
+    # admin feedback filters: tags grouped by their "kind: value" prefix, like the portal
+    "components/admin/feedback/inbox-filters.tsx": [
+        ("import { toggleItem } from '@/components/shared/filter-utils'\n",
+         "import { toggleItem } from '@/components/shared/filter-utils'\nimport { groupTags } from '@/custom-docs/tag-groups'\n"),
+        ("""      {tags.length > 0 && (
+        <FilterSection title="Tags">
+          <FilterList
+            items={tags.map((tag) => ({ id: tag.id, name: tag.name, icon: TagIcon }))}
+            selectedIds={filters.tags ?? []}
+            onSelect={handleTagToggle}
+            counts={facetCounts?.tags}
+          />
+        </FilterSection>
+      )}""", """      {groupTags(tags).map(([group, items]) => (
+        <FilterSection key={group} title={group}>
+          <FilterList
+            items={items.map(({ tag, label }) => ({ id: tag.id, name: label, icon: TagIcon }))}
+            selectedIds={filters.tags ?? []}
+            onSelect={handleTagToggle}
+            counts={facetCounts?.tags}
+          />
+        </FilterSection>
+      ))}"""),
+    ],
     "lib/server/domains/settings/settings.types.ts": [
         ("  return (\n    (parsed as { features?: { allowAnonymous?: boolean } } | null | undefined)?.features\n      ?.allowAnonymous === true\n  )",
          "  // Custom: anonymous posting and voting are off for good (review bombing).\n  void parsed\n  return false"),
@@ -261,6 +350,9 @@ for rel, reps in EDITS.items():
             continue
         s = s.replace(old, new)
     open(p, "w", encoding="utf-8").write(s)
+# the site theme goes last in globals.css: unlayered, it then beats Quackback's own rules
+_g = os.path.join(WEB, "globals.css")
+open(_g, "a", encoding="utf-8").write("\n/* ---- custom-docs/theme.css (appended by transform.py) ---- */\n" + open(os.path.join(HERE, "patch/apps/web/src/custom-docs/theme.css"), encoding="utf-8").read())
 for rel, start, end, new in REGIONS:
     p = os.path.join(WEB, rel)
     s = open(p, encoding="utf-8").read()

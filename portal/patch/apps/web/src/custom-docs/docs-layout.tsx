@@ -4,15 +4,6 @@ import { CategoryIcon } from '@/components/help-center/category-icon'
 import { hcArticlePath } from '@/lib/shared/help-center-url'
 import type { DocsNavCategory } from './types'
 
-/** Placeholder pages for picker options that have no docs yet (route: hc/soon/$what). */
-export const SOON: Record<string, { title: string; description: string }> = {
-  'gothic-2': { title: 'Gothic 2', description: 'The trainer for Gothic 2 is planned. Its docs will live here.' },
-  'original-renderer': {
-    title: 'Original renderer',
-    description: 'Notes for playing without GD3D11 (the game’s own DirectX 7 renderer) will live here.',
-  },
-}
-
 export function docsTree(nav: DocsNavCategory[], locale: string): PageTree.Root {
   const children: PageTree.Node[] = []
   for (const c of nav) {

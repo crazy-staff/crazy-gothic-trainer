@@ -24,7 +24,6 @@ import { FilterPill } from '@/components/public/feedback/filter-pill'
 import { SidebarSlot } from './sidebar-slot'
 import { sidebarItem, sidebarLabel } from './sidebar'
 import { Keys, StatusBadge } from './content'
-import { TrainerMock } from './trainer-mock'
 import { EASE } from './page-transition'
 
 const SECTIONS = ['Colours', 'Typography', 'Spacing', 'Radius & elevation', 'Navigation', 'Buttons', 'Forms', 'Filters & voting', 'Badges', 'Cards', 'Tabs', 'Docs components', 'Motion']
@@ -338,16 +337,6 @@ export function DesignSystemPage() {
             <Accordion title="An accordion">Questions and answers.</Accordion>
           </Accordions>
           <DynamicCodeBlock lang="ini" code={'[Menu]\nHotkey=F1\nScale=1.0'} />
-          <TrainerMock
-            spec={{
-              path: 'Character › Cheats',
-              title: 'Cheats',
-              rows: [
-                { t: 'toggle', label: 'Immortality', on: true },
-                { t: 'slider', label: 'Damage multiplier', value: 5, min: 1, max: 50 },
-              ],
-            }}
-          />
         </Section>
 
         <Section title="Motion">

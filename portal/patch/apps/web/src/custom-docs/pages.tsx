@@ -18,7 +18,7 @@ import { isPortalSupportSurfaceEnabled } from '@/lib/shared/support-surfaces'
 import { DocsContent } from './content'
 import { tocOf } from './structure'
 import type { DocsNavCategory } from './types'
-import { SOON } from './docs-layout'
+import { STATUS_LABEL, soonVariant } from './variants'
 import { PageTransition } from './page-transition'
 import { useSectionIndex } from './shell-parts'
 
@@ -171,13 +171,14 @@ export function DocsArticlePage() {
 /** Placeholder for switcher options without docs yet (Gothic 2, the original renderer). */
 export function DocsSoonPage({ what }: { what: string }) {
   const { DocsPage, DocsTitle, DocsDescription } = usePage()
-  const info = SOON[what] ?? { title: 'Coming soon', description: 'This part of the docs is not written yet.' }
+  const v = soonVariant(what)
+  const info = v ? { title: v.title, description: v.soon ?? v.description } : { title: 'Coming soon', description: 'This part of the docs is not written yet.' }
   return (
     <DocsPage tableOfContent={{ enabled: false }} footer={{ enabled: false }}>
       <DocsTitle>{info.title}</DocsTitle>
       <DocsDescription>{info.description}</DocsDescription>
       <div className="docs-media-box not-prose">
-        <span className="text-xs font-medium uppercase tracking-wider">Coming later</span>
+        <span className="text-xs font-medium uppercase tracking-wider">{v ? STATUS_LABEL[v.status] : 'Coming later'}</span>
       </div>
     </DocsPage>
   )

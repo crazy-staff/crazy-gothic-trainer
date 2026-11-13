@@ -7,6 +7,6 @@ export function railControlClass(isActive = false) {
     'outline-none focus-visible:ring-2 focus-visible:ring-ring [&>svg]:size-4 [&>svg]:shrink-0',
     isActive
       ? 'bg-primary/10 font-medium text-primary'
-      : 'text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground'
+      : 'text-muted-foreground hover:text-accent-foreground'
   )
 }

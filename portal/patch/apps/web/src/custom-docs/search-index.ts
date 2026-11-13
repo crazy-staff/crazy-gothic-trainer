@@ -5,6 +5,9 @@
 import { createSearchAPI } from 'fumadocs-core/search/server'
 import type { JSONContent } from '@tiptap/core'
 import { structuredDataOf } from './structure'
+import { GAMES, RENDERERS, variantTag, type Variant } from './variants'
+
+const available = (v: Variant) => v.status === 'available'
 
 type Api = ReturnType<typeof createSearchAPI>
 let cached: { api: Api; at: number } | null = null
@@ -72,7 +75,7 @@ async function buildIndexes() {
       description: a.description ?? undefined,
       breadcrumbs: [c.name],
       // one tag per filter of the search dialog: category, game, renderer
-      tag: ['section:docs', c.slug, 'game:gothic-1', 'renderer:gd3d11'],
+      tag: ['section:docs', c.slug, ...GAMES.filter(available).map((g) => variantTag('game', g)), ...RENDERERS.filter(available).map((r) => variantTag('renderer', r))],
       url: hcArticlePath({ locale: DEFAULT_LOCALE, urlId: a.urlId, slug: a.slug }),
       structuredData: structuredDataOf(content.get(a.id)),
     }))

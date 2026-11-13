@@ -22,6 +22,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@fumadocs/base-ui/components/ui/popover'
 import { buttonVariants } from '@fumadocs/base-ui/components/ui/button'
 import { useFetchSearch } from 'fumadocs-core/search/client'
+import { GAMES, RENDERERS, STATUS_LABEL, variantTag, type Variant } from './variants'
 
 export interface DocsSearchFilter {
   name: string
@@ -53,16 +54,14 @@ const KIND: DocsSearchFilter[] = [
   { name: 'Pages', description: 'Only page titles', value: 'pages' },
   { name: 'Headings', description: 'Page titles and section headings', value: 'headings' },
 ]
-const GAME: DocsSearchFilter[] = [
-  { name: 'Any', value: undefined },
-  { name: 'Gothic 1', description: 'Gothic 1 Crazy Trainer', value: 'game:gothic-1' },
-  { name: 'Gothic 2', description: 'Coming later', value: 'game:gothic-2', disabled: true },
-]
-const RENDERER: DocsSearchFilter[] = [
-  { name: 'Any', value: undefined },
-  { name: 'GD3D11', description: 'DirectX 11 renderer', value: 'renderer:gd3d11' },
-  { name: 'Original', description: 'Without GD3D11 · coming later', value: 'renderer:original', disabled: true },
-]
+const toFilter = (kind: 'game' | 'renderer') => (v: Variant): DocsSearchFilter => ({
+  name: v.title,
+  description: v.status === 'available' ? v.description : `${v.description} · ${STATUS_LABEL[v.status].toLowerCase()}`,
+  value: variantTag(kind, v),
+  disabled: v.status !== 'available',
+})
+const GAME: DocsSearchFilter[] = [{ name: 'Any', value: undefined }, ...GAMES.map(toFilter('game'))]
+const RENDERER: DocsSearchFilter[] = [{ name: 'Any', value: undefined }, ...RENDERERS.map(toFilter('renderer'))]
 const NONE: Record<GroupId, string | undefined> = { section: undefined, category: undefined, kind: undefined, game: undefined, renderer: undefined }
 
 function FilterMenu({

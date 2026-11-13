@@ -1,0 +1,39 @@
+import { Radio } from '@base-ui/react/radio'
+import { RadioGroup as RadioGroupPrimitive } from '@base-ui/react/radio-group'
+
+import { cn } from '@/lib/shared/utils'
+
+/** Dot colour for a radio inside a selected-tile fill, where the primary dot would vanish. */
+export const RADIO_TILE_DOT = ''
+
+function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
+  return (
+    <RadioGroupPrimitive
+      data-slot="radio-group"
+      className={cn('grid gap-3', className)}
+      {...props}
+    />
+  )
+}
+
+function RadioGroupItem({ className, ...props }: Radio.Root.Props) {
+  return (
+    <Radio.Root
+      data-slot="radio-group-item"
+      className={cn(
+        'border-input text-primary data-checked:border-primary focus-visible:border-ring focus-visible:ring-ring aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive aspect-square size-4 shrink-0 rounded-full border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+        className
+      )}
+      {...props}
+    >
+      <Radio.Indicator
+        data-slot="radio-group-indicator"
+        className="flex size-full items-center justify-center"
+      >
+        <div className="size-2 rounded-full bg-primary" />
+      </Radio.Indicator>
+    </Radio.Root>
+  )
+}
+
+export { RadioGroup, RadioGroupItem }

@@ -4,7 +4,7 @@
  *   workspace · search · portal sections · [docs: game/renderer, page tree] · page panel · footer
  * The search field and the sections never move; what a page adds appears under them.
  */
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, type ReactNode } from 'react'
 import { Link as RouterLink, useRouterState } from '@tanstack/react-router'
 import { useIntl } from 'react-intl'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -18,7 +18,6 @@ import { useSpaciousLayout } from '@fumadocs/base-ui/layouts/spacious'
 import {
   BookOpenIcon,
   ChatBubbleLeftRightIcon,
-  CpuChipIcon,
   InformationCircleIcon,
   LifebuoyIcon,
   LinkIcon,
@@ -28,7 +27,9 @@ import {
 } from '@heroicons/react/20/solid'
 import { cn } from '@/lib/shared/utils'
 import { EASE } from './page-transition'
-import { navItemLabel, useSectionIndex, useSections } from './shell-parts'
+import { GLIDE_BLOCK_CLASS, glide } from './glide'
+import { menuItem, menuPopup, navItemLabel, ThemeToggle, useSectionIndex, useSections } from './shell-parts'
+import { GAMES, RENDERERS, STATUS_LABEL, variantUrl, type Variant } from './variants'
 
 export const SIDEBAR_SLOT_ID = 'app-sidebar-slot'
 
@@ -78,51 +79,68 @@ function Sections() {
 
 // ---------------------------------------------------------------- docs: game and renderer
 
-interface Option {
-  title: string
-  description: string
-  url: string
-  icon: ReactNode
-}
 const badge = (t: string) => (
-  <span className="flex size-4 items-center justify-center rounded bg-fd-primary/15 text-[9px] font-bold text-fd-primary">{t}</span>
+  <span className="flex h-5 min-w-5 items-center justify-center rounded-md bg-fd-primary/15 px-1 text-[9px] font-bold text-fd-primary">{t}</span>
 )
-const GAMES: Option[] = [
-  { title: 'Gothic 1', description: 'Gothic 1 Crazy Trainer', url: '/hc', icon: badge('G1') },
-  { title: 'Gothic 2', description: 'Coming later', url: '/hc/soon/gothic-2', icon: badge('G2') },
-]
-const RENDERERS: Option[] = [
-  { title: 'GD3D11', description: 'DirectX 11 renderer', url: '/hc', icon: <CpuChipIcon /> },
-  { title: 'Original', description: 'Without GD3D11 · coming later', url: '/hc/soon/original-renderer', icon: <CpuChipIcon /> },
-]
+const statusTag = (v: Variant) => (
+  <span
+    className={cn(
+      'shrink-0 rounded-md px-1.5 py-px text-[10px] font-medium',
+      v.status === 'available' ? 'bg-fd-primary/12 text-fd-primary' : 'bg-fd-muted text-fd-muted-foreground'
+    )}
+  >
+    {STATUS_LABEL[v.status]}
+  </span>
+)
 
-function Picker({ options, pathname }: { options: Option[]; pathname: string }) {
-  const selected = options.find((o) => o.url !== '/hc' && pathname.startsWith(o.url)) ?? options[0]
+function Picker({ kind, options, pathname }: { kind: 'game' | 'renderer'; options: Variant[]; pathname: string }) {
+  const selected =
+    options.find((o) => o.status !== 'available' && pathname.startsWith(variantUrl(kind, o))) ??
+    options.find((o) => o.status === 'available') ??
+    options[0]
   return (
     <Menu.Root>
-      <Menu.Trigger className="flex h-10 w-full items-center gap-3 ps-[calc(--spacing(2.5)-1px)] pe-2.5 text-start text-sm font-medium outline-none transition-colors hover:bg-fd-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fd-ring data-popup-open:bg-fd-accent [&_svg]:size-4 [&_svg]:shrink-0">
-        {selected.icon}
-        <span className="flex-1 truncate">{selected.title}</span>
-        <ChevronsUpDownIcon className="size-3.5! text-fd-muted-foreground" />
+      <Menu.Trigger className="flex h-10 w-full items-center gap-2.5 ps-2 pe-2.5 text-start text-sm font-medium outline-none transition-colors hover:bg-fd-accent/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fd-ring data-popup-open:bg-fd-accent/60">
+        {badge(selected.short)}
+        <span className="flex min-w-0 flex-1 flex-col leading-tight">
+          <span className="text-[10px] font-normal uppercase tracking-wide text-fd-muted-foreground">{kind === 'game' ? 'Game' : 'Renderer'}</span>
+          <span className="truncate">{selected.title}</span>
+        </span>
+        <ChevronsUpDownIcon className="size-3.5 shrink-0 text-fd-muted-foreground" />
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Positioner align="start" sideOffset={8} alignOffset={-4} positionMethod="fixed" className="z-50">
-          <Menu.Popup className="flex w-[calc(var(--anchor-width)+--spacing(2))] flex-col rounded-2xl border bg-fd-popover p-1 text-sm text-fd-popover-foreground shadow-lg outline-none origin-(--transform-origin) transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-97 data-ending-style:opacity-0">
-            {options.map((o) => (
-              <Menu.LinkItem
-                key={o.url + o.title}
-                closeOnClick
-                render={<RouterLink to={o.url as '/'} />}
-                className="flex min-h-9 w-full items-start gap-3 rounded-lg px-[calc(--spacing(2.5)-1px)] py-2 text-start outline-none transition-colors duration-100 data-highlighted:bg-fd-accent data-highlighted:text-fd-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0"
-              >
-                <span className="mt-0.5">{o.icon}</span>
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-medium">{o.title}</span>
-                  <span className="truncate text-xs text-fd-muted-foreground">{o.description}</span>
-                </span>
-                {o === selected && <CheckIcon className="mt-0.5 text-fd-primary" />}
-              </Menu.LinkItem>
-            ))}
+        <Menu.Positioner align="start" sideOffset={6} alignOffset={0} positionMethod="fixed" className="z-50">
+          <Menu.Popup className={cn(menuPopup, 'w-[max(var(--anchor-width),17rem)]')}>
+            <Menu.Group>
+              <Menu.GroupLabel className="px-2.5 pt-1.5 pb-1 text-xs font-medium text-fd-muted-foreground">
+                {kind === 'game' ? 'Game' : 'Renderer'}
+              </Menu.GroupLabel>
+              {options.map((o) => (
+                <Menu.LinkItem
+                  key={o.id}
+                  closeOnClick
+                  render={<RouterLink to={variantUrl(kind, o) as '/'} />}
+                  className={cn(menuItem, 'items-start py-2')}
+                >
+                  <span className="mt-0.5">{badge(o.short)}</span>
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate font-medium">{o.title}</span>
+                      {o === selected && <CheckIcon className="size-3.5! text-fd-primary" />}
+                    </span>
+                    <span className="truncate text-xs text-fd-muted-foreground">{o.description}</span>
+                    <span className="mt-0.5 flex flex-wrap gap-1">
+                      {statusTag(o)}
+                      {o.tags?.map((t) => (
+                        <span key={t} className="rounded-md border px-1.5 py-px text-[10px] text-fd-muted-foreground">
+                          {t}
+                        </span>
+                      ))}
+                    </span>
+                  </span>
+                </Menu.LinkItem>
+              ))}
+            </Menu.Group>
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
@@ -130,22 +148,20 @@ function Picker({ options, pathname }: { options: Option[]; pathname: string }) 
   )
 }
 
-function DocsSection({ pathname }: { pathname: string }) {
+/** Game and renderer: fixed under the sections on docs pages. */
+function DocsPickers({ pathname }: { pathname: string }) {
   return (
     <motion.div
-      key="docs"
+      key="docs-pickers"
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.4, ease: EASE }}
+      transition={{ duration: 0.35, ease: EASE }}
       className="overflow-clip"
     >
-      <div className="mt-4 mb-5 flex flex-col divide-y overflow-clip rounded-xl border bg-fd-secondary/50">
-        <Picker options={GAMES} pathname={pathname} />
-        <Picker options={RENDERERS} pathname={pathname} />
-      </div>
-      <div className="flex flex-col">
-        <PageTree />
+      <div className="mt-3 flex flex-col divide-y overflow-clip rounded-xl border bg-fd-secondary/50">
+        <Picker kind="game" options={GAMES} pathname={pathname} />
+        <Picker kind="renderer" options={RENDERERS} pathname={pathname} />
       </div>
     </motion.div>
   )
@@ -153,19 +169,39 @@ function DocsSection({ pathname }: { pathname: string }) {
 
 // ---------------------------------------------------------------- the sidebar
 
+/**
+ * Only this part scrolls: the docs tree and the page's own panel. The sections and the
+ * pickers above stay put, and the scroll goes back to the top when the section changes.
+ */
 function Viewport() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const onDocs = pathname === '/hc' || pathname.startsWith('/hc/')
+  const section = useSectionIndex(pathname)
+  const viewport = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    viewport.current?.scrollTo({ top: 0 })
+  }, [section])
   return (
-    <ScrollArea.Root className="mt-2 min-h-0 flex-1">
-      <ScrollArea.Viewport className="size-full overscroll-contain px-3 pt-3 pb-8 mask-t-from-[calc(100%-12px)] mask-b-from-[calc(100%-32px)]">
-        <ScrollArea.Content ref={follow} className="relative flex flex-col">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute top-0 left-0 rounded-lg bg-fd-accent/60 bg-clip-content py-0.5 opacity-0 transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:transition-[translate,width,height,opacity]"
-          />
-          <Sections />
-          <AnimatePresence initial={false}>{onDocs && <DocsSection pathname={pathname} />}</AnimatePresence>
+    <ScrollArea.Root className="min-h-0 flex-1">
+      <ScrollArea.Viewport
+        ref={viewport}
+        className="size-full overscroll-contain px-3 pt-4 pb-8 mask-t-from-[calc(100%-16px)] mask-b-from-[calc(100%-32px)]"
+      >
+        <ScrollArea.Content className="flex flex-col" data-glide-zone="">
+          <AnimatePresence initial={false} mode="popLayout">
+            {onDocs && (
+              <motion.div
+                key="docs-tree"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.35, ease: EASE }}
+                className="flex flex-col"
+              >
+                <PageTree />
+              </motion.div>
+            )}
+          </AnimatePresence>
           {/* the page's own panel (SidebarSlot) */}
           <div id={SIDEBAR_SLOT_ID} className="empty:hidden" />
         </ScrollArea.Content>
@@ -177,13 +213,29 @@ function Viewport() {
   )
 }
 
+/** The fixed part: portal sections, then (on docs pages) game and renderer. */
+function Fixed() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const onDocs = pathname === '/hc' || pathname.startsWith('/hc/')
+  return (
+    <div className="shrink-0 px-3 pt-3">
+      <div data-glide-zone="">
+        <Sections />
+      </div>
+      <AnimatePresence initial={false}>{onDocs && <DocsPickers pathname={pathname} />}</AnimatePresence>
+      <div className="mt-3 h-px bg-fd-border/70" />
+    </div>
+  )
+}
+
 function Footer() {
   return (
-    <div className="flex items-center gap-1 px-3 pb-3">
-      <RouterLink to={'/about' as '/'} className={cn(sidebarItem(), 'hover:bg-fd-accent/60')}>
+    <div className="flex shrink-0 items-center gap-2 border-t border-fd-border/70 px-3 pt-2 pb-3" data-glide-zone="">
+      <RouterLink to={'/about' as '/'} className={cn(sidebarItem(), 'w-auto flex-1')}>
         <InformationCircleIcon />
         About
       </RouterLink>
+      <ThemeToggle />
     </div>
   )
 }
@@ -191,13 +243,16 @@ function Footer() {
 function Top() {
   const { slots } = useSpaciousLayout()
   return (
-    <div className="flex flex-col gap-2 px-3">
+    <div className="flex shrink-0 flex-col gap-2 px-3">
       {slots.searchTrigger && (
         <slots.searchTrigger.full hideIfDisabled className="h-10 gap-3 rounded-xl ps-[calc(--spacing(2.5)-1px)] pe-2 [&_svg]:shrink-0" />
       )}
     </div>
   )
 }
+
+/** The glide block: one per column, it follows the hovered row of any glide zone. */
+const glideBlock = <div data-glide-block="" aria-hidden className={GLIDE_BLOCK_CLASS} />
 
 export function Sidebar() {
   const { collapsed, mode } = Base.useSidebar()
@@ -214,18 +269,21 @@ export function Sidebar() {
       )}
     >
       <div
+        ref={follow}
         className={cn(
-          'flex w-(--fd-sidebar-width) shrink-0 flex-col transition-[opacity,translate] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+          'relative flex w-(--fd-sidebar-width) shrink-0 flex-col transition-[opacity,translate] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
           collapsed && '-translate-x-3 opacity-0'
         )}
       >
-        <div className="my-2 flex h-(--fd-header-height) items-center gap-2 ps-5.5 pe-3">
+        {glideBlock}
+        <div className="my-2 flex h-(--fd-header-height) shrink-0 items-center gap-2 ps-5.5 pe-3">
           <slots.navTitle className="me-auto inline-flex min-w-0 items-center gap-2 text-[0.9375rem] font-semibold" />
           <Base.SidebarCollapseTrigger className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'size-8 text-fd-muted-foreground')}>
             <SidebarIcon />
           </Base.SidebarCollapseTrigger>
         </div>
         <Top />
+        <Fixed />
         <Viewport />
         <Footer />
       </div>
@@ -239,15 +297,19 @@ export function SidebarDrawer() {
     <Fragment>
       <Base.SidebarDrawerOverlay className="fixed inset-0 z-40 backdrop-blur-xs data-[state=open]:animate-fd-fade-in data-[state=closed]:animate-fd-fade-out" />
       <Base.SidebarDrawerContent className="fixed inset-y-0 inset-e-0 z-40 flex w-[85%] max-w-95 flex-col border-s bg-fd-background text-[0.9375rem] shadow-lg data-[state=open]:animate-fd-sidebar-in data-[state=closed]:animate-fd-sidebar-out">
-        <div className="flex h-(--fd-header-height) items-center gap-1.5 ps-5 pe-2.5">
-          <slots.navTitle className="me-auto inline-flex min-w-0 items-center gap-2 font-semibold" />
-          <Base.SidebarTrigger className={buttonVariants({ variant: 'ghost', size: 'icon-sm', className: 'p-2' })}>
-            <SidebarIcon />
-          </Base.SidebarTrigger>
+        <div ref={follow} className="relative flex min-h-0 flex-1 flex-col">
+          {glideBlock}
+          <div className="flex h-(--fd-header-height) shrink-0 items-center gap-1.5 ps-5 pe-2.5">
+            <slots.navTitle className="me-auto inline-flex min-w-0 items-center gap-2 font-semibold" />
+            <Base.SidebarTrigger className={buttonVariants({ variant: 'ghost', size: 'icon-sm', className: 'p-2' })}>
+              <SidebarIcon />
+            </Base.SidebarTrigger>
+          </div>
+          <Top />
+          <Fixed />
+          <Viewport />
+          <Footer />
         </div>
-        <Top />
-        <Viewport />
-        <Footer />
       </Base.SidebarDrawerContent>
     </Fragment>
   )
@@ -257,43 +319,7 @@ export function SidebarProvider(props: Base.SidebarProviderProps) {
   return <Base.SidebarProvider {...props} />
 }
 
-/** A soft block glides to the row under the mouse or the keyboard focus (from Fumadocs). */
-function follow(area: HTMLDivElement | null) {
-  const block = area?.firstElementChild
-  if (!area || !(block instanceof HTMLElement)) return
-  let current: Element | null = null
-  const show = (item: Element | null) => {
-    if (item === current) return
-    block.style.transitionProperty = current ? '' : 'opacity'
-    current = item
-    if (!item) {
-      block.style.opacity = '0'
-      return
-    }
-    const rect = item.getBoundingClientRect()
-    const origin = area.getBoundingClientRect()
-    block.style.translate = `${rect.left - origin.left}px ${rect.top - origin.top}px`
-    block.style.width = `${rect.width}px`
-    block.style.height = `${rect.height}px`
-    block.style.opacity = item.matches('[data-active=true], [aria-pressed=true], [data-no-glide]') ? '0' : '1'
-  }
-  const itemOf = (target: EventTarget | null) => (target instanceof Element ? target.closest('a[href], button') : null)
-  const controller = new AbortController()
-  const { signal } = controller
-  area.addEventListener('pointerover', (e) => {
-    const item = itemOf(e.target)
-    if (item && e.pointerType === 'mouse') show(item)
-    else if (!item) show(null)
-  }, { signal })
-  area.addEventListener('pointerleave', () => show(null), { signal })
-  area.addEventListener('focusin', (e) => {
-    if (e.target instanceof Element && e.target.matches(':focus-visible')) show(itemOf(e.target))
-  }, { signal })
-  area.addEventListener('focusout', () => {
-    if (!area.matches(':hover')) show(null)
-  }, { signal })
-  return () => controller.abort()
-}
+const follow = (area: HTMLDivElement | null) => glide(area, { zoned: true })
 
 // ---------------------------------------------------------------- docs page tree
 

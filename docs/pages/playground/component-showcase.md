@@ -81,22 +81,6 @@ The same information as an interactive table: click a row to see the description
 }
 ```
 
-## Trainer menu replica
-
-A drawing of a card from the in-game menu, so readers know what to look for:
-
-```trainer
-{"path": "Character › Cheats", "title": "Cheats", "rows": [
-  {"t": "toggle", "label": "God mode", "on": true},
-  {"t": "toggle", "label": "Infinite mana", "on": false, "note": "spells and scrolls"},
-  {"t": "slider", "label": "Run speed", "value": 1.6, "min": 0.5, "max": 5, "unit": "×"},
-  {"t": "select", "label": "Hotkey", "value": "F6"},
-  {"t": "tabs", "items": ["Player", "Target", "Everyone"], "active": 0},
-  {"t": "checks", "items": [["Humans", true], ["Monsters", false]]},
-  {"t": "button", "label": "Max everything"}
-]}
-```
-
 ## Steps
 
 ```steps
