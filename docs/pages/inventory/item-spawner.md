@@ -7,6 +7,8 @@ menu: Ekwipunek › Spawner
 
 Every item of the game in one searchable list, sorted into categories (melee weapons, ranged weapons, armour, runes, scrolls, potions, food, plants, keys, amulets and rings, quest items…). Each item shows its icon and price in ore.
 
+## In the menu
+
 ```trainer
 {"path": "Inventory › Spawner", "title": "Items", "rows": [
  {"t": "tabs", "items": ["All", "Weapons", "Armour", "Magic", "Potions", "Other"], "active": 1},
@@ -19,6 +21,8 @@ Every item of the game in one searchable list, sorted into categories (melee wea
 - **Search** by name, filter by category, set the **amount** and add the item.
 - **Add ore** gives you nuggets of ore directly.
 - Item icons are generated in the game the first time — you can regenerate them in [Compendium](doc:compendium).
+
+## See it in action
 
 ```media
 screenshot: The item list with icons and categories

@@ -7,6 +7,8 @@ menu: Postacie › Otoczenie
 
 A list of every character within the radius (default 30 m), including your party and the dead. Filter by type (humans, monsters, party, dead…) and use the same actions as on the [Target](doc:target) page on any of them: target, teleport, pull, add to party, calm, make hostile, freeze, kill, revive, remove, make a portrait.
 
+## In the menu
+
 ```trainer
 {"path": "Characters › Surroundings", "title": "Around you — 30 m", "rows": [
  {"t": "tabs", "items": ["All", "Humans", "Monsters", "Party", "Dead"], "active": 0},

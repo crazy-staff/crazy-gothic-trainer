@@ -7,6 +7,8 @@ menu: Postacie › Spawner
 
 Every NPC and monster of the game in a searchable list. Pick one, set how many, and they appear next to you.
 
+## In the menu
+
 ```trainer
 {"path": "Characters › Spawner", "title": "Spawn", "rows": [
  {"t": "text", "label": "Orc warrior", "value": "monster"},
@@ -16,8 +18,12 @@ Every NPC and monster of the game in a searchable list. Pick one, set how many, 
 ]}
 ```
 
+## What you can do
+
 - **When the character already exists** — *move the original* (the real NPC with its quests comes to you) or *create a copy*.
 - **Spawn by instance name** — type any instance (like the console `insert`) to spawn something that is not on the list.
 - **Spawned list** — everything you spawned, with removal; characters from the `insert` command land here too.
+
+## Good to know
 
 > **Tip:** Spawned NPCs can be added to the party right away from the list.

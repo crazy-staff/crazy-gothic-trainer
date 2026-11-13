@@ -5,6 +5,8 @@ order: 4
 menu: Wizualia › Celownik
 ---
 
+## In the menu
+
 ```trainer
 {"path": "Visuals › Crosshair", "title": "Crosshair", "rows": [
  {"t": "tabs", "items": ["Cross", "Dot", "Circle", "Corners"], "active": 0},
@@ -16,6 +18,8 @@ menu: Wizualia › Celownik
 ```
 
 Each shape shows only the settings that make sense for it.
+
+## Options
 
 | Option | What it does | Default |
 |---|---|---|

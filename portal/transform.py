@@ -31,6 +31,25 @@ EDITS = {
         ("          <Outlet />\n",
          "          <CustomDocsLayout nav={docsNav} locale={locale}>\n            <Outlet />\n          </CustomDocsLayout>\n"),
     ],
+    # every portal page in the Fumadocs frame (app-shell.tsx); pages send panels to its sidebar
+    "routes/_portal.tsx": [
+        ("import { PortalHeader } from '@/components/public/portal-header'\n",
+         "import { PortalHeader } from '@/components/public/portal-header'\nimport { AppShell } from '@/custom-docs/app-shell'\n"),
+        ("                <FileViewerProvider onJumpToMessage={scrollToMessage}>\n                  <Outlet />\n                </FileViewerProvider>",
+         "                <FileViewerProvider onJumpToMessage={scrollToMessage}>\n                  <AppShell>\n                    <Outlet />\n                  </AppShell>\n                </FileViewerProvider>"),
+    ],
+    "components/public/feedback/feedback-container.tsx": [
+        ("import { FeedbackSidebar } from '@/components/public/feedback/feedback-sidebar'\n",
+         "import { FeedbackSidebar } from '@/components/public/feedback/feedback-sidebar'\nimport { SidebarSlot } from '@/custom-docs/sidebar-slot'\n"),
+        ("        <FeedbackSidebar footer={poweredBy}>{filterPanel('sidebar')}</FeedbackSidebar>\n",
+         "        <SidebarSlot\n          fallback={<FeedbackSidebar footer={poweredBy}>{filterPanel('sidebar')}</FeedbackSidebar>}\n        >\n          {filterPanel('sidebar')}\n          {poweredBy}\n        </SidebarSlot>\n"),
+    ],
+    "routes/_portal/settings.tsx": [
+        ("import { SettingsNav } from '@/components/settings/settings-nav'\n",
+         "import { SettingsNav } from '@/components/settings/settings-nav'\nimport { SidebarSlot } from '@/custom-docs/sidebar-slot'\n"),
+        ("        <SettingsNav showApiKeys={isTeamMember(userRole)} />\n",
+         "        <SidebarSlot fallback={<SettingsNav showApiKeys={isTeamMember(userRole)} />}>\n          <SettingsNav showApiKeys={isTeamMember(userRole)} />\n        </SidebarSlot>\n"),
+    ],
     # pages: docs home, category and article pages instead of the help-center ones
     "routes/_portal/hc/index.tsx": [
         ("import { createFileRoute, redirect } from '@tanstack/react-router'\n",

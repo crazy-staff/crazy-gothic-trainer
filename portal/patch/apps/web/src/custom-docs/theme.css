@@ -126,58 +126,121 @@ html:not(.dark) {
 
 body:has([data-portal]) { background: var(--app-frame); }
 
-/* Wide screens: the fumadocs.dev frame. The panel has the window's height and scrolls inside,
-   so its edges and the top bar always show, as on the docs pages. */
-@media (min-width: 768px) {
-  body:has([data-portal]) { overflow: hidden; }
-  [data-portal] {
-    height: calc(100dvh - 1rem);
-    min-height: 0;
-    margin: 0.5rem;
-    overflow-x: clip;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-    border: 1px solid var(--border);
-    border-radius: 1rem;
-    background: var(--background);
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
-  }
-}
-/* The header is the panel's top bar: the page colour, fading out under it (fumadocs.dev). */
-[data-portal] .portal-header {
-  border: 0;
-  box-shadow: none;
-  backdrop-filter: none;
-  background: linear-gradient(to bottom, var(--background) 72%, color-mix(in oklab, var(--background) 0%, transparent));
-}
-.portal-header .portal-header__name { font-size: 0.9375rem; }
-.portal-header .portal-nav { gap: 0.125rem; }
-.portal-header .portal-nav__item {
-  border-radius: 0.5rem;
-  padding: 0.3rem 0.6rem;
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--muted-foreground);
-  background: transparent;
-}
-.portal-header .portal-nav__item:hover { background: var(--accent); color: var(--accent-foreground); }
-.portal-header .portal-nav__item--active,
-.portal-header .portal-nav__item--active:hover {
-  background: color-mix(in oklab, var(--primary) 10%, transparent);
-  color: var(--primary);
-  font-weight: 500;
+/* Every page sits in the Fumadocs frame (app-shell.tsx, docs-layout.tsx): the portal's own
+   header and page container step aside. */
+body:has(#fd-spacious-layout) .portal-header { display: none; }
+body:has(#fd-spacious-layout) [data-portal] {
+  min-height: 100dvh;
+  background: var(--color-fd-card);
 }
 
-/* Docs pages: their own frame (fumadocs.css), so the portal panel steps aside. */
-body:has(.custom-docs) [data-portal] {
-  margin: 0;
-  height: auto;
-  min-height: 100dvh;
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: var(--app-frame);
-  box-shadow: none;
+/* The page's own panel in the sidebar (sidebar-slot.tsx). */
+#nd-sidebar p:has(> #app-sidebar-slot),
+#nd-sidebar-mobile p:has(> #app-sidebar-slot) {
+  display: block;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--color-fd-foreground);
+}
+#app-sidebar-slot { display: block; }
+#nd-sidebar p:has(> #app-sidebar-slot:empty) { margin: 0; }
+.app-sidebar-panel { display: flex; flex-direction: column; gap: 0.25rem; }
+/* Quackback's cards and columns become plain sidebar sections there. */
+.app-sidebar-panel :where(.bg-card, [data-slot='card']) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding-inline: 0 !important;
+}
+.app-sidebar-panel :where(nav, aside) { width: 100% !important; position: static !important; }
+.app-sidebar-panel :where(.sticky) { position: static !important; }
+.app-sidebar-panel :where(h2, h3, h4) {
+  margin: 1rem 0 0.375rem;
+  padding-inline: 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-fd-muted-foreground);
+}
+.app-sidebar-panel :where(a, button):not([data-slot='badge']) { border-radius: 0.5rem; }
+
+/* The page inside the panel: Quackback's pages bring their own width and padding. */
+.app-shell #nd-page.app-page { max-width: none; padding: 0; gap: 0; }
+.app-shell .app-page-content { width: 100%; }
+
+
+/* ------------------------------------------------------------------ design tokens (see /design-system) */
+
+/* Radius: Fumadocs' 8 px controls, 12 px cards, 16 px panels (no pill buttons). The body is
+   included because a configured branding radius is restated there. */
+html, html body, html [data-portal], html [data-admin-canvas] {
+  --radius: 0.75rem;
+  --radius-item: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-panel: 0.75rem;
+}
+
+/* Charts and analytics: the purple family instead of Quackback's yellow. */
+html.dark, html.dark [data-admin-canvas], html.dark [data-portal] {
+  --chart-1: hsl(250, 100%, 80%);
+  --chart-2: hsl(200, 90%, 70%);
+  --chart-3: hsl(150, 60%, 62%);
+  --chart-4: hsl(320, 80%, 75%);
+  --chart-5: hsl(40, 90%, 68%);
+  --metric-posts: hsl(250, 100%, 80%);
+  --metric-votes: hsl(250, 100%, 80%);
+  --metric-comments: hsl(250, 100%, 80%);
+  --metric-users: hsl(250, 100%, 80%);
+  --metric-visitors: hsl(250, 100%, 80%);
+  --metric-pageviews: hsl(250, 100%, 80%);
+  --metric-visits: hsl(250, 100%, 80%);
+  --metric-widget: hsl(200, 90%, 70%);
+  --metric-email: hsl(150, 60%, 62%);
+  --metric-ticket-form: hsl(320, 80%, 75%);
+  --warning: hsl(40, 90%, 62%);
+}
+html:not(.dark), html:not(.dark) [data-admin-canvas], html:not(.dark) [data-portal] {
+  --chart-1: hsl(250, 80%, 54%);
+  --chart-2: hsl(200, 85%, 45%);
+  --chart-3: hsl(150, 60%, 38%);
+  --chart-4: hsl(320, 70%, 52%);
+  --chart-5: hsl(35, 90%, 48%);
+  --metric-posts: hsl(250, 80%, 54%);
+  --metric-votes: hsl(250, 80%, 54%);
+  --metric-comments: hsl(250, 80%, 54%);
+  --metric-users: hsl(250, 80%, 54%);
+  --metric-visitors: hsl(250, 80%, 54%);
+  --metric-pageviews: hsl(250, 80%, 54%);
+  --metric-visits: hsl(250, 80%, 54%);
+}
+
+/* Form labels: a clear gap above their field. */
+label:has(+ [data-slot='input']),
+label:has(+ textarea),
+label:has(+ [data-slot='textarea']),
+label:has(+ [data-slot='select-trigger']),
+[data-slot='label']:has(+ [data-slot='input']) {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Hover and press like the docs: one easing, quick, and a soft accent fill. */
+:where(button, a, [role='menuitem'], [role='tab']) {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+:where([data-slot='button']):active { scale: 0.97; }
+
+/* Admin: rail items and side-pane rows fill with the accent on hover, like the docs sidebar. */
+[data-admin-shell] ~ *, [data-admin-canvas] { --chrome-hover: var(--accent); }
+
+/* Callout and state colours of the docs (softer than Fumadocs' defaults on the dark frame). */
+html.dark {
+  --color-fd-info: #6bb3ff;
+  --color-fd-success: #73eb8c;
+  --color-fd-warning: #fbcc4d;
+  --color-fd-error: #f87171;
+  --color-fd-idea: #c4b5fd;
 }

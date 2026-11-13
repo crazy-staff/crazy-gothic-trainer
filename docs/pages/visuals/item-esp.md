@@ -5,6 +5,8 @@ order: 2
 menu: Wizualia › ESP przedmiotów
 ---
 
+## Options
+
 | Option | What it does | Default |
 |---|---|---|
 | **Item ESP** | shows items lying in the world and chests | — |
@@ -12,6 +14,8 @@ menu: Wizualia › ESP przedmiotów
 | **Max range** | items and chests | 50 m |
 | **Min. value** | only items worth at least this much ore | 0 |
 | **Max items / chests at once** | the closest ones | 40 / 20 |
+
+## In the menu
 
 ```trainer
 {"path": "Visuals › Item ESP", "title": "Items", "rows": [

@@ -5,6 +5,8 @@ order: 3
 menu: Postać › Cheaty
 ---
 
+## In the menu
+
 ```trainer
 {"path": "Character › Cheats", "title": "Cheats", "rows": [
  {"t": "toggle", "label": "Immortality", "on": true, "note": "HP does not drop"},
@@ -16,6 +18,8 @@ menu: Postać › Cheaty
 ]}
 ```
 
+## Options
+
 | Option | What it does |
 |---|---|
 | **Immortality** | your HP does not drop. While you control another body ([body swap](doc:target)), it also protects your real hero. |
@@ -24,5 +28,7 @@ menu: Postać › Cheaty
 | **Ignore drawn weapons** | NPCs see you normally, they just do not react to a weapon in your hands. Ghost mode already includes this. |
 | **Damage multiplier** | multiplies the damage you deal to the NPC you are aiming at. |
 | **Infinite mana** | spells cost nothing. |
+
+## Good to know
 
 > **Note:** *Ghost mode* and *Ignore drawn weapons* are one card with tabs — only one of them can be on.

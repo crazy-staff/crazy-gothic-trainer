@@ -7,6 +7,8 @@ menu: Postać › Wygląd
 
 Change how the Nameless Hero looks. All parts are in one card with a **preview** on a copy of the hero, so you can try things before applying them.
 
+## In the menu
+
 ```trainer
 {"path": "Character › Appearance", "title": "Look", "rows": [
  {"t": "value", "label": "Head", "value": 2, "min": 0, "max": 10},
@@ -16,6 +18,8 @@ Change how the Nameless Hero looks. All parts are in one card with a **preview**
  {"t": "button", "label": "Apply look"}
 ]}
 ```
+
+## Options
 
 | Option | What it does |
 |---|---|
@@ -27,6 +31,8 @@ Change how the Nameless Hero looks. All parts are in one card with a **preview**
 | **Weight** | thin to fat — `0` = normal |
 
 The preview updates automatically (or with a button, if you turn auto-preview off). Nothing changes on the hero until you press **Apply look**.
+
+## See it in action
 
 ```media
 screenshot: The look card with the preview of the hero

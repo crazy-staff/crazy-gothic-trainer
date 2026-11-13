@@ -7,6 +7,8 @@ menu: Wizualia › Kolory
 
 Every kind of character and item has its own colour — enemies, neutrals, party, spawned, arena, items by category, chests. Click a colour to change it; the preview at the top shows the result.
 
+## In the menu
+
 ```trainer
 {"path": "Visuals › Colours", "title": "Characters", "rows": [
  {"t": "text", "label": "Enemies", "value": "■ red"},

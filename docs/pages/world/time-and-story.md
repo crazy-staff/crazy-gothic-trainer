@@ -5,6 +5,8 @@ order: 1
 menu: Świat › Czas i fabuła
 ---
 
+## In the menu
+
 ```trainer
 {"path": "World › Time and story", "title": "Time", "rows": [
  {"t": "slider", "label": "World speed", "value": 0.3, "min": 0.1, "max": 3, "note": "0.1 = slow-mo, 3 = turbo"},
@@ -15,6 +17,8 @@ menu: Świat › Czas i fabuła
 ]}
 ```
 
+## Options
+
 | Option | What it does |
 |---|---|
 | **World speed** | slow motion or turbo — `0.1` to `3` |
@@ -23,5 +27,7 @@ menu: Świat › Czas i fabuła
 | **Set the hour** | 0–23; your party and spawned characters stay with you |
 | **Stop the time of day** | the clock stands still |
 | **Jump to a chapter** | runs the game's chapter change |
+
+## Good to know
 
 > **Warning:** Jumping to a chapter runs the same script as the story does — it can break quests of the chapters you skip.

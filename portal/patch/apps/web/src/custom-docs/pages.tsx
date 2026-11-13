@@ -19,6 +19,7 @@ import { DocsContent } from './content'
 import { tocOf } from './structure'
 import type { DocsNavCategory } from './types'
 import { SOON } from './docs-layout'
+import { PageTransition } from './page-transition'
 
 /** Page components of fumadocs.dev's spacious layout. */
 function usePage() {
@@ -136,9 +137,12 @@ export function DocsArticlePage() {
   const supportEnabled = isPortalSupportSurfaceEnabled(settings?.featureFlags, settings?.portalConfig)
   const json = article.contentJson && isRichTextContent(article.contentJson) ? (article.contentJson as JSONContent) : null
   const toc = tocOf(json)
+  const { nav } = useDocsNav()
+  const order = nav.flatMap((c) => c.articles).findIndex((a) => a.id === article.id)
   return (
     // keyed by article: the outline watches the headings of the page it mounted with
     <DocsPage key={article.id} toc={toc}>
+      <PageTransition id={article.id} position={[0, order]} className="flex flex-col gap-4">
       <DocsTitle>{article.title}</DocsTitle>
       {article.description && <DocsDescription>{article.description}</DocsDescription>}
       <div className="docs-body flex-1">
@@ -154,6 +158,7 @@ export function DocsArticlePage() {
         <HelpCenterArticleFeedback articleId={article.id as never} supportHref={supportEnabled ? '/support/new' : null} />
       </div>
       {article.updatedAt && <PageLastUpdate date={new Date(article.updatedAt)} />}
+      </PageTransition>
     </DocsPage>
   )
 }

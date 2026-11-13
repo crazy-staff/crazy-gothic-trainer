@@ -7,6 +7,8 @@ menu: Narzędzia › Kompendium
 
 The trainer draws **portraits of characters** (when you aim at them or save them as a target) and **icons of items** (for the spawner and lists). The compendium shows them all.
 
+## Options
+
 | Action | What it does |
 |---|---|
 | **Browse** | every portrait and icon, searchable |

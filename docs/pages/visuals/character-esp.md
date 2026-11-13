@@ -27,6 +27,8 @@ Shows characters through walls, with exactly the details you tick.
 
 ## Arrows and edge markers
 
+## What you can do
+
 - **Arrows around the crosshair** point to characters on a circle (radius 140 px by default).
 - **Edge markers** sit on the screen edge where a box left the screen.
 

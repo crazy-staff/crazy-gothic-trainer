@@ -322,3 +322,7 @@ body:has(.custom-docs) .portal-header { display: none; }
 .docs-home-hero { position: relative; padding: 2.5rem 0 1rem; }
 .docs-home-hero::before { content: ''; position: absolute; inset: -2rem -2rem auto; height: 16rem; z-index: -1; background: radial-gradient(60% 80% at 20% 0%, color-mix(in oklab, var(--color-fd-primary) 16%, transparent), transparent 70%); pointer-events: none; }
 .docs-feedback { margin-top: 2rem; }
+
+/* A little more room between the top bar and the page. */
+.custom-docs #fd-spacious-layout { --fd-header-height: 3.75rem; }
+.custom-docs #nd-page { padding-top: 2rem; }

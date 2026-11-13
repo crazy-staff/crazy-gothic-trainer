@@ -19,4 +19,6 @@ order: 2
 3. **In progress → Needs verification** — it is in a test build and testers confirm it.
 4. **Done** — shipped and listed in the [Changelog](/changelog). Voters are notified at every step. Ideas that will not be done are **Rejected** with a reason.
 
+## Good to know
+
 > **Tip:** Ports of open-source Union plugins and mods are welcome **with credit** — link the source in your idea.

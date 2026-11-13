@@ -5,6 +5,8 @@ order: 3
 menu: Fun › Chaos
 ---
 
+## Options
+
 | Option | What it does | Default |
 |---|---|---|
 | **Everyone into the air** | NPCs within the radius fly 15 m up | — |
@@ -14,6 +16,8 @@ menu: Fun › Chaos
 | **Your speed** (Quicksilver) | `1` = normal | 1.3 |
 | **Party fast too** | your party moves at your speed | — |
 
+## In the menu
+
 ```trainer
 {"path": "Fun › Chaos", "title": "Quicksilver", "rows": [
  {"t": "toggle", "label": "Quicksilver mode", "on": true},
@@ -22,6 +26,8 @@ menu: Fun › Chaos
  {"t": "toggle", "label": "Party fast too", "on": false}
 ]}
 ```
+
+## See it in action
 
 ```media
 video: Quicksilver mode — arrows hanging in the air

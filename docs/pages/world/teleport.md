@@ -5,6 +5,8 @@ order: 2
 menu: Świat › Teleport
 ---
 
+## In the menu
+
 ```trainer
 {"path": "World › Teleport", "title": "Places", "rows": [
  {"t": "tabs", "items": ["All", "Camps", "Dungeons", "Mine", "Saved"], "active": 0},
@@ -14,9 +16,13 @@ menu: Świat › Teleport
 ]}
 ```
 
+## What you can do
+
 - **Places** — a list of locations with icons by type (camps, dungeons, mines, temples…), filterable with chips.
 - **Saved positions** — save where you stand under your own name, rename, delete, teleport back any time.
 - **Teleport forward** — jump a few metres ahead and land on the ground.
 - **Party** — teleport the party to you, or you to a party member.
+
+## Good to know
 
 > **Tip:** Party members are teleported with you when *Keep the party together* is on ([Party](doc:party)).
