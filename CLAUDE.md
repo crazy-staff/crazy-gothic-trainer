@@ -15,6 +15,7 @@ Dear ImGui menu drawn through GD3D11, split into per-game modules (`src/games/<g
 
 ## People and process
 
+- **Language with Claude is Polish**: messages to the owner, prompts for new sessions, handoffs and scheduled tasks are written in Polish. Only what lands on GitHub (code, commits, issues, PRs, docs) is in English.
 - The owner (Dawid) is project lead; he tests builds in the game and sends feedback lists. Talk to him in
   **Polish**; everything on GitHub in **English** (README translated to PL/DE/RU). Labels `kind: value`.
 - Features are labelled by test status (green verified, yellow works badly, red crashes, blue new); update
