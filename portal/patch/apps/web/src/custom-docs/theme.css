@@ -126,32 +126,39 @@ html:not(.dark) {
 
 body:has([data-portal]) { background: var(--app-frame); }
 
+/* Wide screens: the fumadocs.dev frame. The panel has the window's height and scrolls inside,
+   so its edges and the top bar always show, as on the docs pages. */
 @media (min-width: 768px) {
+  body:has([data-portal]) { overflow: hidden; }
   [data-portal] {
+    height: calc(100dvh - 1rem);
+    min-height: 0;
     margin: 0.5rem;
-    min-height: calc(100dvh - 1rem);
+    overflow-x: clip;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
     border: 1px solid var(--border);
     border-radius: 1rem;
     background: var(--background);
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
   }
-  [data-portal] .portal-header {
-    top: 0.5rem;
-    border-radius: 1rem 1rem 0 0;
-  }
 }
-/* The header is the panel's top bar: no line under it, the page colour fading out. */
+/* The header is the panel's top bar: the page colour, fading out under it (fumadocs.dev). */
 [data-portal] .portal-header {
   border: 0;
   box-shadow: none;
-  background: linear-gradient(to bottom, var(--background) 60%, color-mix(in oklab, var(--background) 0%, transparent));
   backdrop-filter: none;
+  background: linear-gradient(to bottom, var(--background) 72%, color-mix(in oklab, var(--background) 0%, transparent));
 }
 .portal-header .portal-header__name { font-size: 0.9375rem; }
+.portal-header .portal-nav { gap: 0.125rem; }
 .portal-header .portal-nav__item {
   border-radius: 0.5rem;
-  padding: 0.3rem 0.65rem;
+  padding: 0.3rem 0.6rem;
   font-size: 0.875rem;
+  font-weight: 400;
   color: var(--muted-foreground);
   background: transparent;
 }
@@ -160,12 +167,15 @@ body:has([data-portal]) { background: var(--app-frame); }
 .portal-header .portal-nav__item--active:hover {
   background: color-mix(in oklab, var(--primary) 10%, transparent);
   color: var(--primary);
+  font-weight: 500;
 }
 
 /* Docs pages: their own frame (fumadocs.css), so the portal panel steps aside. */
 body:has(.custom-docs) [data-portal] {
   margin: 0;
+  height: auto;
   min-height: 100dvh;
+  overflow: visible;
   border: 0;
   border-radius: 0;
   background: var(--app-frame);

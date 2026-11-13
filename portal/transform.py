@@ -101,8 +101,13 @@ EDITS = {
 }
 
 # Regions replaced whole: (file, start marker, end marker, new text). Both markers must be unique.
-HEADER = """  // Custom: one full-width row on large screens (logo, centred navigation, account);
-  // the navigation gets its own row below on smaller screens.
+HEADER = """  // Custom: the portal header is the top bar of the page panel, like the docs' bar:
+  // logo on the left, navigation and account on the right. On wide screens the panel has a
+  // fixed height and scrolls inside (theme.css), so a new page starts at its top.
+  const panelPath = useRouterState({ select: (s) => s.location.pathname })
+  useEffect(() => {
+    document.querySelector('[data-portal]')?.scrollTo({ top: 0 })
+  }, [panelPath])
   const headerNav = (
     <Navigation
       navItems={navItems}
@@ -112,37 +117,32 @@ HEADER = """  // Custom: one full-width row on large screens (logo, centred navi
   )
   return (
     // A banner landmark, so the logo and account controls sit in one.
-    <header
-      ref={headerRef}
-      className="portal-header sticky top-0 z-40 w-full border-b border-[var(--border)] bg-[color-mix(in_oklab,var(--background)_82%,transparent)] backdrop-blur-md"
-    >
-      <div className="mx-auto w-full max-w-[97rem] px-4 sm:px-6">
-        <div className="grid h-14 grid-cols-[1fr_auto] items-center gap-4 lg:grid-cols-[1fr_auto_1fr]">
-          <Link to="/" className="portal-header__logo flex min-w-0 items-center gap-2 justify-self-start">
-            {orgLogo ? (
-              <img
-                src={orgLogo}
-                alt={orgName}
-                className="h-8 w-8 [border-radius:calc(var(--radius)*0.6)]"
-              />
-            ) : (
-              <div className="h-8 w-8 [border-radius:calc(var(--radius)*0.6)] bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-                {nameInitial(orgName)}
-              </div>
-            )}
-            <span
-              title={orgName}
-              className="portal-header__name font-semibold hidden sm:block max-w-[18ch] truncate text-[var(--header-foreground)]"
-            >
-              {orgName}
-            </span>
-          </Link>
-          <div className="hidden min-w-0 overflow-x-auto scrollbar-none lg:block">{headerNav}</div>
-          <div className="justify-self-end">{authButtons}</div>
-        </div>
-        <div className="-mx-4 flex h-11 items-center overflow-x-auto px-4 scrollbar-none sm:-mx-6 sm:px-6 lg:hidden">
-          {headerNav}
-        </div>
+    <header ref={headerRef} className="portal-header sticky top-0 z-40 w-full">
+      <div className="flex h-14 w-full items-center gap-3 ps-4 pe-3 sm:ps-6">
+        <Link to="/" className="portal-header__logo flex min-w-0 items-center gap-2 me-auto">
+          {orgLogo ? (
+            <img
+              src={orgLogo}
+              alt={orgName}
+              className="h-7 w-7 [border-radius:calc(var(--radius)*0.6)]"
+            />
+          ) : (
+            <div className="h-7 w-7 [border-radius:calc(var(--radius)*0.6)] bg-primary flex items-center justify-center text-sm text-primary-foreground font-semibold">
+              {nameInitial(orgName)}
+            </div>
+          )}
+          <span
+            title={orgName}
+            className="portal-header__name font-semibold hidden sm:block max-w-[18ch] truncate text-[var(--header-foreground)]"
+          >
+            {orgName}
+          </span>
+        </Link>
+        <div className="hidden min-w-0 overflow-x-auto scrollbar-none lg:block">{headerNav}</div>
+        <div className="shrink-0">{authButtons}</div>
+      </div>
+      <div className="flex h-11 items-center overflow-x-auto px-4 scrollbar-none sm:px-6 lg:hidden">
+        {headerNav}
       </div>
     </header>
   )
